@@ -30,7 +30,7 @@ class ReaderTest(unittest.TestCase):
     def test_default_config_loads(self):
         cfg = Config.load()
         self.assertGreater(cfg.bulk_threshold, 0)
-        self.assertEqual(set(cfg.as_dict()), {"bulk_threshold", "max_rows_per_file", "max_uncompressed_bytes"})
+        self.assertEqual(set(cfg.as_dict()), {"bulk_threshold", "max_rows_per_file", "max_uncompressed_bytes", "special_max_days", "min_overlap_days"})
 
     def test_values_are_exact_and_rows_padded(self):
         feed = self.read({"stops.txt": " stop_id , stop_name,x\nS1, A ,\n\nS2,B\n,,\n"})

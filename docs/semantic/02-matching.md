@@ -44,13 +44,16 @@ Planners ask two kinds of questions, answered by two modes chosen automatically:
    calendar days, what did the old data say and what does the new data say?* Per day type, the
    typical day of each side within the shared dates is compared.
 2. **Successive periods (no useful overlap).** Typical of yearly timetable changes
-   (2025-04–2026-03 vs 2026-04–2027-03). Per day type, the old side's typical day of its **last**
-   period is compared with the new side's typical day of its **first** period.
+   (2025-04–2026-03 vs 2026-04–2027-03). Per day type, each side's **dominant** service set (the
+   most frequent over its whole validity) is compared; the representative date is the last date
+   of that set on the old side and the first on the new side. The last and first *periods* are
+   not used: pilot data showed weekday periods split by school terms, where the last and first
+   periods are school-holiday timetables rather than the regular one.
 
 A **period** is a maximal date range over which a day type's typical service set does not change.
 A publication that bundles two timetables (before and after a change) therefore has two periods;
-they are listed in the report, and in mode 2 the last and first periods are the ones compared,
-so a bundled "before" timetable is never mistaken for a service reduction.
+they are listed in the report. A short bundled "before" timetable is not dominant, so it is never
+mistaken for the regular timetable.
 
 Days outside the compared dates are not silently dropped: their raw differences are labelled
 `outside_comparison` (Part 1 accounting).

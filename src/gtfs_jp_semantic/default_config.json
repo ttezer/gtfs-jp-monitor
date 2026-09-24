@@ -2,5 +2,7 @@
   "bulk_threshold": 100000,
   "max_rows_per_file": 5000000,
   "max_uncompressed_bytes": 2147483648,
-  "schema": "gtfs-jp-semantic-config/1"
+  "min_overlap_days": 14,
+  "schema": "gtfs-jp-semantic-config/1",
+  "special_max_days": 10
 }

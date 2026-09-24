@@ -23,19 +23,25 @@ class Config:
     bulk_threshold: int
     max_rows_per_file: int
     max_uncompressed_bytes: int
+    # docs/semantic/02-matching.md §1-2 (placeholders until pilot calibration)
+    special_max_days: int = 10
+    min_overlap_days: int = 14
 
     @classmethod
     def load(cls, path: Path = DEFAULT_CONFIG) -> "Config":
         doc = json.loads(Path(path).read_text(encoding="utf-8"))
         if doc.get("schema") != CONFIG_SCHEMA:
             raise ValueError(f"{path}: unexpected schema {doc.get('schema')!r}")
-        return cls(int(doc["bulk_threshold"]), int(doc["max_rows_per_file"]), int(doc["max_uncompressed_bytes"]))
+        return cls(int(doc["bulk_threshold"]), int(doc["max_rows_per_file"]), int(doc["max_uncompressed_bytes"]),
+                   int(doc["special_max_days"]), int(doc["min_overlap_days"]))
 
     def as_dict(self) -> dict:
         return {
             "bulk_threshold": self.bulk_threshold,
             "max_rows_per_file": self.max_rows_per_file,
             "max_uncompressed_bytes": self.max_uncompressed_bytes,
+            "special_max_days": self.special_max_days,
+            "min_overlap_days": self.min_overlap_days,
         }
 
 
