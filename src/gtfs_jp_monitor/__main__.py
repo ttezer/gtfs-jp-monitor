@@ -159,6 +159,8 @@ def _cmd_export_web(args: argparse.Namespace) -> int:
 
     key = f"{args.release_tag}__{args.profile}"
     export, bundles = build_export(Path(args.data_dir), key, Path(args.analyzer) if args.analyzer else None)
+    ext = ".json.gz" if args.bundle_format == "gz" else ".json"
+    export["report_bundle_ext"] = ext
     if args.json:
         from .canonical import write_json
         write_json(Path(args.json), export)
@@ -170,13 +172,15 @@ def _cmd_export_web(args: argparse.Namespace) -> int:
         Path(args.html).write_text(template.replace("/*__EXPORT__*/", payload), encoding="utf-8")
         from gtfs_jp_semantic.rawdiff import gzip_bytes
 
+        from .canonical import dumps
+
         out = Path(args.html).parent / "reports"
         out.mkdir(parents=True, exist_ok=True)
-        for old in out.glob("pref-*.json.gz"):
-            if old.name[:-len(".json.gz")] not in bundles:
-                old.unlink()
+        for old in [*out.glob("pref-*.json.gz"), *out.glob("pref-*.json")]:  # bundles of an earlier export
+            old.unlink()
         for name, docs in bundles.items():
-            (out / f"{name}.json.gz").write_bytes(gzip_bytes(docs))
+            data = gzip_bytes(docs) if ext == ".json.gz" else dumps(docs).encode("utf-8")
+            (out / f"{name}{ext}").write_bytes(data)
     print(json.dumps({"feeds": len(export["feeds"]),
                       "generations": sum(len(f["generations"]) for f in export["feeds"]),
                       "reports": len(export["report_index"]), "bundles": len(bundles)}, indent=2))
@@ -250,6 +254,8 @@ def main(argv: list[str] | None = None) -> int:
     web.add_argument("--json", help="write the export JSON here")
     web.add_argument("--html", help="write a self-contained page here")
     web.add_argument("--template", default=str(DEFAULT_TEMPLATE))
+    web.add_argument("--bundle-format", choices=("gz", "json"), default="gz",
+                     help="report bundles next to the page: gzip (default) or plain JSON for hosts that do not serve .gz")
     web.set_defaults(func=_cmd_export_web)
 
     args = parser.parse_args(argv)
