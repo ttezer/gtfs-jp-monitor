@@ -137,6 +137,7 @@ places every raw difference in one bucket.
   | `stops.txt` row of a place that is not unchanged, or whose id changed | explained |
   | `routes.txt` row of a line that is not unchanged, or a renumbered route of an unchanged line | explained |
   | `trips.txt` / `stop_times.txt` row of a compared trip that changed, or only changed id | explained |
+  | `stop_times.txt` stop_id change where old and new stop belong to the same matched place | explained (renumbering) |
   | the same for a trip that ran on no compared day | outside comparison |
   | `frequencies.txt`; file or column changes of stops, routes, trips, stop times; anything else | unclassified |
 

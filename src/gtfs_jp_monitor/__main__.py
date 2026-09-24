@@ -105,6 +105,41 @@ def _cmd_rawdiff(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_semantic_report(args: argparse.Namespace) -> int:
+    from gtfs_jp_semantic.rawdiff import gzip_bytes
+    from gtfs_jp_semantic.report import build_report
+
+    from .canonical import write_json
+    from .catalog import load_catalog
+    from .store import diff_path
+
+    root = Path(args.data_dir)
+    org_id, feed_id = args.feed
+    entries = load_catalog(root)[1].get((org_id, feed_id), {})
+    pubs = []
+    for uid in (args.old_uid, args.new_uid):
+        if uid not in entries:
+            raise SystemExit(f"{uid} is not a generation of {org_id}/{feed_id} in the catalog")
+        pubs.append({k: entries[uid].get(k) for k in ("uid", "from_date", "to_date", "published_at", "memo")})
+    quality, key = None, None
+    if args.analysis_key:
+        path = diff_path(root, org_id, feed_id, args.analysis_key, args.old_uid, args.new_uid)
+        if path.exists():
+            scores = json.loads(path.read_text(encoding="utf-8"))["scores"]
+            if scores:
+                quality, key = {"publish": scores["publish"], "overall": scores["overall"]}, args.analysis_key
+    report, _ = build_report(Path(args.old), Path(args.new), feed={"org_id": org_id, "feed_id": feed_id},
+                             old_pub=pubs[0], new_pub=pubs[1], summary_quality=quality, analysis_key=key)
+    out = Path(args.output)
+    if out.name.endswith(".gz"):
+        out.write_bytes(gzip_bytes(report))
+    else:
+        write_json(out, report)
+    print(json.dumps({"coverage": report["header"]["coverage"], "lines": report["summary"]["lines"],
+                      "places": report["summary"]["places"]}, ensure_ascii=False, indent=2))
+    return 0
+
+
 DEFAULT_TEMPLATE = Path(__file__).resolve().parents[2] / "web" / "prototype" / "index.html"
 
 
@@ -112,7 +147,8 @@ def _cmd_export_web(args: argparse.Namespace) -> int:
     from .webexport import build_export
 
     key = f"{args.release_tag}__{args.profile}"
-    export = build_export(Path(args.data_dir), key, Path(args.analyzer) if args.analyzer else None)
+    export = build_export(Path(args.data_dir), key, Path(args.analyzer) if args.analyzer else None,
+                          Path(args.reports) if args.reports else None)
     if args.json:
         from .canonical import write_json
         write_json(Path(args.json), export)
@@ -123,7 +159,8 @@ def _cmd_export_web(args: argparse.Namespace) -> int:
             raise SystemExit("template must contain exactly one /*__EXPORT__*/ placeholder")
         Path(args.html).write_text(template.replace("/*__EXPORT__*/", payload), encoding="utf-8")
     print(json.dumps({"feeds": len(export["feeds"]),
-                      "generations": sum(len(f["generations"]) for f in export["feeds"])}, indent=2))
+                      "generations": sum(len(f["generations"]) for f in export["feeds"]),
+                      "reports": len(export["reports"])}, indent=2))
     return 0
 
 
@@ -167,6 +204,17 @@ def main(argv: list[str] | None = None) -> int:
     raw.add_argument("-o", "--output", required=True, help="output .json.gz (gtfs-jp-semantic-rawdiff/1)")
     raw.set_defaults(func=_cmd_rawdiff)
 
+    rep = sub.add_parser("semantic-report", help="planner change report for two publications (semantic engine, part 3)")
+    rep.add_argument("--data-dir", required=True, help="data repository checkout (catalog and validation diffs)")
+    rep.add_argument("--feed", required=True, type=_feed_key, metavar="ORG_ID/FEED_ID")
+    rep.add_argument("--old", required=True, help="old GTFS ZIP")
+    rep.add_argument("--new", required=True, help="new GTFS ZIP")
+    rep.add_argument("--old-uid", required=True)
+    rep.add_argument("--new-uid", required=True)
+    rep.add_argument("--analysis-key", help="e.g. v0.14.0__auto; links the validation diff when it exists")
+    rep.add_argument("-o", "--output", required=True, help="output .report.json or .report.json.gz")
+    rep.set_defaults(func=_cmd_semantic_report)
+
     web = sub.add_parser("export-web", help="export data for the web page (prototype)")
     web.add_argument("--data-dir", required=True)
     web.add_argument("--release-tag", required=True, help="analysis release, e.g. v0.14.0")
@@ -175,6 +223,7 @@ def main(argv: list[str] | None = None) -> int:
     web.add_argument("--json", help="write the export JSON here")
     web.add_argument("--html", help="write a self-contained page here")
     web.add_argument("--template", default=str(DEFAULT_TEMPLATE))
+    web.add_argument("--reports", help="directory of semantic reports (*.report.json[.gz]) to embed")
     web.set_defaults(func=_cmd_export_web)
 
     args = parser.parse_args(argv)

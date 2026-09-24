@@ -164,8 +164,15 @@ class AccountingTest(unittest.TestCase):
             {"id": "c0000005", "file": "stop_times.txt", "kind": "field_changed", "key": ["T1", "1"]},
             {"id": "c0000006", "file": "routes_jp.txt", "kind": "file_added", "rows": 3},
         ]}
-        acc = classify(raw, Evidence(changed_trips={"T1"}, compared_trips={"T1"}))
-        self.assertEqual(acc.unclassified, ["c0000001", "c0000002"])
+        raw["changes"] += [
+            {"id": "c0000007", "file": "stop_times.txt", "kind": "field_changed", "key": ["T2", "1"], "column": "stop_id",
+             "old": "i-1", "new": "1"},
+            {"id": "c0000008", "file": "stop_times.txt", "kind": "field_changed", "key": ["T2", "2"], "column": "stop_id",
+             "old": "i-2", "new": "3"},
+        ]
+        acc = classify(raw, Evidence(changed_trips={"T1"}, compared_trips={"T1", "T2"},
+                                     old_stop_place={"i-1": "P1", "i-2": "P2"}, new_stop_place={"1": "P1", "3": "P3"}))
+        self.assertEqual(acc.unclassified, ["c0000001", "c0000002", "c0000008"])  # c7 renumbered, c8 another place
         self.assertEqual(acc.outside, ["c0000004"])
         self.assertEqual(acc.other, {"fares": ["c0000003"], "other_files": ["c0000006"]})
 

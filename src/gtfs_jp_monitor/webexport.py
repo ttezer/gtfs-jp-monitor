@@ -7,6 +7,7 @@ same rules as `diff.build_diff` (data-model §9).
 
 from __future__ import annotations
 
+import gzip
 import json
 import subprocess
 from pathlib import Path
@@ -52,7 +53,23 @@ def _summary(entry: dict, doc: dict) -> dict:
     }
 
 
-def build_export(data_dir: Path, key: str, analyzer: Path | None = None) -> dict:
+def load_reports(reports_dir: Path, feeds: set[tuple[str, str]]) -> dict[str, dict]:
+    """Semantic reports keyed "<old_uid>__<new_uid>", for exported feeds only."""
+    reports: dict[str, dict] = {}
+    for path in sorted(Path(reports_dir).iterdir()):
+        if path.name.endswith(".report.json.gz"):
+            doc = json.loads(gzip.decompress(path.read_bytes()).decode("utf-8"))
+        elif path.name.endswith(".report.json"):
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        else:
+            continue
+        h = doc["header"]
+        if (h["feed"]["org_id"], h["feed"]["feed_id"]) in feeds:
+            reports[f"{h['old']['uid']}__{h['new']['uid']}"] = doc
+    return reports
+
+
+def build_export(data_dir: Path, key: str, analyzer: Path | None = None, reports_dir: Path | None = None) -> dict:
     root = Path(data_dir)
     catalog_feeds, catalog_gens = load_catalog(root)
     feeds = []
@@ -92,4 +109,5 @@ def build_export(data_dir: Path, key: str, analyzer: Path | None = None) -> dict
         "analysis_key": key,
         "feeds": feeds,
         "rule_titles": rule_titles(analyzer, rule_ids) if analyzer else {lang: {} for lang in LANGS},
+        "reports": load_reports(reports_dir, {(f["org_id"], f["feed_id"]) for f in feeds}) if reports_dir else {},
     }

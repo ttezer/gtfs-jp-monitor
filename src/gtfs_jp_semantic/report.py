@@ -332,6 +332,8 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
                 if table[side] is not None:
                     table[side]["places"] = [places[r] for r in table[side]["places"]]
 
+    ev.old_stop_place = {sid: to_new[pid] for sid, pid in place_of_stop(op).items() if pid in to_new}
+    ev.new_stop_place = place_of_stop(np_)
     acc = classify(raw, ev)
     notes: list[dict] = []
     old_jp = sorted(n for n in ot if n in JP_FILES)

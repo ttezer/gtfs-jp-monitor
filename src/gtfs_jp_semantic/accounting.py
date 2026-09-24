@@ -35,6 +35,9 @@ class Evidence:
     changed_routes: set[str] = field(default_factory=set)  # route_ids of lines that are not unchanged
     changed_trips: set[str] = field(default_factory=set)  # trip_ids of compared trips that changed (incl. id-only)
     compared_trips: set[str] = field(default_factory=set)  # trip_ids that ran on a compared day (either side)
+    # stop_id -> id of the matched place, per side; equal values mean the stop was only renumbered.
+    old_stop_place: dict[str, str] = field(default_factory=dict)
+    new_stop_place: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -64,6 +67,10 @@ def _bucket(change: dict, ev: Evidence) -> tuple[str, str | None]:
     if name == "routes.txt":
         route_id = key[0] if key else (change.get("old") or change.get("new") or {}).get("route_id")
         return ("explained", None) if route_id in ev.changed_routes else ("unclassified", None)
+    if name == "stop_times.txt" and kind == "field_changed" and change.get("column") == "stop_id":
+        target = ev.old_stop_place.get(change["old"])
+        if target is not None and target == ev.new_stop_place.get(change["new"]):
+            return "explained", None  # same place, new stop id
     if name in ("trips.txt", "stop_times.txt"):
         trip_id = key[0] if key else (change.get("old") or change.get("new") or {}).get("trip_id")
         if trip_id in ev.changed_trips:

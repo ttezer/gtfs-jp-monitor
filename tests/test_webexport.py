@@ -34,6 +34,26 @@ class WebExportTest(unittest.TestCase):
         self.assertEqual(g["rid"], "current")
         self.assertEqual(g["rules"]["JPN_030"], [4, "MEDIUM", "QUALITY"])
         self.assertEqual(export["rule_titles"], {"tr": {}, "en": {}, "ja": {}})
+        self.assertEqual(export["reports"], {})
+
+    def test_embeds_reports_of_exported_feeds(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "data"
+            sync_catalog(FakeClient([feed_record()], {(ORG, FEED): [gen(1, "current", "2026-04-01")]}), root)
+            doc = copy.deepcopy(load_json(FIXTURES / "generation" / "complete.json"))
+            doc["generation"]["uid"] = uid(1)
+            write_json(generation_path(root, ORG, FEED, uid(1), KEY), doc)
+            reports = Path(tmp) / "reports"
+            reports.mkdir()
+            example = load_json(FIXTURES / "semantic" / "report-example.json")
+            mine = copy.deepcopy(example)
+            mine["header"]["feed"] = {"org_id": ORG, "feed_id": FEED}
+            write_json(reports / "mine.report.json", mine)
+            write_json(reports / "other.report.json", example)  # feed not exported
+            (reports / "notes.txt").write_text("ignored", encoding="utf-8")
+            export = build_export(root, KEY, reports_dir=reports)
+        h = mine["header"]
+        self.assertEqual(list(export["reports"]), [f"{h['old']['uid']}__{h['new']['uid']}"])
 
 
 if __name__ == "__main__":
