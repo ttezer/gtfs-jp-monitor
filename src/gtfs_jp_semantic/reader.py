@@ -28,6 +28,8 @@ class Config:
     min_overlap_days: int = 14
     # Matching thresholds (docs/semantic/02-matching.md §3-6), read from the "matching" section.
     matching: dict = field(default_factory=dict, hash=False, compare=False)
+    # Report assembly (docs/semantic/03-report.md), read from the "report" section.
+    report: dict = field(default_factory=dict, hash=False, compare=False)
 
     @classmethod
     def load(cls, path: Path = DEFAULT_CONFIG) -> "Config":
@@ -35,7 +37,8 @@ class Config:
         if doc.get("schema") != CONFIG_SCHEMA:
             raise ValueError(f"{path}: unexpected schema {doc.get('schema')!r}")
         return cls(int(doc["bulk_threshold"]), int(doc["max_rows_per_file"]), int(doc["max_uncompressed_bytes"]),
-                   int(doc["special_max_days"]), int(doc["min_overlap_days"]), dict(doc.get("matching", {})))
+                   int(doc["special_max_days"]), int(doc["min_overlap_days"]), dict(doc.get("matching", {})),
+                   dict(doc.get("report", {})))
 
     def as_dict(self) -> dict:
         return {
@@ -45,6 +48,7 @@ class Config:
             "special_max_days": self.special_max_days,
             "min_overlap_days": self.min_overlap_days,
             "matching": self.matching,
+            "report": self.report,
         }
 
 

@@ -6,6 +6,7 @@ from gtfs_jp_semantic.trips import (
     build_trips,
     direction_key,
     dominant_pattern,
+    match_moved_trips,
     match_trips,
     parse_minutes,
     pattern_edits,
@@ -89,6 +90,23 @@ class MatchTripsTest(unittest.TestCase):
         pairs = match_trips(old, new, CFG)
         self.assertEqual(sorted(p.old for p in pairs if p.old is not None), list(range(10)))
         self.assertEqual(sorted(p.new for p in pairs if p.new is not None), list(range(7)))
+
+
+class MovedTripsTest(unittest.TestCase):
+    def test_extended_variant_on_another_line(self):
+        old = [trip("a", "ABCDE", 1175, line="30G")]
+        new = [trip("x", "ABCDEFGHIJKL", 1175, line="30E")]
+        self.assertEqual(kinds(match_moved_trips(old, new, CFG)), [(0, 0, "rerouted")])
+
+    def test_needs_a_shared_end_and_time(self):
+        trunk = [trip("a", "BCD", 600)]  # a short trip inside the corridor, other ends
+        self.assertEqual(kinds(match_moved_trips(trunk, [trip("x", "ABCDE", 600)], CFG)), [(0, None, "removed"), (None, 0, "added")])
+        late = [trip("a", "ABC", 600)]
+        far = [trip("x", "ABCD", 600 + CFG["cross_line_max_shift_min"] + 1)]
+        self.assertEqual(kinds(match_moved_trips(late, far, CFG)), [(0, None, "removed"), (None, 0, "added")])
+
+    def test_unchanged_trip_under_another_line(self):
+        self.assertEqual(kinds(match_moved_trips([trip("a", "ABC", 400)], [trip("x", "ABC", 400, line="2")], CFG)), [(0, 0, "exact")])
 
 
 class PatternTest(unittest.TestCase):

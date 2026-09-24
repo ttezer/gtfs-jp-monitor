@@ -21,7 +21,7 @@ from .rawdiff import diff_feeds
 from .reader import Config, Feed, read_feed
 from .report_check import check_report
 from .service import build_calendar, choose_comparison
-from .trips import Trip, TripPair, build_trips, dominant_pattern, match_trips, pattern_edits
+from .trips import Trip, TripPair, build_trips, dominant_pattern, match_moved_trips, match_trips, pattern_edits
 
 SCHEMA = "gtfs-jp-semantic-report/1"
 JP_FILES = frozenset({"agency_jp.txt", "office_jp.txt", "routes_jp.txt", "pattern_jp.txt"})
@@ -161,6 +161,40 @@ def _pair_order(p: TripPair, a: list[Trip], b: list[Trip]) -> tuple:
     return (min(times) if times else 10**6, -1 if p.old is None else p.old, -1 if p.new is None else p.new)
 
 
+def _details(changes: list[dict], ids: list[str], limit: int) -> tuple[list[dict], int]:
+    """Row-level items of one Other topic, at most `limit`; shapes are summarised per shape_id."""
+    wanted = set(ids)
+    items: list[dict] = []
+    shapes: dict[str, collections.Counter] = {}
+    for c in changes:
+        if c["id"] not in wanted:
+            continue
+        if c["file"] == "shapes.txt" and c["kind"] in ("row_added", "row_removed", "field_changed"):
+            row = c.get("old") if c["kind"] == "row_removed" else c.get("new")
+            sid = c["key"][0] if c.get("key") else (row or {}).get("shape_id", "")
+            kind = {"row_added": "added", "row_removed": "removed", "field_changed": "changed_fields"}[c["kind"]]
+            shapes.setdefault(sid, collections.Counter())[kind] += 1
+            continue
+        items.append({"id": c["id"], "file": c["file"], "kind": c["kind"], "key": c.get("key"), "column": c.get("column"),
+                      "old": c.get("old"), "new": c.get("new"), "counts": c.get("counts")})
+    for sid, counts in sorted(shapes.items()):
+        items.append({"id": None, "file": "shapes.txt", "kind": "shape_changed", "key": [sid], "column": None,
+                      "old": None, "new": None, "counts": dict(sorted(counts.items()))})
+    return items[:limit], max(0, len(items) - limit)
+
+
+def _file_table(raw: dict, acc_files: dict[str, dict[str, int]]) -> dict[str, dict]:
+    """Every file of either side: row counts, difference kinds and accounting buckets."""
+    out = {}
+    for name, meta in sorted(raw["files"].items()):
+        kinds = meta["counts"]
+        base = acc_files.get(name, {"changes": 0, "classified": 0, "outside_comparison": 0, "unclassified": 0})
+        out[name] = dict(base, old_rows=meta["rows"]["old"], new_rows=meta["rows"]["new"],
+                         added=kinds.get("row_added", 0), removed=kinds.get("row_removed", 0),
+                         changed_fields=kinds.get("field_changed", 0))
+    return out
+
+
 def _counts(changes: list[dict], ids: list[str]) -> dict[str, int]:
     wanted = set(ids)
     counts: collections.Counter = collections.Counter()
@@ -206,9 +240,8 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
     group_of_new = {k: g for g in groups for k in g.match.new}
 
     ev = Evidence()
-    # trips[group key][direction][day type] = (old trips, new trips)
-    trips: dict[str, dict[str, dict[str, tuple[list[Trip], list[Trip]]]]] = collections.defaultdict(
-        lambda: collections.defaultdict(dict))
+    # 1. Per line, direction and day type: combos[(group key, direction, day type)] = (old trips, new trips, pairs)
+    combos: dict[tuple[str, str, str], tuple[list[Trip], list[Trip], list[TripPair]]] = {}
     totals: dict[str, dict[str, int]] = {}
     for dt in DAY_TYPES:
         choice = comparison.day_types[dt]
@@ -223,29 +256,72 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
             by[(group_of_new[t.line].key, t.direction)][1].append(t)
             ev.compared_trips.add(t.trip_id)
         for (gkey, direction), (a, b) in by.items():
-            trips[gkey][direction][dt] = (_sort_trips(a), _sort_trips(b))
+            a, b = _sort_trips(a), _sort_trips(b)
+            combos[(gkey, direction, dt)] = (a, b, match_trips(a, b, cfg))
 
+    # 2. Trips left unmatched in their own line may have moved to another line or direction (a route
+    # variant of the same corridor): matched again across lines with stricter rules.
+    moves: list[dict] = []
+    moved: set[tuple[str, str, str, str, int]] = set()  # (side, group key, direction, day type, trip index)
+    for dt in DAY_TYPES:
+        left_old = [(k, p.old) for k, (a, b, pairs) in sorted(combos.items()) if k[2] == dt for p in pairs if p.new is None]
+        left_new = [(k, p.new) for k, (a, b, pairs) in sorted(combos.items()) if k[2] == dt for p in pairs if p.old is None]
+        if not left_old or not left_new:
+            continue
+        lo = [combos[k][0][i] for k, i in left_old]
+        ln = [combos[k][1][j] for k, j in left_new]
+        for p in match_moved_trips(lo, ln, cfg):
+            if p.old is None or p.new is None:
+                continue
+            (ko, i), (kn, j) = left_old[p.old], left_new[p.new]
+            edits = pattern_edits(lo[p.old].places, ln[p.new].places)
+            places.use(x for e in edits for x in e.places)
+            moves.append({"day_type": dt, "kind": p.kind,
+                          "old": {"line": ko[0], "direction": ko[1], "trip": i},
+                          "new": {"line": kn[0], "direction": kn[1], "trip": j},
+                          "edits": [{"kind": e.kind, "places": list(e.places)} for e in edits]})
+            moved.update({("old", *ko, i), ("new", *kn, j)})
+    moves.sort(key=lambda m: (m["old"]["line"], m["old"]["direction"], DAY_TYPES.index(m["day_type"]), m["old"]["trip"]))
+    lines_with_moves = {m[s]["line"] for m in moves for s in ("old", "new")}
+
+    # 3. Report blocks.
     shift = cfg["first_last_min_shift"]
     first_last_changed = 0
     line_docs = []
+    by_group: dict[str, dict[str, dict[str, tuple]]] = collections.defaultdict(lambda: collections.defaultdict(dict))
+    for (gkey, direction, dt), combo in combos.items():
+        by_group[gkey][direction][dt] = combo
     for g in sorted(groups, key=lambda g: g.key):
-        by_dir = trips.get(g.key, {})
-        doc_trips: dict[str, dict[str, dict[str, int]]] = {}
-        first_last, patterns, timetables = [], [], []
-        changed = False
+        by_dir = by_group.get(g.key, {})
+        doc_trips, first_last, patterns, timetables = [], [], [], []
+        changed = g.key in lines_with_moves
         for direction in sorted(by_dir):
-            all_old = [t for a, _ in by_dir[direction].values() for t in a]
-            all_new = [t for _, b in by_dir[direction].values() for t in b]
-            edits = pattern_edits(dominant_pattern(all_old), dominant_pattern(all_new))
+            # Pattern edits seen on paired trips of this line, with the number of trips showing them.
+            seen: collections.Counter = collections.Counter()
+            for dt, (a, b, pairs) in by_dir[direction].items():
+                for p in pairs:
+                    if p.kind in ("rerouted", "retimed_rerouted"):
+                        for e in pattern_edits(a[p.old].places, b[p.new].places):
+                            seen[(e.kind, e.places)] += 1
+            # Trips of this line that changed direction key (no direction_id, new end points).
+            for m in moves:
+                if m["old"]["line"] == m["new"]["line"] == g.key and m["new"]["direction"] == direction:
+                    for e in m["edits"]:
+                        seen[(e["kind"], tuple(e["places"]))] += 1
+            edits = [{"kind": k, "places": list(ps), "trips": n} for (k, ps), n in sorted(seen.items(), key=lambda x: (-x[1], x[0]))]
+            if not edits:  # no paired trip changed route: compare the dominant patterns of both sides
+                all_old = [t for a, _, _ in by_dir[direction].values() for t in a]
+                all_new = [t for _, b, _ in by_dir[direction].values() for t in b]
+                edits = [{"kind": e.kind, "places": list(e.places), "trips": None}
+                         for e in pattern_edits(dominant_pattern(all_old), dominant_pattern(all_new))]
             if edits:
                 changed = True
-                places.use(p for e in edits for p in e.places)
-                patterns.append({"direction": direction, "edits": [{"kind": e.kind, "places": list(e.places)} for e in edits]})
+                places.use(x for e in edits for x in e["places"])
+                patterns.append({"direction": direction, "edits": edits})
             for dt in DAY_TYPES:
                 if dt not in by_dir[direction]:
                     continue
-                a, b = by_dir[direction][dt]
-                pairs: list[TripPair] = match_trips(a, b, cfg)
+                a, b, pairs = by_dir[direction][dt]
                 combo_changed = False
                 for p in pairs:
                     ta = a[p.old] if p.old is not None else None
@@ -265,8 +341,7 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
                     for t in side_trips:
                         if t.first_departure is not None:
                             bands.setdefault(_band(t.first_departure), {"before": 0, "after": 0})[side] += 1
-                for band, count in bands.items():
-                    doc_trips.setdefault(dt, {})[band] = count
+                doc_trips.append({"direction": direction, "day_type": dt, "bands": dict(sorted(bands.items()))})
                 first = {"before": _time(a[0].first_departure) if a else None, "after": _time(b[0].first_departure) if b else None}
                 lasts_a = [t.first_departure for t in a if t.first_departure is not None]
                 lasts_b = [t.first_departure for t in b if t.first_departure is not None]
@@ -282,15 +357,16 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
         else:
             # Same line, same service: routes whose id changed are renumbering.
             ev.changed_routes.update({r for l in g.old for r in l.route_ids} ^ {r for l in g.new for r in l.route_ids})
-            doc_trips, first_last = {}, []
+            doc_trips, first_last = [], []
         line_docs.append({
             "key": g.key,
             "status": status,
             "old": _side(g.old),
             "new": _side(g.new),
-            "related": [],
+            "related": sorted({m["new" if m["old"]["line"] == g.key else "old"]["line"] for m in moves
+                               if g.key in (m["old"]["line"], m["new"]["line"])} - {g.key}),
             "match": None if g.match.method is None else {"method": g.match.method, "confidence": g.match.confidence},
-            "trips": {dt: dict(sorted(b.items())) for dt, b in sorted(doc_trips.items())},
+            "trips": doc_trips,
             "first_last": first_last,
             "patterns": patterns,
             "timetables": timetables,
@@ -323,6 +399,9 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
             "moved_m": m.distance_m if m.status in ("moved", "renamed_moved") else None,
             "lines": sorted(serving.get(ref, ())),
         })
+    for m in moves:
+        for edit in m["edits"]:
+            edit["places"] = [places[r] for r in edit["places"]]
     for line in line_docs:
         for pattern in line["patterns"]:
             for edit in pattern["edits"]:
@@ -375,6 +454,7 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
             },
             "trips_by_day_type": totals,
             "first_last_changed": first_last_changed,
+            "trip_moves": len(moves),
             "fares": _fares(raw["changes"]),
             "quality": summary_quality,
         },
@@ -387,9 +467,11 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
         },
         "places": place_docs,
         "lines": line_docs,
-        "other": [{"topic": topic, "counts": _counts(raw["changes"], ids), "evidence": ids}
+        "moves": moves,
+        "other": [{"topic": topic, "counts": _counts(raw["changes"], ids), "evidence": ids,
+                   **dict(zip(("details", "truncated"), _details(raw["changes"], ids, config.report["other_details_max"])))}
                   for topic, ids in sorted(acc.other.items())],
-        "accounting": {"files": acc.files, "unclassified": acc.unclassified},
+        "accounting": {"files": _file_table(raw, acc.files), "unclassified": acc.unclassified},
         "quality": {"analysis_key": analysis_key} if analysis_key else None,
     }
     problems = check_report(report)

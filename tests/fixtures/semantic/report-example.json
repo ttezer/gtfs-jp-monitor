@@ -2,9 +2,14 @@
   "accounting": {
     "files": {
       "stop_times.txt": {
+        "added": 10,
+        "changed_fields": 40,
         "changes": 80,
         "classified": 76,
+        "new_rows": 880,
+        "old_rows": 900,
         "outside_comparison": 2,
+        "removed": 30,
         "unclassified": 2
       }
     },
@@ -120,13 +125,15 @@
               "kind": "removed",
               "places": [
                 3
-              ]
+              ],
+              "trips": 2
             },
             {
               "kind": "extended",
               "places": [
                 4
-              ]
+              ],
+              "trips": 2
             }
           ]
         }
@@ -196,18 +203,22 @@
           ]
         }
       ],
-      "trips": {
-        "weekday": {
-          "07-08": {
-            "after": 5,
-            "before": 6
+      "trips": [
+        {
+          "bands": {
+            "07-08": {
+              "after": 5,
+              "before": 6
+            },
+            "09-10": {
+              "after": 10,
+              "before": 10
+            }
           },
-          "09-10": {
-            "after": 10,
-            "before": 10
-          }
+          "day_type": "weekday",
+          "direction": "0"
         }
-      }
+      ]
     },
     {
       "first_last": [],
@@ -236,7 +247,7 @@
       "related": [],
       "status": "renamed",
       "timetables": [],
-      "trips": {}
+      "trips": []
     },
     {
       "first_last": [],
@@ -255,14 +266,18 @@
       "related": [],
       "status": "added",
       "timetables": [],
-      "trips": {
-        "sunday_holiday": {
-          "09-10": {
-            "after": 12,
-            "before": 0
-          }
+      "trips": [
+        {
+          "bands": {
+            "09-10": {
+              "after": 12,
+              "before": 0
+            }
+          },
+          "day_type": "sunday_holiday",
+          "direction": "0"
         }
-      }
+      ]
     },
     {
       "first_last": [],
@@ -291,21 +306,52 @@
       "related": [],
       "status": "unchanged",
       "timetables": [],
-      "trips": {}
+      "trips": []
     }
   ],
+  "moves": [],
   "other": [
     {
       "counts": {
         "classes_removed": 1,
         "prices_changed": 2
       },
+      "details": [
+        {
+          "column": null,
+          "counts": null,
+          "file": "fare_attributes.txt",
+          "id": "c0000001",
+          "key": [
+            "F9"
+          ],
+          "kind": "row_removed",
+          "new": null,
+          "old": {
+            "fare_id": "F9",
+            "price": "300"
+          }
+        },
+        {
+          "column": "price",
+          "counts": null,
+          "file": "fare_attributes.txt",
+          "id": "c0000002",
+          "key": [
+            "F1"
+          ],
+          "kind": "field_changed",
+          "new": "220",
+          "old": "200"
+        }
+      ],
       "evidence": [
         "c0000001",
         "c0000002",
         "c0000003"
       ],
-      "topic": "fares"
+      "topic": "fares",
+      "truncated": 1
     }
   ],
   "places": [
@@ -495,6 +541,7 @@
         "delta": 0.0
       }
     },
+    "trip_moves": 0,
     "trips_by_day_type": {
       "saturday": {
         "after": 20,

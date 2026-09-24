@@ -164,6 +164,53 @@ def match_trips(old: list[Trip], new: list[Trip], cfg: dict) -> list[TripPair]:
     return result
 
 
+def _containment(a: tuple[str, ...], b: tuple[str, ...]) -> float:
+    """Share of the shorter place sequence found, in order, in the longer one."""
+    if not a or not b:
+        return 0.0
+    matched = sum(block.size for block in SequenceMatcher(None, a, b, autojunk=False).get_matching_blocks())
+    return matched / min(len(a), len(b))
+
+
+def match_moved_trips(old: list[Trip], new: list[Trip], cfg: dict) -> list[TripPair]:
+    """Pair trips left unmatched in their own line with trips of other lines or directions.
+
+    A route variant of the same corridor keeps one end and most of its places: the shorter
+    sequence must lie largely inside the longer one and share its first or last place, and the
+    trip must run at about the same time. Stricter than match_trips, since lines differ.
+    """
+    cap = cfg["cross_line_max_shift_min"]
+    min_share = cfg["cross_line_min_containment"]
+    new_times = [_time_map(b) for b in new]
+    candidates = []
+    for i, a in enumerate(old):
+        for j, b in enumerate(new):
+            if not a.places or not b.places or (a.places[0] != b.places[0] and a.places[-1] != b.places[-1]):
+                continue
+            share = _containment(a.places, b.places)
+            diffs = _shifts(a, new_times[j])
+            if share < min_share or not diffs:
+                continue
+            shift = statistics.median(diffs)
+            if shift > cap:
+                continue
+            cost = round(shift / cap + (1.0 - share), 6)
+            candidates.append((cost, a.first_departure or 0, b.first_departure or 0, a.trip_id, b.trip_id, i, j))
+    pairs: dict[int, tuple[int, str]] = {}
+    used: set[int] = set()
+    for *_, i, j in sorted(candidates):
+        if i in pairs or j in used:
+            continue
+        a, b = old[i], new[j]
+        rerouted = a.places != b.places
+        retimed = a.times != b.times if not rerouted else any(_shifts(a, new_times[j]))
+        pairs[i] = (j, "retimed_rerouted" if rerouted and retimed else "rerouted" if rerouted else "retimed" if retimed else "exact")
+        used.add(j)
+    result = [TripPair(i, pairs[i][0], pairs[i][1]) if i in pairs else TripPair(i, None, "removed") for i in range(len(old))]
+    result += [TripPair(None, j, "added") for j in range(len(new)) if j not in used]
+    return result
+
+
 def dominant_pattern(trips: list[Trip]) -> tuple[str, ...]:
     """Most frequent place sequence (ties: the longest, then lexical order)."""
     counts: dict[tuple[str, ...], int] = {}

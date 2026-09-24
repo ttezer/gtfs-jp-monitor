@@ -5,7 +5,7 @@
   "description": "Planner-oriented change report for one consecutive pair of publications (docs/semantic/03-report.md). Language-neutral: codes, numbers, dates and names as published. Places are defined once in `places` and referenced by index everywhere else.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "header", "summary", "service_days", "places", "lines", "other", "accounting", "quality"],
+  "required": ["schema", "header", "summary", "service_days", "places", "lines", "moves", "other", "accounting", "quality"],
   "properties": {
     "schema": { "const": "gtfs-jp-semantic-report/1" },
 
@@ -120,7 +120,7 @@
     "summary": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["lines", "places", "trips_by_day_type", "first_last_changed", "fares", "quality"],
+      "required": ["lines", "places", "trips_by_day_type", "first_last_changed", "trip_moves", "fares", "quality"],
       "properties": {
         "lines": {
           "type": "object",
@@ -154,6 +154,7 @@
           "additionalProperties": { "$ref": "#/$defs/count_change" }
         },
         "first_last_changed": { "$ref": "#/$defs/count", "description": "Line/direction/day-type combinations whose first or last departure moved by at least first_last_min_shift." },
+        "trip_moves": { "$ref": "#/$defs/count", "description": "Trips that moved to another line or direction (see `moves`)." },
         "fares": {
           "type": "object",
           "additionalProperties": false,
@@ -247,16 +248,24 @@
           "status": { "enum": ["unchanged", "added", "discontinued", "renamed", "merged", "split", "restructured", "changed"] },
           "old": { "$ref": "#/$defs/nullable_line_side" },
           "new": { "$ref": "#/$defs/nullable_line_side" },
-          "related": { "type": "array", "items": { "$ref": "#/$defs/line_ref" }, "description": "Other lines of a merge, split or restructuring." },
+          "related": { "type": "array", "items": { "$ref": "#/$defs/line_ref" }, "description": "Other lines of a merge, split or restructuring, or lines trips moved to or from." },
           "match": { "$ref": "#/$defs/nullable_match" },
           "trips": {
-            "description": "Trips per day type and time band, old -> new. Empty for unchanged lines.",
-            "type": "object",
-            "propertyNames": { "$ref": "#/$defs/day_type" },
-            "additionalProperties": {
+            "description": "Trips per direction, day type and hourly band of first departure, old -> new. Empty for unchanged lines.",
+            "type": "array",
+            "items": {
               "type": "object",
-              "propertyNames": { "$ref": "#/$defs/time_band" },
-              "additionalProperties": { "$ref": "#/$defs/count_change" }
+              "additionalProperties": false,
+              "required": ["direction", "day_type", "bands"],
+              "properties": {
+                "direction": { "$ref": "#/$defs/direction" },
+                "day_type": { "$ref": "#/$defs/day_type" },
+                "bands": {
+                  "type": "object",
+                  "propertyNames": { "$ref": "#/$defs/time_band" },
+                  "additionalProperties": { "$ref": "#/$defs/count_change" }
+                }
+              }
             }
           },
           "first_last": {
@@ -286,10 +295,11 @@
                   "items": {
                     "type": "object",
                     "additionalProperties": false,
-                    "required": ["kind", "places"],
+                    "required": ["kind", "places", "trips"],
                     "properties": {
-                      "kind": { "enum": ["extended", "shortened", "inserted", "removed", "detour_added", "detour_removed"] },
-                      "places": { "type": "array", "items": { "$ref": "#/$defs/place_ref" }, "minItems": 1 }
+                      "kind": { "$ref": "#/$defs/edit_kind" },
+                      "places": { "type": "array", "items": { "$ref": "#/$defs/place_ref" }, "minItems": 1 },
+                      "trips": { "type": ["integer", "null"], "minimum": 1, "description": "Paired trips showing this edit; null when it comes from comparing the dominant patterns." }
                     }
                   }
                 }
@@ -328,16 +338,46 @@
       }
     },
 
+    "moves": {
+      "description": "Trips unmatched in their own line that match a trip of another line or direction (a route variant of the same corridor). Indices point into the timetables of both lines, where these trips appear as removed and added.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["day_type", "kind", "old", "new", "edits"],
+        "properties": {
+          "day_type": { "$ref": "#/$defs/day_type" },
+          "kind": { "enum": ["exact", "retimed", "rerouted", "retimed_rerouted"] },
+          "old": { "$ref": "#/$defs/trip_ref" },
+          "new": { "$ref": "#/$defs/trip_ref" },
+          "edits": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "places"],
+              "properties": {
+                "kind": { "$ref": "#/$defs/edit_kind" },
+                "places": { "type": "array", "items": { "$ref": "#/$defs/place_ref" }, "minItems": 1 }
+              }
+            }
+          }
+        }
+      }
+    },
+
     "other": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["topic", "counts", "evidence"],
+        "required": ["topic", "counts", "evidence", "details", "truncated"],
         "properties": {
           "topic": { "enum": ["fares", "calendar_exceptions", "agency", "office", "translations", "feed_info", "shapes", "transfers", "other_files"] },
           "counts": { "type": "object", "additionalProperties": { "$ref": "#/$defs/count" } },
-          "evidence": { "$ref": "#/$defs/evidence" }
+          "evidence": { "$ref": "#/$defs/evidence" },
+          "details": { "type": "array", "items": { "$ref": "#/$defs/detail" }, "description": "Row-level items, at most report.other_details_max; shapes are summarised per shape_id." },
+          "truncated": { "$ref": "#/$defs/count", "description": "Items left out of details." }
         }
       }
     },
@@ -353,8 +393,13 @@
           "additionalProperties": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["changes", "classified", "outside_comparison", "unclassified"],
+            "required": ["old_rows", "new_rows", "added", "removed", "changed_fields", "changes", "classified", "outside_comparison", "unclassified"],
             "properties": {
+              "old_rows": { "type": ["integer", "null"], "minimum": 0, "description": "Rows in the file; null when the file is absent on that side." },
+              "new_rows": { "type": ["integer", "null"], "minimum": 0 },
+              "added": { "$ref": "#/$defs/count" },
+              "removed": { "$ref": "#/$defs/count" },
+              "changed_fields": { "$ref": "#/$defs/count" },
               "changes": { "$ref": "#/$defs/count" },
               "classified": { "$ref": "#/$defs/count" },
               "outside_comparison": { "$ref": "#/$defs/count" },
@@ -463,6 +508,33 @@
     "nullable_line_side": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/line_side" }] },
     "line_ref": { "type": "string", "minLength": 1, "description": "The key of a line in `lines`." },
     "place_ref": { "type": "integer", "minimum": 0, "description": "Index into `places`." },
+    "edit_kind": { "enum": ["extended", "shortened", "inserted", "removed", "detour_added", "detour_removed"] },
+    "trip_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["line", "direction", "trip"],
+      "properties": {
+        "line": { "$ref": "#/$defs/line_ref" },
+        "direction": { "$ref": "#/$defs/direction" },
+        "trip": { "type": "integer", "minimum": 0, "description": "Trip index in that line's timetable for this direction and day type, on this side." }
+      }
+    },
+    "detail": {
+      "description": "One raw difference of an Other topic, or a per-shape summary (kind shape_changed, id null).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "file", "kind", "key", "column", "old", "new", "counts"],
+      "properties": {
+        "id": { "oneOf": [{ "type": "null" }, { "type": "string", "pattern": "^c[0-9]{7}$" }] },
+        "file": { "type": "string", "pattern": "^[^/\\\\]+\\.txt$" },
+        "kind": { "type": "string", "minLength": 1 },
+        "key": { "type": ["array", "null"], "items": { "type": "string" } },
+        "column": { "type": ["string", "null"] },
+        "old": { "type": ["string", "object", "null"] },
+        "new": { "type": ["string", "object", "null"] },
+        "counts": { "type": ["object", "null"], "additionalProperties": { "$ref": "#/$defs/count" } }
+      }
+    },
     "timetable": {
       "type": "object",
       "additionalProperties": false,

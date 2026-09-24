@@ -77,6 +77,28 @@ def check_report(doc: dict) -> list[str]:
                 if len(seen[side]) != sizes[side]:
                     problems.append(f"{where}: every {side} trip must appear in pairs exactly once")
 
+    tables = {(line["key"], t["direction"], t["day_type"]): t for line in doc.get("lines", []) for t in line["timetables"]}
+    used: set[tuple] = set()
+    for k, move in enumerate(doc.get("moves", [])):
+        where = f"moves[{k}]"
+        for side in ("old", "new"):
+            ref = move[side]
+            table = tables.get((ref["line"], ref["direction"], move["day_type"]))
+            if table is None or table[side] is None or ref["trip"] >= len(table[side]["trips"]):
+                problems.append(f"{where}.{side}: no such timetable trip")
+                continue
+            # A moved trip is unpaired in its own line.
+            partner = [p for p in table["pairs"] if p[0 if side == "old" else 1] == ref["trip"]]
+            if not partner or partner[0][1 if side == "old" else 0] is not None:
+                problems.append(f"{where}.{side}: trip is paired in its own line")
+            key = (side, ref["line"], ref["direction"], move["day_type"], ref["trip"])
+            if key in used:
+                problems.append(f"{where}.{side}: trip moved twice")
+            used.add(key)
+        for e, edit in enumerate(move["edits"]):
+            for ref in edit["places"]:
+                place_ok(ref, f"{where}.edits[{e}]")
+
     coverage = doc.get("header", {}).get("coverage")
     if coverage:
         parts = coverage["explained"] + coverage["outside_comparison"] + coverage["unclassified"]

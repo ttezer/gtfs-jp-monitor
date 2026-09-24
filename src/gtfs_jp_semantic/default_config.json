@@ -2,6 +2,8 @@
   "bulk_threshold": 100000,
   "matching": {
     "accept_confidence": 0.5,
+    "cross_line_max_shift_min": 10,
+    "cross_line_min_containment": 0.8,
     "first_last_min_shift": 10,
     "line_max_component": 4,
     "line_min_overlap": 0.6,
@@ -33,6 +35,9 @@
   "max_rows_per_file": 5000000,
   "max_uncompressed_bytes": 2147483648,
   "min_overlap_days": 14,
+  "report": {
+    "other_details_max": 200
+  },
   "schema": "gtfs-jp-semantic-config/1",
   "special_max_days": 8
 }

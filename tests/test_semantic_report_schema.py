@@ -41,7 +41,7 @@ class ReportSchemaTest(unittest.TestCase):
 
     def test_day_types_and_bands(self):
         self.invalid(lambda d: d["summary"]["trips_by_day_type"].update(monday={"before": 1, "after": 1}))
-        self.invalid(lambda d: d["lines"][0]["trips"]["weekday"].update({"7-9": {"before": 1, "after": 1}}))
+        self.invalid(lambda d: d["lines"][0]["trips"][0]["bands"].update({"7-9": {"before": 1, "after": 1}}))
 
     def test_times_are_minutes(self):
         self.invalid(lambda d: d["lines"][0]["timetables"][0]["old"]["trips"][0]["times"].__setitem__(0, "06:40"))
@@ -87,6 +87,14 @@ class ReportCheckTest(unittest.TestCase):
         self.assertTrue(self.problems(lambda d: d["lines"][2].update(old={"names": ["3"], "route_ids": ["R3"]})))
         self.doc = copy.deepcopy(load_json(EXAMPLE))
         self.assertTrue(self.problems(lambda d: d["places"][2].update(moved_m=None)))
+
+    def test_move_references(self):
+        move = {"day_type": "weekday", "kind": "rerouted", "edits": [],
+                "old": {"line": "1", "direction": "0", "trip": 1}, "new": {"line": "1", "direction": "0", "trip": 0}}
+        # old trip 1 is removed (unpaired) but new trip 0 is paired with old trip 0
+        self.assertEqual(self.problems(lambda d: d["moves"].append(move)), ["moves[0].new: trip is paired in its own line"])
+        self.doc = copy.deepcopy(load_json(EXAMPLE))
+        self.assertTrue(self.problems(lambda d: d["moves"].append(dict(move, old={"line": "9", "direction": "0", "trip": 0}))))
 
     def test_coverage_adds_up(self):
         self.assertTrue(self.problems(lambda d: d["header"]["coverage"].update(explained=111)))

@@ -35,12 +35,13 @@ OLD = {
     "routes.txt": ROUTES,
     "calendar.txt": CALENDAR,
     "calendar_dates.txt": "service_id,date,exception_type\nHOL,20260515,1\n",
-    "trips.txt": "route_id,service_id,trip_id,direction_id\nR1,WK,T1,0\nR1,WK,T2,0\nR2,WK,U1,0\nR1,HOL,X1,0\n",
+    "trips.txt": "route_id,service_id,trip_id,direction_id\nR1,WK,T1,0\nR1,WK,T2,0\nR2,WK,U1,0\nR1,HOL,X1,0\nR1,WK,T4,0\n",
     "stop_times.txt": stop_times({
         "T1": [("S1", "06:40"), ("S2", "06:45"), ("S3", "06:50")],
         "T2": [("S1", "07:40"), ("S2", "07:45"), ("S3", "07:50")],
         "U1": [("S1", "08:00"), ("S4", "08:10")],
         "X1": [("S1", "12:00"), ("S3", "12:10")],
+        "T4": [("S1", "10:00"), ("S2", "10:05")],
     }),
     "fare_attributes.txt": "fare_id,price,currency_type,payment_method,transfers\nF1,200,JPY,0,0\n",
 }
@@ -48,12 +49,14 @@ NEW = dict(OLD, **{
     "stops.txt": stops([("S1", "駅前", 33.0, 131.0), ("S2", "市役所前", 33.01, 131.0), ("S3", "病院", 33.02, 131.0),
                         ("S5", "新団地", 33.1, 131.0)]),
     "calendar_dates.txt": "service_id,date,exception_type\n",
-    "trips.txt": "route_id,service_id,trip_id,direction_id\nR1,WK,T1,0\nR1,WK,T2,0\nR1,WK,T3,0\nR2,WK,U1,0\n",
+    "routes.txt": ROUTES + "R3,3,,3\n",
+    "trips.txt": "route_id,service_id,trip_id,direction_id\nR1,WK,T1,0\nR1,WK,T2,0\nR1,WK,T3,0\nR2,WK,U1,0\nR3,WK,T4,0\n",
     "stop_times.txt": stop_times({
         "T1": [("S1", "06:45"), ("S2", "06:50"), ("S3", "06:55")],
         "T2": [("S1", "07:40"), ("S2", "07:45"), ("S3", "07:50")],
         "T3": [("S1", "09:00"), ("S2", "09:05"), ("S3", "09:10")],
         "U1": [("S1", "08:00"), ("S5", "08:10")],
+        "T4": [("S1", "10:00"), ("S2", "10:05"), ("S3", "10:10")],
     }),
     "fare_attributes.txt": "fare_id,price,currency_type,payment_method,transfers\nF1,220,JPY,0,0\n",
 })
@@ -102,9 +105,11 @@ class ReportTest(unittest.TestCase):
         s = self.report["summary"]
         self.assertEqual(s["lines"]["changed"], 2)
         self.assertEqual(s["places"], {"added": 1, "removed": 1, "renamed": 1, "moved": 0})
-        self.assertEqual(s["trips_by_day_type"]["weekday"], {"before": 3, "after": 4})
+        self.assertEqual(s["trips_by_day_type"]["weekday"], {"before": 4, "after": 5})
+        self.assertEqual(s["lines"]["added"], 1)
+        self.assertEqual(s["trip_moves"], 1)
         self.assertEqual(s["fares"], {"changed": True, "classes_added": 0, "classes_removed": 0, "prices_changed": 1})
-        self.assertEqual(s["first_last_changed"], 1)  # line 1 first departure 06:40 -> 06:45 is below 10 min; last 07:40 -> 09:00
+        self.assertEqual(s["first_last_changed"], 1)  # line 1 first 06:40 -> 06:45 is below 10 min; last 10:00 -> 09:00
 
     def test_timetable_and_pairs(self):
         line = self.line("1")
@@ -113,16 +118,26 @@ class ReportTest(unittest.TestCase):
         self.assertEqual(table["day_type"], "weekday")
         self.assertEqual([self.place_name(i) for i in table["new"]["places"]], ["駅前", "市役所前", "病院"])
         self.assertEqual(table["old"]["places"], table["new"]["places"])  # old side speaks new place ids
-        self.assertEqual([t["trip_id"] for t in table["old"]["trips"]], ["T1", "T2"])
+        self.assertEqual([t["trip_id"] for t in table["old"]["trips"]], ["T1", "T2", "T4"])
         self.assertEqual(table["new"]["trips"][0]["times"], [405, 410, 415])
-        self.assertEqual(table["pairs"], [[0, 0], [1, 1], [None, 2]])
-        self.assertEqual(line["trips"]["weekday"]["09-10"], {"before": 0, "after": 1})
+        self.assertEqual(table["pairs"], [[0, 0], [1, 1], [None, 2], [2, None]])
+        (weekday,) = line["trips"]
+        self.assertEqual((weekday["direction"], weekday["day_type"]), ("0", "weekday"))
+        self.assertEqual(weekday["bands"]["09-10"], {"before": 0, "after": 1})
 
     def test_pattern_edit_uses_places(self):
         line = self.line("2")
         (pattern,) = line["patterns"]
         self.assertEqual([(e["kind"], [self.place_name(i) for i in e["places"]]) for e in pattern["edits"]],
-                         [("removed", ["旧団地"]), ("inserted", ["新団地"])])
+                         [("inserted", ["新団地"]), ("removed", ["旧団地"])])
+        self.assertEqual({e["trips"] for e in pattern["edits"]}, {1})  # seen on one paired trip
+
+    def test_trip_moved_to_another_line(self):
+        (move,) = self.report["moves"]
+        self.assertEqual((move["old"]["line"], move["new"]["line"], move["kind"]), ("1", "3", "rerouted"))
+        self.assertEqual([(e["kind"], [self.place_name(i) for i in e["places"]]) for e in move["edits"]], [("extended", ["病院"])])
+        self.assertEqual(self.line("1")["related"], ["3"])
+        self.assertEqual(self.line("3")["status"], "added")
 
     def test_places_and_serving_lines(self):
         by_name = {self.place_name(i): p for i, p in enumerate(self.report["places"])}
@@ -138,6 +153,12 @@ class ReportTest(unittest.TestCase):
         self.assertIn({"code": "OUTSIDE_COMPARISON_PRESENT"}, self.report["header"]["notes"])
         topics = {o["topic"] for o in self.report["other"]}
         self.assertEqual(topics, {"calendar_exceptions", "fares"})
+        fares = next(o for o in self.report["other"] if o["topic"] == "fares")
+        self.assertEqual([(d["kind"], d["column"], d["old"], d["new"]) for d in fares["details"]], [("field_changed", "price", "200", "220")])
+        self.assertEqual(fares["truncated"], 0)
+        stops = self.report["accounting"]["files"]["stops.txt"]
+        self.assertEqual((stops["old_rows"], stops["new_rows"], stops["added"], stops["removed"], stops["changed_fields"]), (4, 4, 1, 1, 1))
+        self.assertEqual(self.report["accounting"]["files"]["agency.txt"]["changes"], 0)  # unchanged files are listed too
 
 
 class RowsTest(unittest.TestCase):

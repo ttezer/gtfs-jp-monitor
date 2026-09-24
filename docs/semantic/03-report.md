@@ -123,6 +123,20 @@ places every raw difference in one bucket.
   joined keys of a merge target / split result (`A+B`), or the old key when discontinued; a
   collision gets a `~2` suffix. The lines of a merge or split are one entry, so `related` stays
   empty until entries are split per line.
+- **Moved trips.** Trips left unmatched in their own line and direction are matched once more
+  across all lines of the same day type (`moves`): the shorter place sequence must lie at least
+  `cross_line_min_containment` inside the longer one, share its first or last place, and run
+  within `cross_line_max_shift_min`. This finds route variants of one corridor that exchange
+  trips (for example a trip extended from variant 30F to 30C) and trips whose direction key
+  changed because they have no direction_id and their end points moved.
+- **Pattern edits.** Collected from every rerouted trip pair of the line (and from its own
+  moved trips), with the number of trips showing each edit; only when no paired trip changed
+  route are the dominant patterns of both sides compared (`trips` is then null).
+- **Trips by hour.** Per direction and day type.
+- **Other changes.** Each topic carries up to `report.other_details_max` row-level items;
+  shapes are summarised per shape_id.
+- **All differences.** Every file of either side with its row counts, added / removed rows,
+  changed fields and the accounting buckets.
 - **Changed.** A line matched by name is `changed` when a trip pair in any compared direction and
   day type is not exact, or its dominant pattern changed; otherwise `unchanged` and its trips,
   first/last and timetables are omitted.
