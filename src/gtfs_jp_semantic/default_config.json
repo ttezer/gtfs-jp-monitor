@@ -1,5 +1,29 @@
 {
   "bulk_threshold": 100000,
+  "matching": {
+    "accept_confidence": 0.5,
+    "stop_moved_min_m": 20,
+    "stop_name_min_similarity": 0.6,
+    "stop_name_radius_m": 500,
+    "stop_name_strip_patterns": [
+      "[0-9]+(番線|番のりば|番乗り場|番乗場|番|のりば|乗り場|乗場)$",
+      "(?<=[^A-Za-z0-9])[A-Za-z]$"
+    ],
+    "stop_name_suffixes": [
+      "（上り）",
+      "（下り）",
+      "（上）",
+      "（下）",
+      "上り",
+      "下り",
+      "のりば",
+      "乗り場",
+      "乗場",
+      "バス停"
+    ],
+    "stop_near_radius_m": 150,
+    "stop_same_id_max_m": 300
+  },
   "max_rows_per_file": 5000000,
   "max_uncompressed_bytes": 2147483648,
   "min_overlap_days": 14,
