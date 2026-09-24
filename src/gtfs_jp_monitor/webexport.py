@@ -57,18 +57,32 @@ def _summary(entry: dict, doc: dict) -> dict:
     }
 
 
+def _version(name: str) -> tuple[int, ...] | None:
+    parts = name.split(".")
+    return tuple(int(p) for p in parts) if len(parts) == 3 and all(p.isdigit() for p in parts) else None
+
+
 def report_bundles(root: Path, feeds: list[dict], engine_version: str) -> tuple[dict[str, dict], dict[str, dict]]:
     """Semantic reports of exported feeds: a small index for the page and full reports bundled
-    per prefecture ("pref-01" .. "pref-47", "pref-00" when unknown), loaded on demand."""
+    per prefecture ("pref-01" .. "pref-47", "pref-00" when unknown), loaded on demand.
+
+    Each pair uses the newest engine version stored for it, up to `engine_version`, so the site
+    keeps older reports while a new engine version is rebuilding them."""
     index: dict[str, dict] = {}
     bundles: dict[str, dict] = {}
+    limit = _version(engine_version)
     for f in feeds:
-        directory = feed_dir(root, f["org_id"], f["feed_id"]) / "changes" / engine_version
-        if not directory.is_dir():
+        base = feed_dir(root, f["org_id"], f["feed_id"]) / "changes"
+        if not base.is_dir():
             continue
+        versions = sorted((v for d in base.iterdir() if d.is_dir() and (v := _version(d.name)) and v <= limit), reverse=True)
+        newest: dict[str, Path] = {}
+        for v in versions:
+            for path in sorted((base / ".".join(map(str, v))).glob("*.report.json.gz")):
+                newest.setdefault(path.name, path)
         pref = f["pref_id"] if isinstance(f["pref_id"], int) and 1 <= f["pref_id"] <= 47 else 0
         bundle = f"pref-{pref:02d}"
-        for path in sorted(directory.glob("*.report.json.gz")):
+        for _, path in sorted(newest.items()):
             doc = json.loads(gzip.decompress(path.read_bytes()).decode("utf-8"))
             h = doc["header"]
             pair = f"{h['old']['uid']}__{h['new']['uid']}"

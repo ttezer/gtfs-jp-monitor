@@ -125,6 +125,8 @@ class PatternTest(unittest.TestCase):
             ("ABCD", "ABXYCD"): [("detour_added", ("X", "Y"))],
             ("ABXYCD", "ABCD"): [("detour_removed", ("X", "Y"))],
             ("ABCD", "ABCD"): [],
+            ("ABCDE", "ABDCE"): [("reordered", ("D",))],  # two neighbours swap places; one of them is the moved one
+            ("ABCDE", "ABDCEX"): [("extended", ("X",)), ("reordered", ("D",))],
         }
         for (a, b), expected in cases.items():
             with self.subTest(old=a, new=b):

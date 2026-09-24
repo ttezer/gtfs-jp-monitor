@@ -103,7 +103,7 @@
           }
         },
         "coverage": {
-          "description": "Share of raw differences explained by the report (Part 1 accounting).",
+          "description": "Changed rows (plus file and column changes) by accounting bucket; the totals of accounting.files.",
           "type": "object",
           "additionalProperties": false,
           "required": ["raw_total", "explained", "outside_comparison", "unclassified"],
@@ -373,7 +373,7 @@
         "additionalProperties": false,
         "required": ["topic", "counts", "evidence", "details", "truncated"],
         "properties": {
-          "topic": { "enum": ["fares", "calendar_exceptions", "agency", "office", "translations", "feed_info", "shapes", "transfers", "other_files"] },
+          "topic": { "enum": ["fares", "calendar_exceptions", "agency", "office", "translations", "feed_info", "shapes", "transfers", "other_files", "formatting"] },
           "counts": { "type": "object", "additionalProperties": { "$ref": "#/$defs/count" } },
           "evidence": { "$ref": "#/$defs/evidence" },
           "details": { "type": "array", "items": { "$ref": "#/$defs/detail" }, "description": "Row-level items, at most report.other_details_max; shapes are summarised per shape_id." },
@@ -385,7 +385,7 @@
     "accounting": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["files", "unclassified"],
+      "required": ["files", "unclassified", "unclassified_details", "unclassified_truncated"],
       "properties": {
         "files": {
           "type": "object",
@@ -393,13 +393,28 @@
           "additionalProperties": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["old_rows", "new_rows", "added", "removed", "changed_fields", "changes", "classified", "outside_comparison", "unclassified"],
+            "description": "Counted in rows: a row with several changed fields counts once, in the least explained bucket of its fields; each file or column change counts once. classified + outside_comparison + unclassified = changes = added + removed + changed_rows + structure items.",
+            "required": ["old_rows", "new_rows", "added", "removed", "changed_rows", "changed_fields", "structure", "changes", "classified", "outside_comparison", "unclassified"],
             "properties": {
               "old_rows": { "type": ["integer", "null"], "minimum": 0, "description": "Rows in the file; null when the file is absent on that side." },
               "new_rows": { "type": ["integer", "null"], "minimum": 0 },
               "added": { "$ref": "#/$defs/count" },
               "removed": { "$ref": "#/$defs/count" },
-              "changed_fields": { "$ref": "#/$defs/count" },
+              "changed_rows": { "$ref": "#/$defs/count" },
+              "changed_fields": { "$ref": "#/$defs/count", "description": "Changed fields over all changed rows (information only)." },
+              "structure": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["kind", "column", "bucket"],
+                  "properties": {
+                    "kind": { "enum": ["file_added", "file_removed", "column_added", "column_removed", "file_changed_opaque", "rows_bulk"] },
+                    "column": { "type": ["string", "null"] },
+                    "bucket": { "enum": ["classified", "outside_comparison", "unclassified"] }
+                  }
+                }
+              },
               "changes": { "$ref": "#/$defs/count" },
               "classified": { "$ref": "#/$defs/count" },
               "outside_comparison": { "$ref": "#/$defs/count" },
@@ -407,7 +422,9 @@
             }
           }
         },
-        "unclassified": { "$ref": "#/$defs/evidence" }
+        "unclassified": { "$ref": "#/$defs/evidence" },
+        "unclassified_details": { "type": "array", "items": { "$ref": "#/$defs/detail" }, "description": "Row-level items of the unclassified differences, at most report.other_details_max." },
+        "unclassified_truncated": { "$ref": "#/$defs/count" }
       }
     },
 
@@ -508,7 +525,7 @@
     "nullable_line_side": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/line_side" }] },
     "line_ref": { "type": "string", "minLength": 1, "description": "The key of a line in `lines`." },
     "place_ref": { "type": "integer", "minimum": 0, "description": "Index into `places`." },
-    "edit_kind": { "enum": ["extended", "shortened", "inserted", "removed", "detour_added", "detour_removed"] },
+    "edit_kind": { "enum": ["extended", "shortened", "inserted", "removed", "detour_added", "detour_removed", "reordered"] },
     "trip_ref": {
       "type": "object",
       "additionalProperties": false,

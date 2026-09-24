@@ -183,16 +183,44 @@ def _details(changes: list[dict], ids: list[str], limit: int) -> tuple[list[dict
     return items[:limit], max(0, len(items) - limit)
 
 
-def _file_table(raw: dict, acc_files: dict[str, dict[str, int]]) -> dict[str, dict]:
-    """Every file of either side: row counts, difference kinds and accounting buckets."""
-    out = {}
+STRUCTURAL = frozenset({"file_added", "file_removed", "column_added", "column_removed", "file_changed_opaque", "rows_bulk"})
+_BUCKET_RANK = {"classified": 0, "outside_comparison": 1, "unclassified": 2}
+
+
+def _file_table(raw: dict, acc) -> tuple[dict[str, dict], dict[str, int]]:
+    """Every file of either side, counted in rows: a row with several changed fields counts once,
+    in the least explained bucket of its fields. File and column changes are listed apart and
+    counted as one item each. Returns the table and the totals for the coverage header."""
+    bucket = {cid: "classified" for cid in acc.explained}
+    bucket.update({cid: "outside_comparison" for cid in acc.outside})
+    bucket.update({cid: "unclassified" for cid in acc.unclassified})
+    by_file: dict[str, list[dict]] = collections.defaultdict(list)
+    for c in raw["changes"]:
+        by_file[c["file"]].append(c)
+    out: dict[str, dict] = {}
+    totals = collections.Counter()
     for name, meta in sorted(raw["files"].items()):
-        kinds = meta["counts"]
-        base = acc_files.get(name, {"changes": 0, "classified": 0, "outside_comparison": 0, "unclassified": 0})
-        out[name] = dict(base, old_rows=meta["rows"]["old"], new_rows=meta["rows"]["new"],
-                         added=kinds.get("row_added", 0), removed=kinds.get("row_removed", 0),
-                         changed_fields=kinds.get("field_changed", 0))
-    return out
+        rows: dict[tuple, str] = {}
+        structure = []
+        for c in by_file.get(name, []):
+            b = bucket[c["id"]]
+            if c["kind"] in STRUCTURAL:
+                structure.append({"kind": c["kind"], "column": c.get("column"), "bucket": b})
+                continue
+            rk = ("changed", tuple(c["key"])) if c["kind"] == "field_changed" else (c["kind"], c["id"])
+            rows[rk] = max(rows.get(rk, b), b, key=_BUCKET_RANK.__getitem__)
+        counts = collections.Counter(rows.values()) + collections.Counter(x["bucket"] for x in structure)
+        entry = {
+            "old_rows": meta["rows"]["old"], "new_rows": meta["rows"]["new"],
+            "added": sum(k[0] == "row_added" for k in rows), "removed": sum(k[0] == "row_removed" for k in rows),
+            "changed_rows": sum(k[0] == "changed" for k in rows), "changed_fields": meta["counts"].get("field_changed", 0),
+            "structure": structure, "changes": len(rows) + len(structure),
+            "classified": counts["classified"], "outside_comparison": counts["outside_comparison"],
+            "unclassified": counts["unclassified"],
+        }
+        out[name] = entry
+        totals.update({k: entry[k] for k in ("changes", "classified", "outside_comparison", "unclassified")})
+    return out, totals
 
 
 def _counts(changes: list[dict], ids: list[str]) -> dict[str, int]:
@@ -414,6 +442,8 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
     ev.old_stop_place = {sid: to_new[pid] for sid, pid in place_of_stop(op).items() if pid in to_new}
     ev.new_stop_place = place_of_stop(np_)
     acc = classify(raw, ev)
+    file_table, file_totals = _file_table(raw, acc)
+    unclassified_details, unclassified_truncated = _details(raw["changes"], acc.unclassified, config.report["other_details_max"])
     notes: list[dict] = []
     old_jp = sorted(n for n in ot if n in JP_FILES)
     new_jp = sorted(n for n in nt if n in JP_FILES)
@@ -441,8 +471,8 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
             },
             "notes": notes,
             "engine": {"version": ENGINE_VERSION, "config": config.as_dict(), "holidays_version": holidays.version},
-            "coverage": {"raw_total": len(raw["changes"]), "explained": len(acc.explained),
-                         "outside_comparison": len(acc.outside), "unclassified": len(acc.unclassified)},
+            "coverage": {"raw_total": file_totals["changes"], "explained": file_totals["classified"],
+                         "outside_comparison": file_totals["outside_comparison"], "unclassified": file_totals["unclassified"]},
         },
         "summary": {
             "lines": {s: status_counts[s] for s in LINE_STATUS_ORDER},
@@ -471,7 +501,8 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
         "other": [{"topic": topic, "counts": _counts(raw["changes"], ids), "evidence": ids,
                    **dict(zip(("details", "truncated"), _details(raw["changes"], ids, config.report["other_details_max"])))}
                   for topic, ids in sorted(acc.other.items())],
-        "accounting": {"files": _file_table(raw, acc.files), "unclassified": acc.unclassified},
+        "accounting": {"files": file_table, "unclassified": acc.unclassified,
+                       "unclassified_details": unclassified_details, "unclassified_truncated": unclassified_truncated},
         "quality": {"analysis_key": analysis_key} if analysis_key else None,
     }
     problems = check_report(report)

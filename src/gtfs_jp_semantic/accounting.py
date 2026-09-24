@@ -6,7 +6,7 @@ or unclassified. Nothing is dropped; the unclassified list shows where the repor
 
 from __future__ import annotations
 
-import collections
+import math
 from dataclasses import dataclass, field
 
 OTHER_TOPICS = {
@@ -46,13 +46,30 @@ class Accounting:
     outside: list[str] = field(default_factory=list)
     unclassified: list[str] = field(default_factory=list)
     other: dict[str, list[str]] = field(default_factory=dict)  # topic -> change ids
-    files: dict[str, dict[str, int]] = field(default_factory=dict)
+
+
+def _same_value(old: object, new: object) -> bool:
+    """Both sides write the same number (140.5208490 / 140.520849) or the same time (7:30:00 / 07:30:00)."""
+    if not isinstance(old, str) or not isinstance(new, str):
+        return False
+    try:
+        a, b = float(old), float(new)
+        if math.isfinite(a) and math.isfinite(b):
+            return a == b
+    except ValueError:
+        pass
+    pa, pb = old.strip().split(":"), new.strip().split(":")
+    if len(pa) == len(pb) == 3 and all(x.isdigit() for x in pa + pb):
+        return [int(x) for x in pa] == [int(x) for x in pb]
+    return False
 
 
 def _bucket(change: dict, ev: Evidence) -> tuple[str, str | None]:
     """(bucket, other topic) for one raw change."""
     name, kind = change["file"], change["kind"]
     key = change.get("key") or []
+    if kind == "field_changed" and _same_value(change.get("old"), change.get("new")):
+        return "explained", "formatting"  # the value did not change, only how it is written
     if name == "calendar.txt":
         return "explained", None  # shown under service days
     if name in OTHER_TOPICS:
@@ -83,24 +100,15 @@ def _bucket(change: dict, ev: Evidence) -> tuple[str, str | None]:
 
 def classify(raw: dict, ev: Evidence) -> Accounting:
     acc = Accounting()
-    per_file: dict[str, collections.Counter] = collections.defaultdict(collections.Counter)
     for change in raw["changes"]:
         bucket, topic = _bucket(change, ev)
         cid = change["id"]
-        per_file[change["file"]]["changes"] += 1
         if bucket == "explained":
             acc.explained.append(cid)
-            per_file[change["file"]]["classified"] += 1
             if topic:
                 acc.other.setdefault(topic, []).append(cid)
         elif bucket == "outside":
             acc.outside.append(cid)
-            per_file[change["file"]]["outside_comparison"] += 1
         else:
             acc.unclassified.append(cid)
-            per_file[change["file"]]["unclassified"] += 1
-    acc.files = {
-        name: {k: counts[k] for k in ("changes", "classified", "outside_comparison", "unclassified")}
-        for name, counts in sorted(per_file.items())
-    }
     return acc

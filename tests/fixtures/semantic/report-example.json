@@ -3,20 +3,24 @@
     "files": {
       "stop_times.txt": {
         "added": 10,
-        "changed_fields": 40,
+        "changed_fields": 55,
+        "changed_rows": 40,
         "changes": 80,
         "classified": 76,
         "new_rows": 880,
         "old_rows": 900,
         "outside_comparison": 2,
         "removed": 30,
+        "structure": [],
         "unclassified": 2
       }
     },
     "unclassified": [
       "c0000090",
       "c0000091"
-    ]
+    ],
+    "unclassified_details": [],
+    "unclassified_truncated": 0
   },
   "header": {
     "comparison": {

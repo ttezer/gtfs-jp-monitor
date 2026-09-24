@@ -388,12 +388,12 @@ const R = {
     mode: { same_days: "Aynı günler karşılaştırıldı", successive_periods: "Ardışık dönemler: her yayının baskın tarifesi karşılaştırıldı" },
     ls: { added: "Eklendi", discontinued: "Kaldırıldı", renamed: "Adı değişti", merged: "Birleşti", split: "Bölündü", restructured: "Yeniden düzenlendi", changed: "Değişti", unchanged: "Değişmedi" },
     ps: { added: "Eklendi", removed: "Kaldırıldı", renamed: "Adı değişti", moved: "Taşındı", renamed_moved: "Adı değişti · taşındı", unchanged: "Değişmedi" },
-    ek: { extended: "Uzatıldı", shortened: "Kısaltıldı", inserted: "Durak eklendi", removed: "Durak çıkarıldı", detour_added: "Sapma eklendi", detour_removed: "Sapma kaldırıldı" },
-    topic: { fares: "Ücretler", calendar_exceptions: "Takvim istisnaları", agency: "İşletici", office: "Şube", translations: "Çeviriler", feed_info: "Feed bilgisi", shapes: "Güzergâh şekilleri", transfers: "Aktarmalar", other_files: "Diğer dosyalar" },
+    ek: { extended: "Uzatıldı", shortened: "Kısaltıldı", inserted: "Durak eklendi", removed: "Durak çıkarıldı", detour_added: "Sapma eklendi", detour_removed: "Sapma kaldırıldı", reordered: "Sırası değişti" },
+    topic: { fares: "Ücretler", calendar_exceptions: "Takvim istisnaları", agency: "İşletici", office: "Şube", translations: "Çeviriler", feed_info: "Feed bilgisi", shapes: "Güzergâh şekilleri", transfers: "Aktarmalar", other_files: "Diğer dosyalar", formatting: "Yalnız biçim değişti (değer aynı)" },
     ck: { added: "eklenen satır", removed: "kaldırılan satır", changed_fields: "değişen alan" },
     title: "Değişiklik raporu", old: "Eski yayın", new: "Yeni yayın", comparison: "Karşılaştırma",
     compared: "Karşılaştırılan gün", activeDays: "Aktif gün", periods: "Dönemler", special: "Özel günler",
-    coverage: (e, o, u, n) => `${n.toLocaleString()} ham farkın ${e.toLocaleString()}'i raporda açıklandı, ${o.toLocaleString()}'i karşılaştırılan günlerin dışında, ${u.toLocaleString()}'i sınıflandırılmadı.`,
+    coverage: (e, o, u, n) => `Değişen ${n.toLocaleString()} satırın (dosya/sütun değişiklikleri dahil) ${e.toLocaleString()}'i raporda açıklandı, ${o.toLocaleString()}'i karşılaştırılan günlerin dışında, ${u.toLocaleString()}'i sınıflandırılmadı.`,
     cE: "Açıklandı", cO: "Karşılaştırma dışı", cU: "Sınıflandırılmadı",
     sSummary: "Özet", sService: "Hizmet günleri", sLines: "Hat değişiklikleri", sPlaces: "Duraklar", sOther: "Diğer değişiklikler", sAll: "Tüm farklar",
     lines: "Hatlar", places: "Duraklar", trips: "Sefer sayısı", firstLast: "İlk / son sefer", fares: "Ücretler", quality: "Veri kalitesi",
@@ -406,7 +406,7 @@ const R = {
     ttUnchanged: "Diğer yön ve gün tiplerinde sefer saatleri değişmedi.",
     placeCols: ["Durum", "Eski ad", "Yeni ad", "Mesafe", "Hatlar"], unchangedPlaces: n => `Değişmeyen ${n} durak listelenmedi.`,
     noOther: "Başka değişiklik yok.",
-    rawNote: "Farkların satır satır listesi rapor dosyasıyla birlikte saklanır; burada dosya başına sayılar gösterilir.",
+    rawNote: "Sayılar satır esaslıdır: bir satırda birden çok alan değişse de bir kez sayılır. Açıklandı + karşılaştırma dışı + sınıflandırılmamış = eklenen + kaldırılan + değişen satır + dosya/sütun değişiklikleri. Değişen satır hücresinin üstüne gelince değişen alan sayısı görünür.", unclassTitle: n => `Sınıflandırılmamış farkların ayrıntısı (${n})`,
     engine: (v, h) => `Semantic motor ${v} · tatil tablosu ${h}. Eşikler pilot ayarından önce geçicidir.`,
     notes: {
       FORMAT_DIFFERENCE: n => `Biçim farkı: eski yayındaki JP dosyaları [${n.old_files.join(", ") || "—"}], yenideki [${n.new_files.join(", ") || "—"}].`,
@@ -425,16 +425,16 @@ const R = {
     metres: m => `${m} m`, others: "Raporu olan diğer çiftler",
     tripChanges: "Sefer değişiklikleri",
     tcCols: ["Yön", "Gün tipi", "Değişiklik", "Eski kalkış", "Yeni kalkış", "Fark (dk)", "Eski varış", "Yeni varış", "Not"],
-    tk: { retimed: "Saati değişti", rerouted: "Güzergâhı değişti", retimed_rerouted: "Saati ve güzergâhı değişti", added: "Eklendi", removed: "Kaldırıldı", moved_out: "Başka hatta geçti", moved_in: "Başka hattan geldi", moved_dir: "Yönü yeniden tanımlandı" },
-    tcNote: "Kalkış: seferin ilk durağındaki saat; varış: son durağındaki saat. Değişmeyen seferler listelenmez.",
+    tk: { reordered: "Durak sırası değişti", retimed: "Saati değişti", rerouted: "Güzergâhı değişti", retimed_rerouted: "Saati ve güzergâhı değişti", added: "Eklendi", removed: "Kaldırıldı", moved_out: "Başka hatta geçti", moved_in: "Başka hattan geldi", moved_dir: "Yönü yeniden tanımlandı" },
+    tcNote: "Kalkış: seferin ilk durağındaki saat; varış: son durağındaki saat. Güzergâhı değişen seferlerin notunda değişen kısım eski ⇒ yeni olarak yazar. Değişmeyen seferler listelenmez.", midShift: (d, p) => `ara duraklarda en çok ${d} dk (${p})`,
     movesNote: (n, lines) => `${n} sefer bu hat ile şu hat(lar) arasında taşındı: ${lines}. Aynı koridorun güzergâh varyantları olabilir; ayrıntı sefer değişiklikleri tablosunda.`,
     editTrips: n => `${n} seferde`, editDominant: "baskın güzergâh karşılaştırması",
     movesCard: n => `Başka hatta veya yöne geçen sefer: ${n}`,
     dk: { row_added: "Satır eklendi", row_removed: "Satır kaldırıldı", field_changed: "Alan değişti", shape_changed: "Şekil değişti", file_added: "Dosya eklendi", file_removed: "Dosya kaldırıldı", column_added: "Sütun eklendi", column_removed: "Sütun kaldırıldı", rows_bulk: "Toplu değişiklik", file_changed_opaque: "Okunamayan dosya değişti" },
     detailCols: ["Değişiklik", "Dosya", "Anahtar", "Alan", "Eski", "Yeni"],
     truncated: n => `+${n} kayıt daha (tamamı ham fark dosyasında).`, showDetails: n => `Ayrıntılar (${n})`,
-    fileCols: ["Dosya", "Eski satır", "Yeni satır", "Fark", "Açıklandı", "Karşılaştırma dışı", "Sınıflandırılmamış"],
-    farkTitle: (a, r, c) => `${a} eklenen satır, ${r} kaldırılan satır, ${c} değişen alan`,
+    fileCols: ["Dosya", "Eski satır", "Yeni satır", "Net", "Eklenen", "Kaldırılan", "Değişen satır", "Açıklandı", "Karşılaştırma dışı", "Sınıflandırılmamış"],
+    farkTitle: c => `${c} alan değişti`,
     map: "Harita", mapAll: "Tümünü göster", mapLegend: "Yeşil: eklenen · kırmızı: kaldırılan · turuncu: adı değişen · çizgi: taşınan durağın eski → yeni yeri · gri: raporda geçen diğer duraklar. Tablodaki satıra tıklayınca harita o durağa gider.", mapNoCoords: "Değişen durakların koordinatı yok.",
   },
   en: {
@@ -442,12 +442,12 @@ const R = {
     mode: { same_days: "Same days compared", successive_periods: "Successive periods: each publication's dominant timetable compared" },
     ls: { added: "Added", discontinued: "Discontinued", renamed: "Renamed", merged: "Merged", split: "Split", restructured: "Restructured", changed: "Changed", unchanged: "Unchanged" },
     ps: { added: "Added", removed: "Removed", renamed: "Renamed", moved: "Moved", renamed_moved: "Renamed · moved", unchanged: "Unchanged" },
-    ek: { extended: "Extended", shortened: "Shortened", inserted: "Stop inserted", removed: "Stop removed", detour_added: "Detour added", detour_removed: "Detour removed" },
-    topic: { fares: "Fares", calendar_exceptions: "Calendar exceptions", agency: "Agency", office: "Office", translations: "Translations", feed_info: "Feed info", shapes: "Shapes", transfers: "Transfers", other_files: "Other files" },
+    ek: { extended: "Extended", shortened: "Shortened", inserted: "Stop inserted", removed: "Stop removed", detour_added: "Detour added", detour_removed: "Detour removed", reordered: "Moved in order" },
+    topic: { fares: "Fares", calendar_exceptions: "Calendar exceptions", agency: "Agency", office: "Office", translations: "Translations", feed_info: "Feed info", shapes: "Shapes", transfers: "Transfers", other_files: "Other files", formatting: "Formatting only (same value)" },
     ck: { added: "rows added", removed: "rows removed", changed_fields: "fields changed" },
     title: "Change report", old: "Old publication", new: "New publication", comparison: "Comparison",
     compared: "Compared day", activeDays: "Active days", periods: "Periods", special: "Special days",
-    coverage: (e, o, u, n) => `Of ${n.toLocaleString()} raw differences, ${e.toLocaleString()} are explained by the report, ${o.toLocaleString()} lie outside the compared days and ${u.toLocaleString()} are unclassified.`,
+    coverage: (e, o, u, n) => `Of ${n.toLocaleString()} changed rows (file and column changes included), ${e.toLocaleString()} are explained by the report, ${o.toLocaleString()} lie outside the compared days and ${u.toLocaleString()} are unclassified.`,
     cE: "Explained", cO: "Outside comparison", cU: "Unclassified",
     sSummary: "Summary", sService: "Service days", sLines: "Changes by line", sPlaces: "Stops", sOther: "Other changes", sAll: "All differences",
     lines: "Lines", places: "Stops", trips: "Trips", firstLast: "First / last trip", fares: "Fares", quality: "Data quality",
@@ -460,7 +460,7 @@ const R = {
     ttUnchanged: "Timetables of the other directions and day types did not change.",
     placeCols: ["Status", "Old name", "New name", "Distance", "Lines"], unchangedPlaces: n => `${n} unchanged stops are not listed.`,
     noOther: "No other changes.",
-    rawNote: "The row-level list of differences is stored with the report; per-file counts are shown here.",
+    rawNote: "Counts are in rows: a row with several changed fields counts once. Explained + outside comparison + unclassified = added + removed + changed rows + file/column changes. Hover a changed-rows cell for the number of changed fields.", unclassTitle: n => `Unclassified differences in detail (${n})`,
     engine: (v, h) => `Semantic engine ${v} · holiday table ${h}. Thresholds are provisional until pilot calibration.`,
     notes: {
       FORMAT_DIFFERENCE: n => `Format difference: JP files in the old publication [${n.old_files.join(", ") || "—"}], in the new one [${n.new_files.join(", ") || "—"}].`,
@@ -479,16 +479,16 @@ const R = {
     metres: m => `${m} m`, others: "Other pairs with a report",
     tripChanges: "Trip changes",
     tcCols: ["Direction", "Day type", "Change", "Old departure", "New departure", "Δ (min)", "Old arrival", "New arrival", "Note"],
-    tk: { retimed: "Retimed", rerouted: "Rerouted", retimed_rerouted: "Retimed and rerouted", added: "Added", removed: "Removed", moved_out: "Moved to another line", moved_in: "Moved from another line", moved_dir: "Direction redefined" },
-    tcNote: "Departure: time at the trip's first stop; arrival: at its last stop. Unchanged trips are not listed.",
+    tk: { reordered: "Stop order changed", retimed: "Retimed", rerouted: "Rerouted", retimed_rerouted: "Retimed and rerouted", added: "Added", removed: "Removed", moved_out: "Moved to another line", moved_in: "Moved from another line", moved_dir: "Direction redefined" },
+    tcNote: "Departure: time at the trip's first stop; arrival: at its last stop. For rerouted trips the note shows the changed part as old ⇒ new. Unchanged trips are not listed.", midShift: (d, p) => `up to ${d} min at intermediate stops (${p})`,
     movesNote: (n, lines) => `${n} trips moved between this line and: ${lines}. These may be route variants of one corridor; see the trip changes table.`,
     editTrips: n => `on ${n} trips`, editDominant: "dominant pattern comparison",
     movesCard: n => `Trips moved to another line or direction: ${n}`,
     dk: { row_added: "Row added", row_removed: "Row removed", field_changed: "Field changed", shape_changed: "Shape changed", file_added: "File added", file_removed: "File removed", column_added: "Column added", column_removed: "Column removed", rows_bulk: "Bulk change", file_changed_opaque: "Unreadable file changed" },
     detailCols: ["Change", "File", "Key", "Field", "Old", "New"],
     truncated: n => `+${n} more (all in the raw difference file).`, showDetails: n => `Details (${n})`,
-    fileCols: ["File", "Old rows", "New rows", "Differences", "Explained", "Outside comparison", "Unclassified"],
-    farkTitle: (a, r, c) => `${a} rows added, ${r} rows removed, ${c} fields changed`,
+    fileCols: ["File", "Old rows", "New rows", "Net", "Added", "Removed", "Changed rows", "Explained", "Outside comparison", "Unclassified"],
+    farkTitle: c => `${c} fields changed`,
     map: "Map", mapAll: "Show all", mapLegend: "Green: added · red: removed · orange: renamed · line: old → new position of a moved stop · grey: other stops in the report. Click a table row to move the map to that stop.", mapNoCoords: "The changed stops have no coordinates.",
   },
   ja: {
@@ -496,12 +496,12 @@ const R = {
     mode: { same_days: "同じ日付で比較", successive_periods: "連続する期間：各公開の主要ダイヤを比較" },
     ls: { added: "新設", discontinued: "廃止", renamed: "改称", merged: "統合", split: "分割", restructured: "再編", changed: "変更", unchanged: "変更なし" },
     ps: { added: "新設", removed: "廃止", renamed: "改称", moved: "移設", renamed_moved: "改称・移設", unchanged: "変更なし" },
-    ek: { extended: "延長", shortened: "短縮", inserted: "停留所追加", removed: "停留所削除", detour_added: "経由追加", detour_removed: "経由廃止" },
-    topic: { fares: "運賃", calendar_exceptions: "運行日の例外", agency: "事業者", office: "営業所", translations: "翻訳", feed_info: "フィード情報", shapes: "経路形状", transfers: "乗継", other_files: "その他のファイル" },
+    ek: { extended: "延長", shortened: "短縮", inserted: "停留所追加", removed: "停留所削除", detour_added: "経由追加", detour_removed: "経由廃止", reordered: "順序変更" },
+    topic: { fares: "運賃", calendar_exceptions: "運行日の例外", agency: "事業者", office: "営業所", translations: "翻訳", feed_info: "フィード情報", shapes: "経路形状", transfers: "乗継", other_files: "その他のファイル", formatting: "表記のみの変更（値は同じ）" },
     ck: { added: "行追加", removed: "行削除", changed_fields: "項目変更" },
     title: "変更レポート", old: "旧公開", new: "新公開", comparison: "比較",
     compared: "比較日", activeDays: "運行日数", periods: "期間", special: "特別な日",
-    coverage: (e, o, u, n) => `差分 ${n.toLocaleString()} 件のうち、${e.toLocaleString()} 件はレポートで説明済み、${o.toLocaleString()} 件は比較対象外の日、${u.toLocaleString()} 件は未分類です。`,
+    coverage: (e, o, u, n) => `変更行 ${n.toLocaleString()} 件（ファイル・列の変更を含む）のうち、${e.toLocaleString()} 件はレポートで説明済み、${o.toLocaleString()} 件は比較対象外の日、${u.toLocaleString()} 件は未分類です。`,
     cE: "説明済み", cO: "比較対象外", cU: "未分類",
     sSummary: "概要", sService: "運行日", sLines: "路線ごとの変更", sPlaces: "停留所", sOther: "その他の変更", sAll: "すべての差分",
     lines: "路線", places: "停留所", trips: "便数", firstLast: "始発・終発", fares: "運賃", quality: "データ品質",
@@ -514,7 +514,7 @@ const R = {
     ttUnchanged: "他の方向・曜日区分の時刻表は変更ありません。",
     placeCols: ["状態", "旧名称", "新名称", "距離", "路線"], unchangedPlaces: n => `変更のない停留所 ${n} は省略。`,
     noOther: "その他の変更はありません。",
-    rawNote: "差分の行単位の一覧はレポートと一緒に保存されます。ここではファイルごとの件数を表示します。",
+    rawNote: "件数は行単位です（1行で複数項目が変わっても1件）。説明済み＋比較対象外＋未分類＝追加行＋削除行＋変更行＋ファイル・列の変更。変更行のセルにカーソルを合わせると変更項目数を表示します。", unclassTitle: n => `未分類の差分の詳細（${n}）`,
     engine: (v, h) => `セマンティックエンジン ${v}・祝日表 ${h}。閾値は試行調整前の暫定値です。`,
     notes: {
       FORMAT_DIFFERENCE: n => `形式の違い：旧公開のJPファイル [${n.old_files.join(", ") || "—"}]、新公開 [${n.new_files.join(", ") || "—"}]。`,
@@ -533,16 +533,16 @@ const R = {
     metres: m => `${m} m`, others: "レポートのある他のペア",
     tripChanges: "便の変更",
     tcCols: ["方向", "曜日区分", "変更", "旧発車", "新発車", "差（分）", "旧到着", "新到着", "備考"],
-    tk: { retimed: "時刻変更", rerouted: "経路変更", retimed_rerouted: "時刻・経路変更", added: "新設", removed: "廃止", moved_out: "他路線へ移行", moved_in: "他路線から移行", moved_dir: "方向の再定義" },
-    tcNote: "発車：始発停留所の時刻、到着：終着停留所の時刻。変更のない便は表示しません。",
+    tk: { reordered: "停留所の順序変更", retimed: "時刻変更", rerouted: "経路変更", retimed_rerouted: "時刻・経路変更", added: "新設", removed: "廃止", moved_out: "他路線へ移行", moved_in: "他路線から移行", moved_dir: "方向の再定義" },
+    tcNote: "発車：始発停留所の時刻、到着：終着停留所の時刻。経路が変わった便は備考に変更部分を旧 ⇒ 新で表示します。変更のない便は表示しません。", midShift: (d, p) => `途中停留所で最大${d}分（${p}）`,
     movesNote: (n, lines) => `${n}便がこの路線と次の路線の間で移行：${lines}。同じ系統群の経路違いの可能性があります。詳細は便の変更表を参照。`,
     editTrips: n => `${n}便`, editDominant: "主要経路の比較",
     movesCard: n => `他の路線・方向へ移行した便：${n}`,
     dk: { row_added: "行追加", row_removed: "行削除", field_changed: "項目変更", shape_changed: "形状変更", file_added: "ファイル追加", file_removed: "ファイル削除", column_added: "列追加", column_removed: "列削除", rows_bulk: "一括変更", file_changed_opaque: "読めないファイルの変更" },
     detailCols: ["変更", "ファイル", "キー", "項目", "旧", "新"],
     truncated: n => `ほか${n}件（すべて差分ファイルに記録）。`, showDetails: n => `詳細（${n}）`,
-    fileCols: ["ファイル", "旧行数", "新行数", "差分", "説明済み", "比較対象外", "未分類"],
-    farkTitle: (a, r, c) => `行追加${a}・行削除${r}・項目変更${c}`,
+    fileCols: ["ファイル", "旧行数", "新行数", "増減", "追加", "削除", "変更行", "説明済み", "比較対象外", "未分類"],
+    farkTitle: c => `変更項目 ${c}`,
     map: "地図", mapAll: "全体表示", mapLegend: "緑：新設・赤：廃止・橙：改称・線：移設した停留所の旧→新位置・灰：レポート内のその他の停留所。表の行をクリックするとその停留所へ移動します。", mapNoCoords: "変更された停留所に座標がありません。",
   },
 };
@@ -683,6 +683,22 @@ function editText(rep, e) {
   return `${rt("ek")[e.kind]}: ${where}`;
 }
 
+// The changed part of a place sequence: common start and end trimmed, "old ⇒ new".
+function routeNote(rep, a, b) {
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  let j = 0;
+  while (j < a.length - i && j < b.length - i && a[a.length - 1 - j] === b[b.length - 1 - j]) j++;
+  const part = xs => { const ns = xs.map(p => pname(rep, p)); return ns.length ? (ns.length > 5 ? `${ns.slice(0, 2).join(" → ")} … ${ns.slice(-2).join(" → ")} (${ns.length})` : ns.join(" → ")) : "—"; };
+  return `${part(a.slice(i, a.length - j))} ⇒ ${part(b.slice(i, b.length - j))}`;
+}
+// Largest time change at a shared place, for trips whose places did not change.
+function midShiftNote(rep, x, y) {
+  let best = null;
+  x.forEach(([p, t], k) => { const d = y[k][1] - t; if (d && (!best || Math.abs(d) > Math.abs(best[0]))) best = [d, p]; });
+  return best ? rt("midShift", signed(best[0]), pname(rep, best[1])) : "";
+}
+
 // Every trip that changed in this line, one row each (the difference view as a list).
 function tripChanges(rep, line) {
   const rows = [];
@@ -697,7 +713,9 @@ function tripChanges(rep, line) {
         const samePlaces = JSON.stringify(x.map(s => s[0])) === JSON.stringify(y.map(s => s[0]));
         const shared = new Map(y.map(s => [s[0], s[1]]));
         const sameTimes = x.every(s => !shared.has(s[0]) || shared.get(s[0]) === s[1]);
-        kind = samePlaces ? "retimed" : sameTimes ? "rerouted" : "retimed_rerouted";
+        const sameSet = JSON.stringify(x.map(s => s[0]).sort()) === JSON.stringify(y.map(s => s[0]).sort());
+        kind = samePlaces ? "retimed" : sameSet ? "reordered" : sameTimes ? "rerouted" : "retimed_rerouted";
+        note = samePlaces ? midShiftNote(rep, x, y) : routeNote(rep, x.map(s => s[0]), y.map(s => s[0]));
       } else {
         const side = a ? "old" : "new", idx = a ? o : n;
         const m = rep.moves.find(m => m.day_type === t.day_type && m[side].line === line.key && m[side].direction === t.direction && m[side].trip === idx);
@@ -938,7 +956,16 @@ function renderReport() {
     : `<tr><td>${esc(rt("dk")[d.kind] || d.kind)}</td><td class="num">${esc(d.file)}</td><td class="dval">${esc((d.key || []).join(" · "))}</td><td class="dval">${esc(d.column || "")}</td><td class="dval">${d.kind === "field_changed" ? `<s>${esc(val(d.old))}</s>` : esc(val(d.old))}</td><td class="dval">${d.kind === "field_changed" ? `<b>${esc(val(d.new))}</b>` : esc(val(d.new))}</td></tr>`;
   const otherRows = rep.other.map(o => `<details class="other"><summary><b>${esc(rt("topic")[o.topic] || o.topic)}</b> · ${esc(Object.entries(o.counts).map(([k, v]) => `${v} ${rt("ck")[k] || k}`).join(" · "))}</summary>
       <div class="scroll" style="border:0"><table class="mini">${thl(rt("detailCols"))}<tbody>${o.details.map(detailRow).join("")}</tbody></table></div>${o.truncated ? `<p class="hint">${esc(rt("truncated", o.truncated))}</p>` : ""}</details>`).join("");
-  const fileRows = Object.entries(rep.accounting.files).map(([name, x]) => `<tr class="${x.changes ? "" : "flat"}"><td class="num">${esc(name)}</td><td class="r">${x.old_rows ?? "—"}</td><td class="r">${x.new_rows ?? "—"}</td><td class="r" title="${esc(rt("farkTitle", x.added, x.removed, x.changed_fields))}">${x.changes}</td><td class="r">${x.classified}</td><td class="r">${x.outside_comparison}</td><td class="r ${x.unclassified ? "down" : ""}">${x.unclassified}</td></tr>`).join("");
+  const fileRows = Object.entries(rep.accounting.files).map(([name, x]) => {
+    const net = x.old_rows != null && x.new_rows != null ? x.new_rows - x.old_rows : null;
+    const struct = (x.structure || []).map(z => `<span class="chip">${esc(rt("dk")[z.kind] || z.kind)}${z.column ? `: ${esc(z.column)}` : ""}</span>`).join(" ");
+    return `<tr class="${x.changes ? "" : "flat"}"><td class="num">${esc(name)}${struct ? `<br>${struct}` : ""}</td><td class="r">${x.old_rows ?? "—"}</td><td class="r">${x.new_rows ?? "—"}</td>
+      <td class="r ${net > 0 ? "up" : net < 0 ? "down" : "flat"}">${net == null ? "—" : signed(net)}</td><td class="r">${x.added ?? "—"}</td><td class="r">${x.removed ?? "—"}</td>
+      <td class="r" title="${esc(rt("farkTitle", x.changed_fields ?? 0))}">${x.changed_rows ?? "—"}</td><td class="r">${x.classified}</td><td class="r">${x.outside_comparison}</td><td class="r ${x.unclassified ? "down" : ""}">${x.unclassified}</td></tr>`;
+  }).join("");
+  const ud = rep.accounting.unclassified_details || [];
+  const unclassBlock = ud.length ? `<details class="other"><summary>${esc(rt("unclassTitle", ud.length + (rep.accounting.unclassified_truncated || 0)))}</summary>
+      <div class="scroll" style="border:0"><table class="mini">${thl(rt("detailCols"))}<tbody>${ud.map(detailRow).join("")}</tbody></table></div>${rep.accounting.unclassified_truncated ? `<p class="hint">${esc(rt("truncated", rep.accounting.unclassified_truncated))}</p>` : ""}</details>` : "";
   box.innerHTML = `<div class="rp">
     <details><summary class="hint">${esc(rt("others"))}</summary>${reportList(false)}</details>
     <div><h2>${esc(rt("title"))} · ${esc(f ? f.name : h.feed.feed_id)}</h2><p class="hint">${esc(f ? f.organization_name : "")} · <span class="num">${esc(h.feed.org_id)}/${esc(h.feed.feed_id)}</span></p>
@@ -966,7 +993,7 @@ function renderReport() {
         <div class="attr"><a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル</a></div></div>
       <p class="hint">${esc(rt("mapLegend"))}</p>` : ""}${placeRows ? `<div class="scroll" style="border:0"><table class="mini">${thl(rt("placeCols"))}<tbody>${placeRows}</tbody></table></div>` : ""}<p class="hint">${esc(rt("unchangedPlaces", nUnchangedPlaces))}</p></div>
     <div><h3>5. ${esc(rt("sOther"))}</h3>${otherRows ? `<div style="display:grid;gap:8px">${otherRows}</div>` : `<p class="hint">${esc(rt("noOther"))}</p>`}</div>
-    <div><h3>6. ${esc(rt("sAll"))}</h3><div class="scroll" style="border:0"><table class="mini">${th(rt("fileCols"))}<tbody>${fileRows}</tbody></table></div><p class="hint">${esc(rt("rawNote"))}</p></div>
+    <div><h3>6. ${esc(rt("sAll"))}</h3><div class="scroll" style="border:0"><table class="mini">${th(rt("fileCols"))}<tbody>${fileRows}</tbody></table></div><p class="hint">${esc(rt("rawNote"))}</p>${unclassBlock}</div>
     <p class="hint">${esc(rt("engine", h.engine.version, h.engine.holidays_version))}</p>
   </div>`;
   box.querySelectorAll("details.line").forEach(el => bindLine(rep, el));

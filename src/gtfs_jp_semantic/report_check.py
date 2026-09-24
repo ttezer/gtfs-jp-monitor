@@ -99,6 +99,11 @@ def check_report(doc: dict) -> list[str]:
             for ref in edit["places"]:
                 place_ok(ref, f"{where}.edits[{e}]")
 
+    for name, f in doc.get("accounting", {}).get("files", {}).items():
+        rows = f["added"] + f["removed"] + f["changed_rows"] + len(f["structure"])
+        buckets = f["classified"] + f["outside_comparison"] + f["unclassified"]
+        if not rows == buckets == f["changes"]:
+            problems.append(f"accounting.files[{name}]: rows {rows}, buckets {buckets}, changes {f['changes']}")
     coverage = doc.get("header", {}).get("coverage")
     if coverage:
         parts = coverage["explained"] + coverage["outside_comparison"] + coverage["unclassified"]

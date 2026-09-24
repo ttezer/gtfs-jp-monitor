@@ -4,4 +4,4 @@ Input: two GTFS ZIP files. Output: canonical JSON. No dependency on gtfs_jp_moni
 except the shared canonical serializer, so the package can move elsewhere later.
 """
 
-ENGINE_VERSION = "0.1.0"
+ENGINE_VERSION = "0.2.0"

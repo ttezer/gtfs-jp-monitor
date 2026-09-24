@@ -139,8 +139,13 @@ places every raw difference in one bucket.
 - **Trips by hour.** Per direction and day type.
 - **Other changes.** Each topic carries up to `report.other_details_max` row-level items;
   shapes are summarised per shape_id.
-- **All differences.** Every file of either side with its row counts, added / removed rows,
-  changed fields and the accounting buckets.
+- **All differences.** Every file of either side with its row counts, added / removed / changed
+  rows and the accounting buckets, all counted in rows: a row with several changed fields counts
+  once, in the least explained bucket of its fields; file and column changes are listed apart
+  and count once each. The coverage header is the total of this table. Up to
+  `report.other_details_max` unclassified differences are kept with their row-level details.
+- **Reordered places.** A place that leaves a pattern in one edit and comes back in another is
+  reported once as `reordered`.
 - **Changed.** A line matched by name is `changed` when a trip pair in any compared direction and
   day type is not exact, or its dominant pattern changed; otherwise `unchanged` and its trips,
   first/last and timetables are omitted.
@@ -150,6 +155,7 @@ places every raw difference in one bucket.
 
   | Raw difference | Bucket |
   |---|---|
+  | a field whose old and new text are the same number or time (`140.5208490` / `140.520849`) | explained, listed under Other changes as formatting |
   | `calendar.txt` | explained (service days) |
   | fares, calendar exceptions, agency, office, translations, feed info, shapes, transfers, other files | explained, listed under Other changes |
   | `stops.txt` row of a place that is not unchanged, or whose id changed | explained |

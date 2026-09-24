@@ -36,7 +36,7 @@ class TripPair:
 
 @dataclass(frozen=True)
 class PatternEdit:
-    kind: str  # extended | shortened | inserted | removed | detour_added | detour_removed
+    kind: str  # extended | shortened | inserted | removed | detour_added | detour_removed | reordered
     places: tuple[str, ...]
 
 
@@ -240,4 +240,24 @@ def pattern_edits(old: tuple[str, ...], new: tuple[str, ...]) -> list[PatternEdi
             added = tuple(new[j1:j2])
             kind = "extended" if at_edge and tag == "insert" else ("inserted" if len(added) == 1 else "detour_added")
             edits.append(PatternEdit(kind, added))
-    return edits
+    return _collapse_reordered(edits)
+
+
+_OUT = ("shortened", "removed", "detour_removed")
+_IN = ("extended", "inserted", "detour_added")
+
+
+def _collapse_reordered(edits: list[PatternEdit]) -> list[PatternEdit]:
+    """A place that leaves the sequence in one edit and comes back in another only moved:
+    report it once as `reordered` (in new-side order) instead of a removal plus an insertion."""
+    gone = {p for e in edits if e.kind in _OUT for p in e.places}
+    came = [p for e in edits if e.kind in _IN for p in e.places]
+    moved = [p for p in came if p in gone]
+    if not moved:
+        return edits
+    keep = []
+    for e in edits:
+        rest = tuple(p for p in e.places if p not in moved)
+        if rest:
+            keep.append(PatternEdit(e.kind, rest))
+    return keep + [PatternEdit("reordered", tuple(dict.fromkeys(moved)))]

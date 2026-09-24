@@ -58,5 +58,26 @@ class WebExportTest(unittest.TestCase):
         self.assertEqual(entry["summary"], report["summary"])
         self.assertEqual(bundles, {"pref-10": {pair: report}})
 
+    def test_newest_stored_engine_version_wins(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            sync_catalog(FakeClient([feed_record()], {(ORG, FEED): [gen(1, "current", "2026-04-01")]}), root)
+            doc = copy.deepcopy(load_json(FIXTURES / "generation" / "complete.json"))
+            doc["generation"]["uid"] = uid(1)
+            write_json(generation_path(root, ORG, FEED, uid(1), KEY), doc)
+            report = copy.deepcopy(load_json(FIXTURES / "semantic" / "report-example.json"))
+            report["header"]["feed"] = {"org_id": ORG, "feed_id": FEED}
+            h = report["header"]
+            for version, marker in (("0.0.1", "old"), (ENGINE_VERSION, "new"), ("99.0.0", "future")):
+                r = copy.deepcopy(report)
+                r["header"]["engine"]["version"] = version if version != "99.0.0" else "99.0.0"
+                r["header"]["old"]["memo"] = marker
+                path = change_path(root, ORG, FEED, version, h["old"]["uid"], h["new"]["uid"])
+                path.parent.mkdir(parents=True)
+                path.write_bytes(gzip_bytes(r))
+            _, bundles = build_export(root, KEY)
+        (doc,) = bundles["pref-10"].values()
+        self.assertEqual(doc["header"]["old"]["memo"], "new")  # newest not above this engine
+
 if __name__ == "__main__":
     unittest.main()

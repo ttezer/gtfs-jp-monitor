@@ -147,7 +147,9 @@ class ReportTest(unittest.TestCase):
 
     def test_every_raw_difference_is_accounted(self):
         cov = self.report["header"]["coverage"]
-        self.assertEqual(cov["raw_total"], len(self.raw["changes"]))
+        files = self.report["accounting"]["files"]
+        self.assertEqual(cov["raw_total"], sum(f["changes"] for f in files.values()))
+        self.assertLess(cov["raw_total"], len(self.raw["changes"]))  # rows, not fields: T1 has three changed times
         self.assertEqual(cov["unclassified"], 0)
         self.assertGreater(cov["outside_comparison"], 0)  # X1 ran only on a special day
         self.assertIn({"code": "OUTSIDE_COMPARISON_PRESENT"}, self.report["header"]["notes"])
@@ -157,7 +159,9 @@ class ReportTest(unittest.TestCase):
         self.assertEqual([(d["kind"], d["column"], d["old"], d["new"]) for d in fares["details"]], [("field_changed", "price", "200", "220")])
         self.assertEqual(fares["truncated"], 0)
         stops = self.report["accounting"]["files"]["stops.txt"]
-        self.assertEqual((stops["old_rows"], stops["new_rows"], stops["added"], stops["removed"], stops["changed_fields"]), (4, 4, 1, 1, 1))
+        self.assertEqual((stops["old_rows"], stops["new_rows"], stops["added"], stops["removed"], stops["changed_rows"]), (4, 4, 1, 1, 1))
+        st = self.report["accounting"]["files"]["stop_times.txt"]
+        self.assertGreater(st["changed_fields"], st["changed_rows"])
         self.assertEqual(self.report["accounting"]["files"]["agency.txt"]["changes"], 0)  # unchanged files are listed too
 
 
@@ -184,6 +188,9 @@ class AccountingTest(unittest.TestCase):
             {"id": "c0000004", "file": "stop_times.txt", "kind": "field_changed", "key": ["T9", "1"]},
             {"id": "c0000005", "file": "stop_times.txt", "kind": "field_changed", "key": ["T1", "1"]},
             {"id": "c0000006", "file": "routes_jp.txt", "kind": "file_added", "rows": 3},
+            {"id": "c0000009", "file": "stops.txt", "kind": "field_changed", "key": ["S9"], "column": "stop_lon", "old": "140.5208490", "new": "140.520849"},
+            {"id": "c0000010", "file": "stop_times.txt", "kind": "field_changed", "key": ["T9", "1"], "column": "arrival_time", "old": "7:30:00", "new": "07:30:00"},
+            {"id": "c0000011", "file": "stops.txt", "kind": "field_changed", "key": ["S9"], "column": "stop_lat", "old": "40.1", "new": "40.10001"},
         ]}
         raw["changes"] += [
             {"id": "c0000007", "file": "stop_times.txt", "kind": "field_changed", "key": ["T2", "1"], "column": "stop_id",
@@ -193,9 +200,9 @@ class AccountingTest(unittest.TestCase):
         ]
         acc = classify(raw, Evidence(changed_trips={"T1"}, compared_trips={"T1", "T2"},
                                      old_stop_place={"i-1": "P1", "i-2": "P2"}, new_stop_place={"1": "P1", "3": "P3"}))
-        self.assertEqual(acc.unclassified, ["c0000001", "c0000002", "c0000008"])  # c7 renumbered, c8 another place
+        self.assertEqual(sorted(acc.unclassified), ["c0000001", "c0000002", "c0000008", "c0000011"])  # c7 renumbered, c8 another place
         self.assertEqual(acc.outside, ["c0000004"])
-        self.assertEqual(acc.other, {"fares": ["c0000003"], "other_files": ["c0000006"]})
+        self.assertEqual(acc.other, {"fares": ["c0000003"], "other_files": ["c0000006"], "formatting": ["c0000009", "c0000010"]})
 
 
 if __name__ == "__main__":
