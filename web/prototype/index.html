@@ -1,4 +1,5 @@
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GTFS-JP Monitor</title>
 <meta name="description" content="Feed quality, publication readiness and change history for gtfs-data.jp feeds">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -155,6 +156,47 @@ table.mini td.r, table.mini th.r { text-align: right; font-family: var(--mono); 
 .section { background: var(--surface); border: 1px solid var(--hair); border-radius: var(--r); padding: 16px; margin-top: 14px; }
 .section p { max-width: 70ch; margin: 0 0 8px; }
 footer { margin-top: 24px; color: var(--faint); font-size: 12px; }
+.rp { display: grid; gap: 16px; }
+.rp > *, .rp .lb > *, .rp .lines > * { min-width: 0; }
+.rp h2 { margin: 0; font-size: 20px; }
+.rp h3 { margin: 0 0 8px; }
+.rp .pubs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px; }
+.rp .pub { border: 1px solid var(--hair); border-radius: 6px; padding: 8px 10px; font-size: 12px; display: grid; gap: 2px; }
+.rp .pub b { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); font-weight: 500; }
+.rp .memo { color: var(--muted); white-space: pre-line; max-height: 5.5em; overflow: auto; }
+.covbar { display: flex; height: 10px; border-radius: 999px; overflow: hidden; background: var(--surface-2); }
+.covbar span { display: block; height: 100%; }
+.cov-e { background: var(--good); } .cov-o { background: var(--faint); } .cov-u { background: var(--warn); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); margin-top: 6px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.st { display: inline-block; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 0 8px; white-space: nowrap; }
+.st-added { background: var(--good-soft); color: var(--good); }
+.st-discontinued, .st-removed { background: var(--bad-soft); color: var(--bad); }
+.st-renamed, .st-moved, .st-renamed_moved, .st-merged, .st-split, .st-restructured, .st-changed { background: var(--warn-soft); color: var(--warn); }
+.st-unchanged { background: var(--surface-2); color: var(--muted); }
+details.line { border: 1px solid var(--hair); border-radius: 6px; }
+details.line > summary { cursor: pointer; padding: 8px 10px; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+details.line > summary .ln { font-weight: 700; }
+details.line > summary .lt { color: var(--muted); font-size: 12px; font-family: var(--mono); }
+details.line[open] > summary { border-bottom: 1px solid var(--hair); }
+details.line .lb { padding: 10px; display: grid; gap: 12px; }
+.seg { display: inline-flex; gap: 2px; background: var(--surface-2); border-radius: 6px; padding: 2px; flex-wrap: wrap; }
+.seg button { border: 0; background: transparent; border-radius: 5px; padding: 3px 10px; cursor: pointer; color: var(--muted); font-size: 12px; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgb(0 0 0 / .08); }
+.ttbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+table.tt { border-collapse: collapse; font-size: 12px; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+table.tt th, table.tt td { border-bottom: 1px solid var(--hair); padding: 3px 6px; text-align: right; white-space: nowrap; }
+table.tt th { color: var(--faint); font-weight: 500; }
+table.tt th.pl, table.tt td.pl { text-align: left; font-family: var(--font); position: sticky; left: 0; background: var(--surface); z-index: 1; max-width: 16em; overflow: hidden; text-overflow: ellipsis; }
+table.tt td s, .tt-rem { color: var(--bad); }
+table.tt td b, .tt-add { color: var(--good); font-weight: 600; }
+table.tt td.add { background: var(--good-soft); }
+table.tt td.rem { background: var(--bad-soft); }
+table.tt td.chg { background: var(--warn-soft); }
+table.tt tr.only-new td.pl { color: var(--good); }
+table.tt tr.only-old td.pl { color: var(--bad); }
+.edits { margin: 0; padding-left: 18px; font-size: 13px; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; font-family: var(--mono); font-size: 13px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 
@@ -218,7 +260,7 @@ const PREFS = [["北海道","Hokkaido"],["青森県","Aomori"],["岩手県","Iwa
 const T = {
   tr: {
     tagline: "Feed kalitesi, yayına hazırlık ve değişiklik geçmişi",
-    notice: (f, g, rel, prof) => `<b>Önizleme.</b> ${f} feed, ${g} yayın; GTFS Analyzer ${rel} (${prof} profili). Şimdilik her feed'in son 4 yayını analiz edildi; daha eski yayınlar her gün arka planda ekleniyor. Semantic değişiklikler henüz yok.`,
+    notice: (f, g, rel, prof) => `<b>Önizleme.</b> ${f} feed, ${g} yayın; GTFS Analyzer ${rel} (${prof} profili). Şimdilik her feed'in son 4 yayını analiz edildi; daha eski yayınlar her gün arka planda ekleniyor. Semantic değişiklik raporları şimdilik yalnız birkaç pilot feed'in son yayın çifti için var (Diff Raporları sekmesi).`,
     overview: "Genel Bakış", history: "Feed Geçmişi", reports: "Diff Raporları", gtfsjp: "GTFS-JP",
     search: "Feed ara", prefecture: "İl", readiness: "Yayın durumu", sort: "Sırala", all: "Tümü",
     ready: "Yayınlanmaya hazır", notReady: "Hazır değil", merge: "Eşdeğer yayınları birleştir",
@@ -251,7 +293,7 @@ const T = {
   },
   en: {
     tagline: "Feed quality, publication readiness and change history",
-    notice: (f, g, rel, prof) => `<b>Preview.</b> ${f} feeds, ${g} publications; GTFS Analyzer ${rel} (${prof} profile). For now the latest 4 publications of each feed are analysed; older ones are added daily in the background. Semantic changes are not available yet.`,
+    notice: (f, g, rel, prof) => `<b>Preview.</b> ${f} feeds, ${g} publications; GTFS Analyzer ${rel} (${prof} profile). For now the latest 4 publications of each feed are analysed; older ones are added daily in the background. Semantic change reports exist for now only for the latest pair of a few pilot feeds (Diff reports tab).`,
     overview: "Overview", history: "Feed history", reports: "Diff reports", gtfsjp: "GTFS-JP",
     search: "Search feeds", prefecture: "Prefecture", readiness: "Readiness", sort: "Sort", all: "All",
     ready: "Ready to publish", notReady: "Not ready", merge: "Merge equivalent publications",
@@ -284,7 +326,7 @@ const T = {
   },
   ja: {
     tagline: "フィードの品質・公開準備・変更履歴",
-    notice: (f, g, rel, prof) => `<b>プレビュー。</b>${f}フィード・${g}公開分、GTFS Analyzer ${rel}（${prof}プロファイル）。現在は各フィードの最新4公開のみ解析済みで、それ以前の公開は毎日バックグラウンドで追加されます。意味的な変更はまだありません。`,
+    notice: (f, g, rel, prof) => `<b>プレビュー。</b>${f}フィード・${g}公開分、GTFS Analyzer ${rel}（${prof}プロファイル）。現在は各フィードの最新4公開のみ解析済みで、それ以前の公開は毎日バックグラウンドで追加されます。セマンティック変更レポートは現在、いくつかの試行フィードの最新ペアのみです（差分レポートタブ）。`,
     overview: "概要", history: "フィード履歴", reports: "差分レポート", gtfsjp: "GTFS-JP",
     search: "フィード検索", prefecture: "都道府県", readiness: "公開状態", sort: "並び替え", all: "すべて",
     ready: "公開準備完了", notReady: "未準備", merge: "同一内容の公開をまとめる",
@@ -327,6 +369,389 @@ try {
 } catch (e) { /* storage unavailable */ }
 
 const t = (key, ...args) => { const v = T[state.lang][key]; return typeof v === "function" ? v(...args) : v; };
+
+// ---- Semantic change report (gtfs-jp-semantic-report/1) ----
+const R = {
+  tr: {
+    dt: { weekday: "Hafta içi", saturday: "Cumartesi", sunday_holiday: "Pazar / tatil" },
+    mode: { same_days: "Aynı günler karşılaştırıldı", successive_periods: "Ardışık dönemler: her yayının baskın tarifesi karşılaştırıldı" },
+    ls: { added: "Eklendi", discontinued: "Kaldırıldı", renamed: "Adı değişti", merged: "Birleşti", split: "Bölündü", restructured: "Yeniden düzenlendi", changed: "Değişti", unchanged: "Değişmedi" },
+    ps: { added: "Eklendi", removed: "Kaldırıldı", renamed: "Adı değişti", moved: "Taşındı", renamed_moved: "Adı değişti · taşındı", unchanged: "Değişmedi" },
+    ek: { extended: "Uzatıldı", shortened: "Kısaltıldı", inserted: "Durak eklendi", removed: "Durak çıkarıldı", detour_added: "Sapma eklendi", detour_removed: "Sapma kaldırıldı" },
+    topic: { fares: "Ücretler", calendar_exceptions: "Takvim istisnaları", agency: "İşletici", office: "Şube", translations: "Çeviriler", feed_info: "Feed bilgisi", shapes: "Güzergâh şekilleri", transfers: "Aktarmalar", other_files: "Diğer dosyalar" },
+    ck: { added: "eklenen satır", removed: "kaldırılan satır", changed_fields: "değişen alan" },
+    title: "Değişiklik raporu", old: "Eski yayın", new: "Yeni yayın", comparison: "Karşılaştırma",
+    compared: "Karşılaştırılan gün", activeDays: "Aktif gün", periods: "Dönemler", special: "Özel günler",
+    coverage: (e, o, u, n) => `${n.toLocaleString()} ham farkın ${e.toLocaleString()}'i raporda açıklandı, ${o.toLocaleString()}'i karşılaştırılan günlerin dışında, ${u.toLocaleString()}'i sınıflandırılmadı.`,
+    cE: "Açıklandı", cO: "Karşılaştırma dışı", cU: "Sınıflandırılmadı",
+    sSummary: "Özet", sService: "Hizmet günleri", sLines: "Hat değişiklikleri", sPlaces: "Duraklar", sOther: "Diğer değişiklikler", sAll: "Tüm farklar",
+    lines: "Hatlar", places: "Duraklar", trips: "Sefer sayısı", firstLast: "İlk / son sefer", fares: "Ücretler", quality: "Veri kalitesi",
+    firstLastN: n => `${n} hat·yön·gün tipinde ilk veya son sefer en az ${state.flShift} dk kaydı`,
+    faresTxt: f => f.changed ? `Değişti · ${f.classes_added} sınıf eklendi · ${f.classes_removed} kaldırıldı · ${f.prices_changed} fiyat değişti` : "Değişmedi",
+    unchangedLines: n => `Değişmeyen ${n} hat`, noLineChange: "Hiçbir hatta sefer veya güzergâh değişikliği yok.",
+    byHour: "Saate göre sefer (ilk kalkış saati)", dir: "Yön", first: "İlk", last: "Son", patterns: "Güzergâh değişiklikleri",
+    timetables: "Sefer saatleri", vOld: "Eski", vNew: "Yeni", vDiff: "Fark", noTT: "Bu tarafta sefer yok.",
+    ttLegend: "Fark görünümü: yeşil sütun eklenen sefer, kırmızı kaldırılan sefer, sarı saati veya güzergâhı değişen sefer. Değişen hücrede yeni saat kalın, eski saat üstü çizili. Yalnız bir tarafta olan duraklar renkli yazılır.",
+    ttUnchanged: "Diğer yön ve gün tiplerinde sefer saatleri değişmedi.",
+    placeCols: ["Durum", "Eski ad", "Yeni ad", "Mesafe", "Hatlar"], unchangedPlaces: n => `Değişmeyen ${n} durak listelenmedi.`,
+    otherCols: ["Konu", "Değişiklik"], noOther: "Başka değişiklik yok.",
+    fileCols: ["Dosya", "Fark", "Açıklandı", "Karşılaştırma dışı", "Sınıflandırılmadı"],
+    rawNote: "Farkların satır satır listesi rapor dosyasıyla birlikte saklanır; burada dosya başına sayılar gösterilir.",
+    engine: (v, h) => `Semantic motor ${v} · tatil tablosu ${h}. Eşikler pilot ayarından önce geçicidir.`,
+    notes: {
+      FORMAT_DIFFERENCE: n => `Biçim farkı: eski yayındaki JP dosyaları [${n.old_files.join(", ") || "—"}], yenideki [${n.new_files.join(", ") || "—"}].`,
+      POSSIBLE_SCOPE_CHANGE: n => `Kapsam değişikliği olası: hat sayısı ${n.route_delta} değişti; kurumun kapanan feed'leri: ${n.ended_feeds.map(e => `${e.feed_id} (${e.end_date})`).join(", ")}.`,
+      NO_COMMON_DAY_TYPE: () => "İki yayının ortak gün tipi yok; sefer karşılaştırması yapılamadı.",
+      OUTSIDE_COMPARISON_PRESENT: () => "Bazı seferler yalnız karşılaştırılmayan günlerde çalışıyor (özel günler, kısa dönemler); bunlar 'karşılaştırma dışı' sayıldı.",
+    },
+    panelOpen: "Raporun tamamı →", panelNone: "Bu çift için henüz semantic rapor yok; şimdilik yalnız pilot feed'lerin son çifti raporlandı.",
+    panelNotAdjacent: "Semantic rapor yalnız ardışık iki yayın için üretilir. Tablodaki Δ hücresine tıklayın.",
+    panelLines: s => `Hat: ${s.changed} değişti · ${s.added} eklendi · ${s.discontinued} kaldırıldı · ${s.renamed + s.merged + s.split + s.restructured} ad/yapı değişti`,
+    panelPlaces: s => `Durak: ${s.added} eklendi · ${s.removed} kaldırıldı · ${s.renamed} adı değişti · ${s.moved} taşındı`,
+    panelCov: p => `Ham farkların %${p}'i açıklandı`,
+    backward: "Seçim geriye doğru; rapor eskiden yeniye gösteriliyor.",
+    pick: "Genel Bakış'ta bir feed seçip iki ardışık yayını karşılaştırın; o çiftin raporu burada açılır. Şu an raporu olan çiftler:",
+    metres: m => `${m} m`, others: "Raporu olan diğer çiftler",
+  },
+  en: {
+    dt: { weekday: "Weekday", saturday: "Saturday", sunday_holiday: "Sunday / holiday" },
+    mode: { same_days: "Same days compared", successive_periods: "Successive periods: each publication's dominant timetable compared" },
+    ls: { added: "Added", discontinued: "Discontinued", renamed: "Renamed", merged: "Merged", split: "Split", restructured: "Restructured", changed: "Changed", unchanged: "Unchanged" },
+    ps: { added: "Added", removed: "Removed", renamed: "Renamed", moved: "Moved", renamed_moved: "Renamed · moved", unchanged: "Unchanged" },
+    ek: { extended: "Extended", shortened: "Shortened", inserted: "Stop inserted", removed: "Stop removed", detour_added: "Detour added", detour_removed: "Detour removed" },
+    topic: { fares: "Fares", calendar_exceptions: "Calendar exceptions", agency: "Agency", office: "Office", translations: "Translations", feed_info: "Feed info", shapes: "Shapes", transfers: "Transfers", other_files: "Other files" },
+    ck: { added: "rows added", removed: "rows removed", changed_fields: "fields changed" },
+    title: "Change report", old: "Old publication", new: "New publication", comparison: "Comparison",
+    compared: "Compared day", activeDays: "Active days", periods: "Periods", special: "Special days",
+    coverage: (e, o, u, n) => `Of ${n.toLocaleString()} raw differences, ${e.toLocaleString()} are explained by the report, ${o.toLocaleString()} lie outside the compared days and ${u.toLocaleString()} are unclassified.`,
+    cE: "Explained", cO: "Outside comparison", cU: "Unclassified",
+    sSummary: "Summary", sService: "Service days", sLines: "Changes by line", sPlaces: "Stops", sOther: "Other changes", sAll: "All differences",
+    lines: "Lines", places: "Stops", trips: "Trips", firstLast: "First / last trip", fares: "Fares", quality: "Data quality",
+    firstLastN: n => `First or last trip moved by at least ${state.flShift} min in ${n} line·direction·day-type combinations`,
+    faresTxt: f => f.changed ? `Changed · ${f.classes_added} classes added · ${f.classes_removed} removed · ${f.prices_changed} prices changed` : "Unchanged",
+    unchangedLines: n => `${n} unchanged lines`, noLineChange: "No trip or pattern changes on any line.",
+    byHour: "Trips by hour (first departure)", dir: "Direction", first: "First", last: "Last", patterns: "Pattern changes",
+    timetables: "Timetables", vOld: "Old", vNew: "New", vDiff: "Difference", noTT: "No trips on this side.",
+    ttLegend: "Difference view: green column = added trip, red = removed trip, yellow = retimed or rerouted trip. In a changed cell the new time is bold and the old time struck through. Stops served on one side only are coloured.",
+    ttUnchanged: "Timetables of the other directions and day types did not change.",
+    placeCols: ["Status", "Old name", "New name", "Distance", "Lines"], unchangedPlaces: n => `${n} unchanged stops are not listed.`,
+    otherCols: ["Topic", "Changes"], noOther: "No other changes.",
+    fileCols: ["File", "Differences", "Explained", "Outside comparison", "Unclassified"],
+    rawNote: "The row-level list of differences is stored with the report; per-file counts are shown here.",
+    engine: (v, h) => `Semantic engine ${v} · holiday table ${h}. Thresholds are provisional until pilot calibration.`,
+    notes: {
+      FORMAT_DIFFERENCE: n => `Format difference: JP files in the old publication [${n.old_files.join(", ") || "—"}], in the new one [${n.new_files.join(", ") || "—"}].`,
+      POSSIBLE_SCOPE_CHANGE: n => `Possible change of scope: route count changed by ${n.route_delta}; ended feeds of the organisation: ${n.ended_feeds.map(e => `${e.feed_id} (${e.end_date})`).join(", ")}.`,
+      NO_COMMON_DAY_TYPE: () => "The publications share no day type; trips could not be compared.",
+      OUTSIDE_COMPARISON_PRESENT: () => "Some trips run only on days that were not compared (special days, short periods); they are counted as outside comparison.",
+    },
+    panelOpen: "Full report →", panelNone: "No semantic report for this pair yet; for now only the latest pair of the pilot feeds is reported.",
+    panelNotAdjacent: "Semantic reports exist only for two consecutive publications. Click a Δ cell in the table.",
+    panelLines: s => `Lines: ${s.changed} changed · ${s.added} added · ${s.discontinued} discontinued · ${s.renamed + s.merged + s.split + s.restructured} renamed/restructured`,
+    panelPlaces: s => `Stops: ${s.added} added · ${s.removed} removed · ${s.renamed} renamed · ${s.moved} moved`,
+    panelCov: p => `${p}% of raw differences explained`,
+    backward: "The selection is backwards; the report is shown old to new.",
+    pick: "Select a feed in Overview and compare two consecutive publications; the report of that pair opens here. Pairs with a report:",
+    metres: m => `${m} m`, others: "Other pairs with a report",
+  },
+  ja: {
+    dt: { weekday: "平日", saturday: "土曜", sunday_holiday: "日曜・祝日" },
+    mode: { same_days: "同じ日付で比較", successive_periods: "連続する期間：各公開の主要ダイヤを比較" },
+    ls: { added: "新設", discontinued: "廃止", renamed: "改称", merged: "統合", split: "分割", restructured: "再編", changed: "変更", unchanged: "変更なし" },
+    ps: { added: "新設", removed: "廃止", renamed: "改称", moved: "移設", renamed_moved: "改称・移設", unchanged: "変更なし" },
+    ek: { extended: "延長", shortened: "短縮", inserted: "停留所追加", removed: "停留所削除", detour_added: "経由追加", detour_removed: "経由廃止" },
+    topic: { fares: "運賃", calendar_exceptions: "運行日の例外", agency: "事業者", office: "営業所", translations: "翻訳", feed_info: "フィード情報", shapes: "経路形状", transfers: "乗継", other_files: "その他のファイル" },
+    ck: { added: "行追加", removed: "行削除", changed_fields: "項目変更" },
+    title: "変更レポート", old: "旧公開", new: "新公開", comparison: "比較",
+    compared: "比較日", activeDays: "運行日数", periods: "期間", special: "特別な日",
+    coverage: (e, o, u, n) => `差分 ${n.toLocaleString()} 件のうち、${e.toLocaleString()} 件はレポートで説明済み、${o.toLocaleString()} 件は比較対象外の日、${u.toLocaleString()} 件は未分類です。`,
+    cE: "説明済み", cO: "比較対象外", cU: "未分類",
+    sSummary: "概要", sService: "運行日", sLines: "路線ごとの変更", sPlaces: "停留所", sOther: "その他の変更", sAll: "すべての差分",
+    lines: "路線", places: "停留所", trips: "便数", firstLast: "始発・終発", fares: "運賃", quality: "データ品質",
+    firstLastN: n => `始発または終発が${state.flShift}分以上変わった路線・方向・曜日区分：${n}`,
+    faresTxt: f => f.changed ? `変更あり・運賃種別 追加${f.classes_added}・削除${f.classes_removed}・価格変更${f.prices_changed}` : "変更なし",
+    unchangedLines: n => `変更のない路線 ${n}`, noLineChange: "便・経路の変更はありません。",
+    byHour: "時間帯別便数（始発時刻）", dir: "方向", first: "始発", last: "終発", patterns: "経路の変更",
+    timetables: "時刻表", vOld: "旧", vNew: "新", vDiff: "差分", noTT: "この側に便はありません。",
+    ttLegend: "差分表示：緑の列は新設便、赤は廃止便、黄は時刻または経路が変わった便。変更セルは新時刻を太字、旧時刻を取り消し線で表示。片側のみの停留所は色付きです。",
+    ttUnchanged: "他の方向・曜日区分の時刻表は変更ありません。",
+    placeCols: ["状態", "旧名称", "新名称", "距離", "路線"], unchangedPlaces: n => `変更のない停留所 ${n} は省略。`,
+    otherCols: ["項目", "変更"], noOther: "その他の変更はありません。",
+    fileCols: ["ファイル", "差分", "説明済み", "比較対象外", "未分類"],
+    rawNote: "差分の行単位の一覧はレポートと一緒に保存されます。ここではファイルごとの件数を表示します。",
+    engine: (v, h) => `セマンティックエンジン ${v}・祝日表 ${h}。閾値は試行調整前の暫定値です。`,
+    notes: {
+      FORMAT_DIFFERENCE: n => `形式の違い：旧公開のJPファイル [${n.old_files.join(", ") || "—"}]、新公開 [${n.new_files.join(", ") || "—"}]。`,
+      POSSIBLE_SCOPE_CHANGE: n => `対象範囲の変更の可能性：路線数が${n.route_delta}変化。同じ組織で終了したフィード：${n.ended_feeds.map(e => `${e.feed_id}（${e.end_date}）`).join("、")}。`,
+      NO_COMMON_DAY_TYPE: () => "共通の曜日区分がなく、便を比較できませんでした。",
+      OUTSIDE_COMPARISON_PRESENT: () => "比較しなかった日（特別な日・短い期間）のみ運行する便があり、比較対象外として数えています。",
+    },
+    panelOpen: "レポート全体 →", panelNone: "このペアのセマンティックレポートはまだありません。現在は試行フィードの最新ペアのみです。",
+    panelNotAdjacent: "セマンティックレポートは連続する2つの公開のみです。表のΔセルをクリックしてください。",
+    panelLines: s => `路線：変更${s.changed}・新設${s.added}・廃止${s.discontinued}・改称/再編${s.renamed + s.merged + s.split + s.restructured}`,
+    panelPlaces: s => `停留所：新設${s.added}・廃止${s.removed}・改称${s.renamed}・移設${s.moved}`,
+    panelCov: p => `差分の${p}%を説明済み`,
+    backward: "選択が逆順です。レポートは旧→新で表示します。",
+    pick: "概要タブでフィードを選び、連続する2つの公開を比較すると、そのレポートがここに表示されます。レポートのあるペア：",
+    metres: m => `${m} m`, others: "レポートのある他のペア",
+  },
+};
+const rt = (k, ...a) => { const v = R[state.lang][k]; return typeof v === "function" ? v(...a) : v; };
+const DAYS = ["weekday", "saturday", "sunday_holiday"];
+const hm = m => m == null ? "" : `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
+state.openLines = new Set(); state.tt = {};
+
+// Report of two neighbouring groups: old = last member of the older group, new = first member of the newer one.
+function pairReport(gs, lo, hi) {
+  if (Math.abs(lo - hi) !== 1) return { adjacent: false, report: null };
+  const [o, n] = lo < hi ? [gs[lo], gs[hi]] : [gs[hi], gs[lo]];
+  const k = `${o.rep.uid}__${n.members[0].uid}`;
+  return { adjacent: true, report: (DATA.reports || {})[k] || null };
+}
+function selectedReport() {
+  const f = DATA.feeds.find(x => key(x) === state.selected);
+  if (!f || state.oldIdx == null || state.newIdx == null) return { f, adjacent: false, report: null };
+  const gs = groups(f);
+  return { f, backwards: state.oldIdx > state.newIdx, ...pairReport(gs, state.oldIdx, state.newIdx) };
+}
+
+function panelSemantic() {
+  const { adjacent, report } = selectedReport();
+  if (!adjacent) return `<p class="hint">${esc(rt("panelNotAdjacent"))}</p>`;
+  if (!report) return `<div class="empty">${esc(rt("panelNone"))}</div>`;
+  const s = report.summary, c = report.header.coverage;
+  const pct = c.raw_total ? Math.floor(c.explained / c.raw_total * 1000) / 10 : 100;
+  const trips = DAYS.filter(d => s.trips_by_day_type[d]).map(d => {
+    const x = s.trips_by_day_type[d], dv = x.after - x.before;
+    return `<tr><td>${esc(rt("dt")[d])}</td><td class="r">${x.before}</td><td class="r">${x.after}</td><td class="r ${dv > 0 ? "up" : dv < 0 ? "down" : "flat"}">${signed(dv)}</td></tr>`;
+  }).join("");
+  return `<p class="hint">${esc(rt("panelLines", s.lines))}<br>${esc(rt("panelPlaces", s.places))}<br>${esc(rt("panelCov", pct))}</p>
+    <table class="mini"><thead><tr><th>${esc(rt("trips"))}</th><th class="r">${esc(t("before"))}</th><th class="r">${esc(t("after"))}</th><th class="r">Δ</th></tr></thead><tbody>${trips}</tbody></table>
+    <p><button type="button" class="linkbtn" id="open-report">${esc(rt("panelOpen"))}</button></p>`;
+}
+
+const pname = (rep, i) => { const p = rep.places[i]; return p ? (p.new || p.old).name : "?"; };
+const stChip = (cls, text) => `<span class="st st-${esc(cls)}">${esc(text)}</span>`;
+
+function dirLabel(rep, line, dir) {
+  const tab = line.timetables.find(x => x.direction === dir);
+  const side = tab && (tab.new || tab.old);
+  if (side && side.places.length) return `${pname(rep, side.places[0])} → ${pname(rep, side.places[side.places.length - 1])}`;
+  return `${rt("dir")} ${dir}`;
+}
+
+// Longest common subsequence merge of two place-index rows.
+function mergeRows(A, B) {
+  const n = A.length, m = B.length;
+  const L = Array.from({ length: n + 1 }, () => new Int32Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L[i][j] = A[i] === B[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  const out = []; let i = 0, j = 0;
+  while (i < n && j < m) {
+    if (A[i] === B[j]) out.push({ p: A[i], io: i++, in: j++ });
+    else if (L[i + 1][j] >= L[i][j + 1]) out.push({ p: A[i], io: i++, in: null });
+    else out.push({ p: B[j], io: null, in: j++ });
+  }
+  while (i < n) out.push({ p: A[i], io: i++, in: null });
+  while (j < m) out.push({ p: B[j], io: null, in: j++ });
+  return out;
+}
+
+const firstTime = times => times.find(x => x != null);
+
+function ttHtml(rep, tab, view) {
+  if (view !== "diff") {
+    const side = tab[view];
+    if (!side) return `<p class="hint">${esc(rt("noTT"))}</p>`;
+    const head = side.trips.map(tr => `<th title="${esc(tr.trip_id)}">${hm(firstTime(tr.times))}</th>`).join("");
+    const rows = side.places.map((p, r) => `<tr><td class="pl" title="${esc(pname(rep, p))}">${esc(pname(rep, p))}</td>${side.trips.map(tr => `<td>${hm(tr.times[r])}</td>`).join("")}</tr>`).join("");
+    return `<div class="scroll"><table class="tt"><thead><tr><th class="pl"></th>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+  const O = tab.old || { places: [], trips: [] }, N = tab.new || { places: [], trips: [] };
+  const rows = mergeRows(O.places, N.places);
+  const cols = tab.pairs.map(([o, n]) => {
+    const a = o == null ? null : O.trips[o], b = n == null ? null : N.trips[n];
+    const cells = rows.map(r => ({ x: a && r.io != null ? a.times[r.io] : null, y: b && r.in != null ? b.times[r.in] : null }));
+    const kind = !a ? "add" : !b ? "rem" : cells.some(c => c.x !== c.y) ? "chg" : "";
+    return { a, b, cells, kind };
+  });
+  const head = cols.map(c => {
+    const tt = c.b ? firstTime(c.b.times) : firstTime(c.a.times);
+    const mark = c.kind === "add" ? "+" : c.kind === "rem" ? "−" : c.kind === "chg" ? "~" : "";
+    const title = [c.a && c.a.trip_id, c.b && c.b.trip_id].filter(Boolean).join(" → ");
+    return `<th title="${esc(title)}">${mark}${hm(tt)}</th>`;
+  }).join("");
+  const body = rows.map((r, ri) => {
+    const cls = r.io == null ? "only-new" : r.in == null ? "only-old" : "";
+    const tds = cols.map(c => {
+      const { x, y } = c.cells[ri];
+      let v;
+      if (c.kind === "rem") v = x == null ? "" : `<s>${hm(x)}</s>`;
+      else if (c.kind === "add") v = y == null ? "" : hm(y);
+      else if (x === y) v = hm(y);
+      else v = `${y == null ? "" : `<b>${hm(y)}</b>`}${x == null ? "" : ` <s>${hm(x)}</s>`}`;
+      return `<td class="${c.kind}">${v}</td>`;
+    }).join("");
+    return `<tr class="${cls}"><td class="pl" title="${esc(pname(rep, r.p))}">${esc(pname(rep, r.p))}</td>${tds}</tr>`;
+  }).join("");
+  return `<div class="scroll"><table class="tt"><thead><tr><th class="pl"></th>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+function lineNames(line) {
+  const o = line.old ? line.old.names.join(" / ") : "", n = line.new ? line.new.names.join(" / ") : "";
+  return o && n && o !== n ? `${o} → ${n}` : n || o;
+}
+
+function lineBlock(rep, line) {
+  const open = state.openLines.has(line.key);
+  const tot = DAYS.filter(d => line.trips[d]).map(d => {
+    const bands = Object.values(line.trips[d]);
+    const b = bands.reduce((s, x) => s + x.before, 0), a = bands.reduce((s, x) => s + x.after, 0);
+    return `${rt("dt")[d]} ${b}→${a}`;
+  }).join(" · ");
+  let inner = "";
+  if (open) {
+    const bands = [...new Set(DAYS.flatMap(d => Object.keys(line.trips[d] || {})))].sort();
+    const hourTable = bands.length ? `<div><h3>${esc(rt("byHour"))}</h3><div class="scroll"><table class="tt"><thead><tr><th class="pl"></th>${bands.map(b => `<th>${esc(b.replace(/^0/, "").replace("-0", "-"))}</th>`).join("")}</tr></thead><tbody>${
+      DAYS.filter(d => line.trips[d]).map(d => `<tr><td class="pl">${esc(rt("dt")[d])}</td>${bands.map(b => {
+        const x = line.trips[d][b]; if (!x) return "<td></td>";
+        return x.before === x.after ? `<td>${x.after}</td>` : `<td class="chg"><b>${x.after}</b> <s>${x.before}</s></td>`;
+      }).join("")}</tr>`).join("")}</tbody></table></div></div>` : "";
+    const fl = line.first_last.length ? `<div><h3>${esc(rt("firstLast"))}</h3><table class="mini"><thead><tr><th>${esc(rt("dir"))}</th><th></th><th class="r">${esc(rt("first"))}</th><th class="r">${esc(rt("last"))}</th></tr></thead><tbody>${
+      line.first_last.map(x => {
+        const cell = c => c.before === c.after ? hm(c.after) : `<b>${hm(c.after) || "—"}</b> <s>${hm(c.before) || "—"}</s>`;
+        return `<tr><td>${esc(dirLabel(rep, line, x.direction))}</td><td>${esc(rt("dt")[x.day_type])}</td><td class="r">${cell(x.first)}</td><td class="r">${cell(x.last)}</td></tr>`;
+      }).join("")}</tbody></table></div>` : "";
+    // Same-named places in one pattern's edits are different poles; show their stop_id to tell them apart.
+    const editName = (p, i) => {
+      const names = p.edits.flatMap(e => e.places).map(j => pname(rep, j));
+      const dup = names.filter(n => n === pname(rep, i)).length > 1;
+      const pl = rep.places[i], sid = (pl.new || pl.old).stop_id;
+      return dup ? `${pname(rep, i)} (${sid})` : pname(rep, i);
+    };
+    const pat = line.patterns.length ? `<div><h3>${esc(rt("patterns"))}</h3>${line.patterns.map(p => `<p class="hint">${esc(dirLabel(rep, line, p.direction))}</p><ul class="edits">${
+      p.edits.map(e => `<li>${esc(rt("ek")[e.kind])}: ${esc(e.places.map(i => editName(p, i)).join(" → "))}</li>`).join("")}</ul>`).join("")}</div>` : "";
+    let tts = "";
+    if (line.timetables.length) {
+      const sel = state.tt[line.key] || { i: 0, view: "diff" };
+      const tab = line.timetables[Math.min(sel.i, line.timetables.length - 1)];
+      const choices = line.timetables.map((x, i) => `<button type="button" data-line="${esc(line.key)}" data-tt="${i}" aria-pressed="${i === sel.i}">${esc(dirLabel(rep, line, x.direction))} · ${esc(rt("dt")[x.day_type])}</button>`).join("");
+      const views = [["old", "vOld"], ["new", "vNew"], ["diff", "vDiff"]].map(([v, k]) => `<button type="button" data-line="${esc(line.key)}" data-view="${v}" aria-pressed="${v === sel.view}">${esc(rt(k))}</button>`).join("");
+      tts = `<div><h3>${esc(rt("timetables"))}</h3><div class="ttbar"><div class="seg">${choices}</div><div class="seg">${views}</div></div>
+        ${sel.view === "diff" ? `<p class="hint">${esc(rt("ttLegend"))}</p>` : ""}${ttHtml(rep, tab, sel.view)}<p class="hint">${esc(rt("ttUnchanged"))}</p></div>`;
+    }
+    inner = `<div class="lb">${hourTable}${fl}${pat}${tts}</div>`;
+  }
+  return `<details class="line" data-key="${esc(line.key)}"${open ? " open" : ""}><summary>${stChip(line.status, rt("ls")[line.status])}<span class="ln">${esc(lineNames(line))}</span><span class="lt">${esc(tot)}</span></summary>${inner}</details>`;
+}
+
+function bindLine(rep, el) {
+  el.addEventListener("toggle", () => {
+    const k = el.dataset.key;
+    if (el.open === state.openLines.has(k)) return;
+    if (el.open) state.openLines.add(k); else state.openLines.delete(k);
+    redrawLine(rep, k);
+  });
+  el.querySelectorAll("button[data-line]").forEach(b => b.addEventListener("click", () => {
+    const k = b.dataset.line, cur = state.tt[k] || { i: 0, view: "diff" };
+    state.tt[k] = b.dataset.tt != null ? { ...cur, i: +b.dataset.tt } : { ...cur, view: b.dataset.view };
+    redrawLine(rep, k);
+  }));
+}
+function redrawLine(rep, k) {
+  const line = rep.lines.find(l => l.key === k);
+  const old = [...document.querySelectorAll("details.line")].find(d => d.dataset.key === k);
+  if (!line || !old) return;
+  old.insertAdjacentHTML("afterend", lineBlock(rep, line));
+  const fresh = old.nextElementSibling;
+  old.remove();
+  bindLine(rep, fresh);
+}
+
+function pubBox(label, p) {
+  return `<div class="pub"><b>${esc(label)}</b><span class="num">${esc(p.from_date)} – ${esc(p.to_date || "…")} · ${esc((p.published_at || "").slice(0, 10))}</span>${p.memo ? `<span class="memo">${esc(p.memo)}</span>` : ""}</div>`;
+}
+
+function reportList(intro = true) {
+  const items = Object.values(DATA.reports || {}).map(r => {
+    const h = r.header, f = DATA.feeds.find(x => x.org_id === h.feed.org_id && x.feed_id === h.feed.feed_id);
+    return f ? { r, f } : null;
+  }).filter(Boolean).sort((a, b) => a.f.name.localeCompare(b.f.name, "ja"));
+  return `${intro ? `<p>${esc(rt("pick"))}</p>` : ""}<ul>${items.map(({ r, f }) => `<li><button type="button" class="linkbtn" data-pick="${esc(r.header.old.uid)}__${esc(r.header.new.uid)}">${esc(f.organization_name)} — ${esc(f.name)} · ${esc(r.header.old.from_date)} → ${esc(r.header.new.from_date)}</button></li>`).join("")}</ul>`;
+}
+
+function openPair(pairKey) {
+  const r = DATA.reports[pairKey], h = r.header;
+  const f = DATA.feeds.find(x => x.org_id === h.feed.org_id && x.feed_id === h.feed.feed_id);
+  const gs = groups(f);
+  const ni = gs.findIndex(g => g.members.some(m => m.uid === h.new.uid));
+  state.selected = key(f); state.newIdx = ni; state.oldIdx = ni - 1;
+  state.openLines = new Set(); state.tt = {};
+  renderAll();
+}
+
+function renderReport() {
+  const box = $("reports");
+  const { report: rep, backwards } = selectedReport();
+  if (!rep) {
+    box.innerHTML = reportList();
+    box.querySelectorAll("button[data-pick]").forEach(b => b.addEventListener("click", () => openPair(b.dataset.pick)));
+    return;
+  }
+  const pairKey = `${rep.header.old.uid}__${rep.header.new.uid}`;
+  if (state.lastPair !== pairKey) { state.lastPair = pairKey; state.openLines = new Set(); state.tt = {}; }
+  state.flShift = (rep.header.engine.config.matching || {}).first_last_min_shift ?? "?";
+  const h = rep.header, s = rep.summary, sd = rep.service_days;
+  const f = DATA.feeds.find(x => x.org_id === h.feed.org_id && x.feed_id === h.feed.feed_id);
+  const c = h.coverage, w = x => c.raw_total ? (x / c.raw_total * 100).toFixed(2) : 0;
+  const notes = h.notes.map(n => `<p class="fmt">${esc(rt("notes")[n.code](n))}</p>`).join("");
+  const dayRows = DAYS.map(d => {
+    const cmp = h.comparison.day_types[d] || {}, ad = sd.day_types[d].active_days;
+    return `<tr><td>${esc(rt("dt")[d])}</td><td class="num">${esc(cmp.old_date || "—")}</td><td class="num">${esc(cmp.new_date || "—")}</td><td class="r">${ad.before}</td><td class="r">${ad.after}</td></tr>`;
+  }).join("");
+  const periods = side => sd.periods[side].map(p => `${rt("dt")[p.day_type]} ${p.start} – ${p.end}`).join("; ");
+  const specials = side => { const l = sd.special_days[side]; return l.length ? `${l.length}: ${l.slice(0, 30).join(", ")}${l.length > 30 ? " …" : ""}` : "—"; };
+  const ls = s.lines;
+  const lineCard = Object.keys(ls).filter(k => ls[k]).map(k => `${stChip(k, rt("ls")[k])} ${ls[k]}`).join(" ");
+  const pl = s.places;
+  const placeCard = ["added", "removed", "renamed", "moved"].map(k => `${stChip(k, rt("ps")[k])} ${pl[k]}`).join(" ");
+  const tripCard = DAYS.filter(d => s.trips_by_day_type[d]).map(d => { const x = s.trips_by_day_type[d]; const dv = x.after - x.before; return `${esc(rt("dt")[d])}: <span class="num">${x.before} → ${x.after}</span> <span class="${dv > 0 ? "up" : dv < 0 ? "down" : "flat"} num">${signed(dv)}</span>`; }).join("<br>");
+  const q = s.quality ? ["publish", "overall"].map(k => `${esc(t(k))}: <span class="num">${fmt1(s.quality[k].before)} → ${fmt1(s.quality[k].after)}</span>`).join("<br>") : "—";
+  const changed = rep.lines.filter(l => l.status !== "unchanged"), same = rep.lines.filter(l => l.status === "unchanged");
+  const placeRows = rep.places.filter(p => p.status !== "unchanged").map(p => `<tr><td>${stChip(p.status, rt("ps")[p.status])}</td><td>${esc(p.old ? p.old.name : "—")}</td><td>${esc(p.new ? p.new.name : "—")}</td><td class="r">${p.moved_m != null ? esc(rt("metres", p.moved_m)) : ""}</td><td>${esc(p.lines.map(k => { const l = rep.lines.find(x => x.key === k); return l ? lineNames(l) : k; }).join(", "))}</td></tr>`).join("");
+  const nUnchangedPlaces = rep.places.length - rep.places.filter(p => p.status !== "unchanged").length;
+  const otherRows = rep.other.map(o => `<tr><td>${esc(rt("topic")[o.topic] || o.topic)}</td><td>${esc(Object.entries(o.counts).map(([k, v]) => `${v} ${rt("ck")[k] || k}`).join(" · "))}</td></tr>`).join("");
+  const fileRows = Object.entries(rep.accounting.files).map(([name, x]) => `<tr><td class="num">${esc(name)}</td><td class="r">${x.changes}</td><td class="r">${x.classified}</td><td class="r">${x.outside_comparison}</td><td class="r ${x.unclassified ? "down" : ""}">${x.unclassified}</td></tr>`).join("");
+  const th = cols => `<thead><tr>${cols.map((x, i) => `<th${i ? ' class="r"' : ""}>${esc(x)}</th>`).join("")}</tr></thead>`;
+  box.innerHTML = `<div class="rp">
+    <details><summary class="hint">${esc(rt("others"))}</summary>${reportList(false)}</details>
+    <div><h2>${esc(rt("title"))} · ${esc(f ? f.name : h.feed.feed_id)}</h2><p class="hint">${esc(f ? f.organization_name : "")} · <span class="num">${esc(h.feed.org_id)}/${esc(h.feed.feed_id)}</span></p>
+      ${backwards ? `<p class="hint">${esc(rt("backward"))}</p>` : ""}
+      <div class="pubs">${pubBox(rt("old"), h.old)}${pubBox(rt("new"), h.new)}</div></div>
+    ${notes}
+    <div><div class="covbar" role="img" aria-label="${esc(rt("coverage", c.explained, c.outside_comparison, c.unclassified, c.raw_total))}"><span class="cov-e" style="width:${w(c.explained)}%"></span><span class="cov-o" style="width:${w(c.outside_comparison)}%"></span><span class="cov-u" style="width:${w(c.unclassified)}%"></span></div>
+      <div class="legend"><span><i class="cov-e"></i>${esc(rt("cE"))}</span><span><i class="cov-o"></i>${esc(rt("cO"))}</span><span><i class="cov-u"></i>${esc(rt("cU"))}</span></div>
+      <p class="hint">${esc(rt("coverage", c.explained, c.outside_comparison, c.unclassified, c.raw_total))}</p></div>
+    <div><h3>1. ${esc(rt("sSummary"))}</h3><div class="cards">
+      <div class="card"><div class="k">${esc(rt("lines"))}</div><div class="chips">${lineCard}</div></div>
+      <div class="card"><div class="k">${esc(rt("places"))}</div><div class="chips">${placeCard}</div></div>
+      <div class="card"><div class="k">${esc(rt("trips"))}</div><div>${tripCard}</div></div>
+      <div class="card"><div class="k">${esc(rt("firstLast"))}</div><div class="hint">${esc(rt("firstLastN", s.first_last_changed))}</div></div>
+      <div class="card"><div class="k">${esc(rt("fares"))}</div><div class="hint">${esc(rt("faresTxt", s.fares))}</div></div>
+      <div class="card"><div class="k">${esc(rt("quality"))}</div><div>${q}</div></div></div></div>
+    <div><h3>2. ${esc(rt("sService"))} <small>${esc(rt("mode")[h.comparison.mode])}</small></h3>
+      <div class="scroll" style="border:0"><table class="mini"><thead><tr><th></th><th>${esc(rt("compared"))} · ${esc(rt("old"))}</th><th>${esc(rt("compared"))} · ${esc(rt("new"))}</th><th class="r">${esc(rt("activeDays"))} · ${esc(t("before"))}</th><th class="r">${esc(t("after"))}</th></tr></thead><tbody>${dayRows}</tbody></table></div>
+      <p class="hint">${esc(rt("periods"))} · ${esc(rt("old"))}: ${esc(periods("old") || "—")}<br>${esc(rt("periods"))} · ${esc(rt("new"))}: ${esc(periods("new") || "—")}</p>
+      <p class="hint">${esc(rt("special"))} · ${esc(rt("old"))}: ${esc(specials("old"))}<br>${esc(rt("special"))} · ${esc(rt("new"))}: ${esc(specials("new"))}</p></div>
+    <div><h3>3. ${esc(rt("sLines"))}</h3>${changed.length ? `<div class="lines" style="display:grid;gap:6px">${changed.map(l => lineBlock(rep, l)).join("")}</div>` : `<p class="hint">${esc(rt("noLineChange"))}</p>`}
+      ${same.length ? `<p class="hint">${esc(rt("unchangedLines", same.length))}: ${esc(same.map(lineNames).join(", "))}</p>` : ""}</div>
+    <div><h3>4. ${esc(rt("sPlaces"))}</h3>${placeRows ? `<div class="scroll" style="border:0"><table class="mini">${th(rt("placeCols"))}<tbody>${placeRows}</tbody></table></div>` : ""}<p class="hint">${esc(rt("unchangedPlaces", nUnchangedPlaces))}</p></div>
+    <div><h3>5. ${esc(rt("sOther"))}</h3>${otherRows ? `<table class="mini">${th(rt("otherCols"))}<tbody>${otherRows}</tbody></table>` : `<p class="hint">${esc(rt("noOther"))}</p>`}</div>
+    <div><h3>6. ${esc(rt("sAll"))}</h3><div class="scroll" style="border:0"><table class="mini">${th(rt("fileCols"))}<tbody>${fileRows}</tbody></table></div><p class="hint">${esc(rt("rawNote"))}</p></div>
+    <p class="hint">${esc(rt("engine", h.engine.version, h.engine.holidays_version))}</p>
+  </div>`;
+  box.querySelectorAll("details.line").forEach(el => bindLine(rep, el));
+  box.querySelectorAll("button[data-pick]").forEach(b => b.addEventListener("click", () => openPair(b.dataset.pick)));
+}
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const $ = id => document.getElementById(id);
 const key = f => `${f.org_id}/${f.feed_id}`;
@@ -494,7 +919,7 @@ function renderGrid() {
     renderGrid();
   }));
   $("grid").querySelectorAll("tr.feed").forEach(tr => {
-    const pick = () => { state.selected = tr.dataset.key; state.oldIdx = state.newIdx = null; state.showSame = false; renderGrid(); renderPanel(); renderHistory(); };
+    const pick = () => { state.selected = tr.dataset.key; state.oldIdx = state.newIdx = null; state.showSame = false; renderGrid(); renderPanel(); renderHistory(); renderReport(); };
     tr.addEventListener("click", e => {
       const cell = e.target.closest("td.pickable, button.chip.next");
       if (!cell) return pick();
@@ -510,7 +935,7 @@ function renderGrid() {
         for (let i = ci - 1; i >= 0; i--) if (gs[i].rep.scores) { oldIdx = i; break; }
       }
       state.selected = tr.dataset.key; state.newIdx = newIdx; state.oldIdx = oldIdx; state.showSame = false;
-      renderGrid(); renderPanel(); renderHistory();
+      renderGrid(); renderPanel(); renderHistory(); renderReport();
     });
     tr.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
   });
@@ -596,7 +1021,7 @@ function renderPanel() {
       <div><h3>1. ${esc(t("s1"))}</h3><div class="cards">${cards}</div></div>
       <div><h3>2. ${esc(t("s2"))}</h3><table class="mini"><thead><tr><th></th><th class="r">${esc(t("before"))}</th><th class="r">${esc(t("after"))}</th><th class="r">Δ</th></tr></thead><tbody>${metricRows}</tbody></table></div>
       <div><h3>3. ${esc(t("s3"))}</h3>${ruleTable}${sameBtn}</div>
-      <div><h3>4. ${esc(t("s4"))}</h3><div class="empty">${esc(t("semanticTodo"))}</div></div>`;
+      <div><h3>4. ${esc(t("s4"))}</h3>${panelSemantic()}</div>`;
   }
   panel.innerHTML = `<div class="ph"><h2>${esc(f.name)}</h2>
       <div class="meta"><span>${esc(f.organization_name)}</span><span>${esc(prefName(f.pref_id))}</span><span>${esc(t("license"))}: ${esc(f.license)}</span></div>
@@ -609,8 +1034,10 @@ function renderPanel() {
       <span class="to">→</span>
       <div class="field"><label for="new-pick">${esc(t("pickNew"))}</label><select id="new-pick">${options(state.newIdx)}</select></div>
     </div>${body}`;
-  $("old-pick").addEventListener("change", e => { state.oldIdx = +e.target.value; renderPanel(); });
-  $("new-pick").addEventListener("change", e => { state.newIdx = +e.target.value; renderPanel(); });
+  $("old-pick").addEventListener("change", e => { state.oldIdx = +e.target.value; renderPanel(); renderReport(); });
+  $("new-pick").addEventListener("change", e => { state.newIdx = +e.target.value; renderPanel(); renderReport(); });
+  const openBtn = $("open-report");
+  if (openBtn) openBtn.addEventListener("click", () => { state.tab = "reports"; renderStatic(); renderReport(); window.scrollTo(0, 0); });
   const btn = $("toggle-same");
   if (btn) btn.addEventListener("click", () => { state.showSame = !state.showSame; renderPanel(); });
 }
@@ -669,21 +1096,20 @@ function renderStatic() {
   sortSel.innerHTML = [["recent", "sortRecent"], ["name", "sortName"], ["low", "sortLow"], ["high", "sortHigh"]].map(([v, k]) => `<option value="${v}">${esc(t(k))}</option>`).join("");
   sortSel.value = sv;
   const profile = (DATA.analysis_key || "").split("__")[1] || "auto";
-  $("reports").innerHTML = t("reportsText");
   $("gtfsjp").innerHTML = t("gtfsjpText", esc(profile));
   $("footer").textContent = t("footer");
   $("merge-note").textContent = state.merge ? t("mergeNote") : "";
 }
 
-function renderAll() { renderStatic(); renderGrid(); renderPanel(); renderHistory(); }
+function renderAll() { renderStatic(); renderGrid(); renderPanel(); renderHistory(); renderReport(); }
 
 document.querySelectorAll(".langs button").forEach(b => b.addEventListener("click", () => {
   state.lang = b.dataset.lang;
   try { localStorage.setItem("gjm-lang", state.lang); } catch (e) { /* ignore */ }
   renderAll();
 }));
-document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => { state.tab = b.dataset.tab; renderStatic(); }));
-["q", "pub", "sort", "showdisc"].forEach(id => $(id).addEventListener("input", () => { renderGrid(); renderPanel(); renderHistory(); }));
+document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => { state.tab = b.dataset.tab; renderStatic(); if (state.tab === "reports") renderReport(); }));
+["q", "pub", "sort", "showdisc"].forEach(id => $(id).addEventListener("input", () => { renderGrid(); renderPanel(); renderHistory(); renderReport(); }));
 ["pref", "org", "feedsel"].forEach(id => $(id).addEventListener("change", () => {
   if (id === "pref") { $("org").value = ""; $("feedsel").value = ""; }
   if (id === "org") $("feedsel").value = "";
