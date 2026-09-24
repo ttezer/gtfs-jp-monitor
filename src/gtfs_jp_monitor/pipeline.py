@@ -121,6 +121,7 @@ def run_analysis(
     timeout: float = 600,
     downloader: Callable[..., object] = download_zip,
     now: Callable[[], _dt.datetime] = _utc_now,
+    extra_warnings: list[dict] | None = None,
 ) -> RunReport:
     root = Path(data_dir)
     check_writable(root, binary.is_pinned)
@@ -130,6 +131,7 @@ def run_analysis(
 
     started = now()
     report = RunReport(run_id=f"{started.strftime('%Y%m%dT%H%M%SZ')}-{secrets.token_hex(4)}")
+    report.warnings.extend(extra_warnings or [])  # events from the catalog sync of the same run
     catalog_feeds, catalog_gens = load_catalog(root)
     stored = {fk: list_analyses(root, *fk) for fk in catalog_gens}
     pending = find_pending(catalog_gens, stored, key, only)

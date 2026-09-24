@@ -41,6 +41,8 @@ def _cmd_sync_catalog(args: argparse.Namespace) -> int:
         "requests": client.request_count,
     }
     print(json.dumps(summary, ensure_ascii=False, indent=2))
+    if args.events_out:
+        Path(args.events_out).write_text(json.dumps(result.events, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     if args.warnings_out:
         Path(args.warnings_out).write_text(
             json.dumps(result.warnings, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
@@ -77,9 +79,10 @@ def _cmd_analyze(args: argparse.Namespace) -> int:
             f"pinned binary runs on {binary.arch}-{binary.os}; data-repository results must come from "
             f"{lock.production_platform} (data-model §6.2). Use --allow-non-production-platform only for scratch data."
         )
+    extra = json.loads(Path(args.extra_warnings).read_text(encoding="utf-8")) if args.extra_warnings else None
     report = run_analysis(
         Path(args.data_dir), binary, args.profile, trigger=args.trigger, limit=args.limit,
-        only=set(args.only) if args.only else None, timeout=args.timeout,
+        only=set(args.only) if args.only else None, timeout=args.timeout, extra_warnings=extra,
     )
     print(json.dumps({
         "run_id": report.run_id, "pinned": binary.is_pinned, "counts": report.counts,
@@ -136,6 +139,7 @@ def main(argv: list[str] | None = None) -> int:
     sync.add_argument("--min-interval", type=float, default=1.0, help="seconds between API requests (default 1.0)")
     sync.add_argument("--progress", action="store_true", help="print progress to stderr")
     sync.add_argument("--warnings-out", help="write the full warning list to this JSON file")
+    sync.add_argument("--events-out", help="write one-off events (for the run record) to this JSON file")
     sync.set_defaults(func=_cmd_sync_catalog)
 
     install = sub.add_parser("install-analyzer", help="download, verify and install the pinned analyzer release")
@@ -154,6 +158,7 @@ def main(argv: list[str] | None = None) -> int:
     analyze.add_argument("--timeout", type=float, default=600, help="seconds per generation (default 600)")
     analyze.add_argument("--trigger", choices=("schedule", "workflow_dispatch", "local"), default="local")
     analyze.add_argument("--allow-non-production-platform", action="store_true")
+    analyze.add_argument("--extra-warnings", help="JSON list of catalog events to include in the run record")
     analyze.set_defaults(func=_cmd_analyze)
 
     raw = sub.add_parser("rawdiff", help="list every difference between two GTFS ZIP files (semantic engine, part 1)")

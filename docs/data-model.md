@@ -105,6 +105,10 @@ can be selected per run.
   `present: false`.
 - An unchanged source leaves every catalog file byte-identical. A `rid` shift is not a new
   generation.
+- Lasting conditions of a feed (rid order mismatch, unknown license, rejected API records,
+  incomplete history, unordered generations) are stored as `notes` on its catalog entry and
+  change only when the condition changes. One-off events (fetch failure, a generation that
+  disappears, a feed that leaves the list) go to the run record.
 
 ## §8 Incremental analysis
 

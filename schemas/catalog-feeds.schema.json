@@ -5,9 +5,23 @@
   "description": "catalog/feeds.json: every feed ever listed by gtfs-data.jp, sorted by org_id then feed_id. No timestamps of the run, so an unchanged source produces an unchanged file. Contact fields (e-mail etc.) are never copied.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "feeds"],
+  "required": ["schema", "feeds", "rejected"],
   "properties": {
     "schema": { "const": "gtfs-jp-monitor-catalog-feeds/1" },
+    "rejected": {
+      "description": "Entries of the /feeds list that could not be used (invalid ids and similar).",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code"],
+        "properties": {
+          "code": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+          "org_id": { "type": "string" },
+          "feed_id": { "type": "string" }
+        }
+      }
+    },
     "feeds": {
       "type": "array",
       "items": {
@@ -26,7 +40,8 @@
           "latest_feed_start_date",
           "latest_feed_end_date",
           "memo",
-          "listed"
+          "listed",
+          "notes"
         ],
         "properties": {
           "org_id": { "$ref": "generation.schema.json#/$defs/path_id" },
@@ -41,7 +56,13 @@
           "latest_feed_start_date": { "type": ["string", "null"] },
           "latest_feed_end_date": { "type": ["string", "null"] },
           "memo": { "type": "string", "description": "Source text, not translated." },
-          "listed": { "type": "boolean", "description": "False when the feed is no longer in the /feeds list; its history is kept." }
+          "listed": { "type": "boolean", "description": "False when the feed is no longer in the /feeds list; its history is kept." },
+          "notes": {
+            "description": "Lasting conditions found by the last successful sync of this feed (data-model §7).",
+            "type": "array",
+            "uniqueItems": true,
+            "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" }
+          }
         }
       }
     }

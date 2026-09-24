@@ -26,19 +26,33 @@ GENERATIONS_SCHEMA = "gtfs-jp-monitor-catalog-generations/1"
 
 FeedKey = tuple[str, str]
 
+# One-off happenings go to the run record. Everything else describes a lasting state of a feed
+# and is stored as a note on its catalog entry, so a repeating state does not create a daily commit.
+EVENT_CODES = frozenset({"FEED_FETCH_FAILED", "GENERATION_DISAPPEARED", "FEED_UNLISTED"})
+
 
 @dataclass
 class SyncResult:
     feeds_scanned: int = 0
     generations_seen: int = 0
     new_generations: list[tuple[str, str, str]] = field(default_factory=list)
-    warnings: list[dict] = field(default_factory=list)
+    warnings: list[dict] = field(default_factory=list)  # everything, for the console summary
+    events: list[dict] = field(default_factory=list)  # EVENT_CODES only, for the run record
+    notes: dict[FeedKey, set[str]] = field(default_factory=dict)
+    rejected_feeds: list[dict] = field(default_factory=list)  # /feeds entries that could not be used
     changed_files: list[str] = field(default_factory=list)
 
     def warn(self, code: str, org_id: str | None = None, feed_id: str | None = None,
              uid: str | None = None, detail: str | None = None) -> None:
-        item = {"code": code, "org_id": org_id, "feed_id": feed_id, "uid": uid, "detail": detail}
-        self.warnings.append({k: v for k, v in item.items() if v is not None})
+        item = {k: v for k, v in {"code": code, "org_id": org_id, "feed_id": feed_id, "uid": uid, "detail": detail}.items()
+                if v is not None}
+        self.warnings.append(item)
+        if code in EVENT_CODES:
+            self.events.append(item)
+        elif is_path_id(org_id) and is_path_id(feed_id):
+            self.notes.setdefault((org_id, feed_id), set()).add(code)
+        else:
+            self.rejected_feeds.append({k: v for k, v in item.items() if k != "detail"})
 
 
 def feeds_path(data_dir: Path) -> Path:
@@ -89,6 +103,7 @@ def _feed_entry(f: FeedRecord, listed: bool) -> dict:
         "latest_feed_end_date": f.latest_feed_end_date,
         "memo": f.memo,
         "listed": listed,
+        "notes": [],
     }
 
 
@@ -160,7 +175,10 @@ def sync_catalog(
     prev_feeds, prev_gens = load_catalog(data_dir)
 
     listed, rejected = client.list_feeds()
-    _report_rejected(result, rejected)
+    for r in rejected:  # list-level rejects have no usable feed key; they never become notes
+        item = {k: v for k, v in {"code": r.code, "org_id": r.org_id, "feed_id": r.feed_id, "detail": r.detail}.items() if v is not None}
+        result.warnings.append(item)
+        result.rejected_feeds.append({k: v for k, v in item.items() if k != "detail"})
     listed_by_key = {(f.org_id, f.feed_id): f for f in listed}
 
     feeds_out: dict[FeedKey, dict] = dict(prev_feeds)
@@ -180,6 +198,7 @@ def sync_catalog(
 
     gens_out: dict[FeedKey, dict[str, dict]] = {k: dict(v) for k, v in prev_gens.items()}
     to_fetch = sorted(k for k in listed_by_key if only is None or k in only)
+    fetched_ok: set[FeedKey] = set()
     for index, key in enumerate(to_fetch):
         if progress:
             progress(index, len(to_fetch), key)
@@ -188,6 +207,7 @@ def sync_catalog(
         except ApiError as err:
             result.warn("FEED_FETCH_FAILED", key[0], key[1], None, str(err)[:2000])
             continue  # previous entries stay untouched
+        fetched_ok.add(key)
         result.feeds_scanned += 1
         result.generations_seen += len(fetched.generations)
         _report_rejected(result, fetched.rejected)
@@ -199,7 +219,14 @@ def sync_catalog(
             )
         gens_out[key] = _merge_feed(result, key, fetched.generations, prev_gens.get(key, {}))
 
-    outputs = [(feeds_path(data_dir), {"schema": FEEDS_SCHEMA, "feeds": [feeds_out[k] for k in sorted(feeds_out)]})]
+    for key, entry in feeds_out.items():
+        previous_notes = set(prev_feeds.get(key, {}).get("notes", []))
+        current = result.notes.get(key, set())
+        # A feed that was not fetched this run keeps the notes it had; license notes come from the list.
+        entry["notes"] = sorted(current if key in fetched_ok else previous_notes | current)
+    rejected = sorted({tuple(sorted(r.items())) for r in result.rejected_feeds})
+    outputs = [(feeds_path(data_dir), {"schema": FEEDS_SCHEMA, "feeds": [feeds_out[k] for k in sorted(feeds_out)],
+                                       "rejected": [dict(r) for r in rejected]})]
     for key in sorted(gens_out):
         outputs.append((generations_path(data_dir, *key),
                         {"schema": GENERATIONS_SCHEMA, "generations": _ordered_entries(gens_out[key])}))

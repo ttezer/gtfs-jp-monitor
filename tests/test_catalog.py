@@ -147,6 +147,32 @@ class CatalogSyncTest(unittest.TestCase):
         self.assertEqual(sorted(w["code"] for w in result.warnings), ["RID_ORDER_MISMATCH", "UNKNOWN_LICENSE"])
         self.assertIsNone(read(self.data, "feeds.json")["feeds"][0]["license"]["id"])
 
+    def test_lasting_conditions_become_notes_not_events(self):
+        wrong_rids = [replace(BASE_GENS[0], rid="prev_1"), replace(BASE_GENS[1], rid="current"), BASE_GENS[2]]
+        client = FakeClient([feed_record(license_raw="CC-BY")], {(ORG, FEED): wrong_rids})
+        first = self.sync(client)
+        self.assertEqual(first.events, [])
+        self.assertEqual(read(self.data, "feeds.json")["feeds"][0]["notes"], ["RID_ORDER_MISMATCH", "UNKNOWN_LICENSE"])
+        second = self.sync(client)
+        self.assertEqual(second.changed_files, [])  # a repeating condition does not rewrite anything
+        fixed = self.sync(FakeClient([feed_record()], {(ORG, FEED): BASE_GENS}))
+        self.assertIn("catalog/feeds.json", fixed.changed_files)
+        self.assertEqual(read(self.data, "feeds.json")["feeds"][0]["notes"], [])
+
+    def test_events_and_kept_notes_on_failure(self):
+        self.sync(FakeClient([feed_record(license_raw="CC-BY")], {(ORG, FEED): BASE_GENS}))
+        failed = self.sync(FakeClient([feed_record(license_raw="CC-BY")], {}, failing=[(ORG, FEED)]))
+        self.assertEqual([e["code"] for e in failed.events], ["FEED_FETCH_FAILED"])
+        self.assertEqual(read(self.data, "feeds.json")["feeds"][0]["notes"], ["UNKNOWN_LICENSE"])
+
+    def test_rejected_list_entries_are_recorded_in_the_catalog(self):
+        class Client(FakeClient):
+            def list_feeds(self):
+                from gtfs_jp_monitor.gtfsdatajp import Rejected
+                return list(self.feeds), [Rejected("INVALID_FEED_ID", "../x", "y", None, "bad")]
+        self.sync(Client([feed_record()], {(ORG, FEED): BASE_GENS}))
+        self.assertEqual(read(self.data, "feeds.json")["rejected"], [{"code": "INVALID_FEED_ID", "feed_id": "y", "org_id": "../x"}])
+
     def test_missing_from_date_is_listed_last(self):
         gens = BASE_GENS + [replace(gen(0, "prev_3", "2025-01-01"), from_date=None)]
         result = self.sync(FakeClient([feed_record()], {(ORG, FEED): gens}))

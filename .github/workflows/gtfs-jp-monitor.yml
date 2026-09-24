@@ -79,7 +79,7 @@ jobs:
         run: |
           args=()
           if [ -n "$ONLY" ]; then args+=(--only "$ONLY"); fi
-          python -m gtfs_jp_monitor sync-catalog --data-dir data "${args[@]}"
+          python -m gtfs_jp_monitor sync-catalog --data-dir data --events-out "$RUNNER_TEMP/catalog-events.json" "${args[@]}"
 
       - name: Analyze new generations
         run: |
@@ -88,7 +88,8 @@ jobs:
           case "$TRIGGER" in schedule|workflow_dispatch) ;; *) TRIGGER=local ;; esac
           python -m gtfs_jp_monitor analyze --data-dir data \
             --analyzer "$RUNNER_TEMP/analyzer/gtfs-analyzer" \
-            --profile "$GTFS_JP_PROFILE" --trigger "$TRIGGER" "${args[@]}"
+            --profile "$GTFS_JP_PROFILE" --trigger "$TRIGGER" \
+            --extra-warnings "$RUNNER_TEMP/catalog-events.json" "${args[@]}"
 
       - name: Commit and push data
         working-directory: data
