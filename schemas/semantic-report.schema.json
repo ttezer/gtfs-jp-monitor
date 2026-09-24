@@ -1,0 +1,498 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ttezer/gtfs-jp-monitor/schemas/semantic-report.schema.json",
+  "title": "gtfs-jp-semantic-report/1",
+  "description": "Planner-oriented change report for one consecutive pair of publications (docs/semantic/03-report.md). Language-neutral: codes, numbers, dates and names as published. Places are defined once in `places` and referenced by index everywhere else.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "header", "summary", "service_days", "places", "lines", "other", "accounting", "quality"],
+  "properties": {
+    "schema": { "const": "gtfs-jp-semantic-report/1" },
+
+    "header": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["feed", "old", "new", "comparison", "notes", "engine", "coverage"],
+      "properties": {
+        "feed": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["org_id", "feed_id"],
+          "properties": {
+            "org_id": { "$ref": "generation.schema.json#/$defs/path_id" },
+            "feed_id": { "$ref": "generation.schema.json#/$defs/path_id" }
+          }
+        },
+        "old": { "$ref": "#/$defs/publication" },
+        "new": { "$ref": "#/$defs/publication" },
+        "comparison": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "day_types"],
+          "properties": {
+            "mode": { "enum": ["same_days", "successive_periods"] },
+            "day_types": {
+              "description": "Typical day compared for each day type (docs/semantic/02-matching.md §2). A day type missing on one side has null there.",
+              "type": "object",
+              "propertyNames": { "$ref": "#/$defs/day_type" },
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["old_date", "new_date"],
+                "properties": {
+                  "old_date": { "$ref": "#/$defs/nullable_date" },
+                  "new_date": { "$ref": "#/$defs/nullable_date" }
+                }
+              }
+            }
+          }
+        },
+        "notes": {
+          "description": "Reading notes as codes with parameters; the viewer renders the text.",
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["code", "old_files", "new_files"],
+                "properties": {
+                  "code": { "const": "FORMAT_DIFFERENCE" },
+                  "old_files": { "$ref": "#/$defs/file_list" },
+                  "new_files": { "$ref": "#/$defs/file_list" }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["code", "route_delta", "ended_feeds"],
+                "properties": {
+                  "code": { "const": "POSSIBLE_SCOPE_CHANGE" },
+                  "route_delta": { "type": "integer" },
+                  "ended_feeds": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["feed_id", "end_date"],
+                      "properties": {
+                        "feed_id": { "$ref": "generation.schema.json#/$defs/path_id" },
+                        "end_date": { "$ref": "generation.schema.json#/$defs/iso_date" }
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["code"],
+                "properties": { "code": { "enum": ["NO_COMMON_DAY_TYPE", "OUTSIDE_COMPARISON_PRESENT"] } }
+              }
+            ]
+          }
+        },
+        "engine": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["version", "config", "holidays_version"],
+          "properties": {
+            "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+            "config": { "type": "object", "description": "Every configuration value used for this report." },
+            "holidays_version": { "type": "string", "minLength": 1 }
+          }
+        },
+        "coverage": {
+          "description": "Share of raw differences explained by the report (Part 1 accounting).",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["raw_total", "explained", "outside_comparison", "unclassified"],
+          "properties": {
+            "raw_total": { "$ref": "#/$defs/count" },
+            "explained": { "$ref": "#/$defs/count" },
+            "outside_comparison": { "$ref": "#/$defs/count" },
+            "unclassified": { "$ref": "#/$defs/count" }
+          }
+        }
+      }
+    },
+
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lines", "places", "trips_by_day_type", "first_last_changed", "fares", "quality"],
+      "properties": {
+        "lines": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["added", "discontinued", "renamed", "merged", "split", "restructured", "changed", "unchanged"],
+          "properties": {
+            "added": { "$ref": "#/$defs/count" },
+            "discontinued": { "$ref": "#/$defs/count" },
+            "renamed": { "$ref": "#/$defs/count" },
+            "merged": { "$ref": "#/$defs/count" },
+            "split": { "$ref": "#/$defs/count" },
+            "restructured": { "$ref": "#/$defs/count" },
+            "changed": { "$ref": "#/$defs/count" },
+            "unchanged": { "$ref": "#/$defs/count" }
+          }
+        },
+        "places": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["added", "removed", "renamed", "moved"],
+          "properties": {
+            "added": { "$ref": "#/$defs/count" },
+            "removed": { "$ref": "#/$defs/count" },
+            "renamed": { "$ref": "#/$defs/count" },
+            "moved": { "$ref": "#/$defs/count" }
+          }
+        },
+        "trips_by_day_type": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/day_type" },
+          "additionalProperties": { "$ref": "#/$defs/count_change" }
+        },
+        "first_last_changed": { "$ref": "#/$defs/count", "description": "Line/direction/day-type combinations whose first or last departure moved by at least first_last_min_shift." },
+        "fares": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["changed", "classes_added", "classes_removed", "prices_changed"],
+          "properties": {
+            "changed": { "type": "boolean" },
+            "classes_added": { "$ref": "#/$defs/count" },
+            "classes_removed": { "$ref": "#/$defs/count" },
+            "prices_changed": { "$ref": "#/$defs/count" }
+          }
+        },
+        "quality": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["publish", "overall"],
+              "properties": {
+                "publish": { "$ref": "diff.schema.json#/$defs/score_delta" },
+                "overall": { "$ref": "diff.schema.json#/$defs/score_delta" }
+              }
+            }
+          ]
+        }
+      }
+    },
+
+    "service_days": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["day_types", "periods", "special_days"],
+      "properties": {
+        "day_types": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/day_type" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["active_days"],
+            "properties": { "active_days": { "$ref": "#/$defs/count_change" } }
+          }
+        },
+        "periods": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["old", "new"],
+          "properties": {
+            "old": { "$ref": "#/$defs/period_list" },
+            "new": { "$ref": "#/$defs/period_list" }
+          }
+        },
+        "special_days": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["old", "new"],
+          "properties": {
+            "old": { "$ref": "#/$defs/date_list" },
+            "new": { "$ref": "#/$defs/date_list" }
+          }
+        }
+      }
+    },
+
+    "places": {
+      "description": "Every place referenced by this report, once. Index = position in this list.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status", "old", "new", "match", "moved_m", "lines"],
+        "properties": {
+          "status": { "enum": ["unchanged", "added", "removed", "renamed", "moved", "renamed_moved"] },
+          "old": { "$ref": "#/$defs/nullable_stop" },
+          "new": { "$ref": "#/$defs/nullable_stop" },
+          "match": { "$ref": "#/$defs/nullable_match" },
+          "moved_m": { "type": ["integer", "null"], "minimum": 0 },
+          "lines": { "type": "array", "items": { "$ref": "#/$defs/line_ref" }, "uniqueItems": true }
+        }
+      }
+    },
+
+    "lines": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "status", "old", "new", "related", "match", "trips", "first_last", "patterns", "timetables"],
+        "properties": {
+          "key": { "type": "string", "minLength": 1, "description": "Stable key of the line within this report (normalised new name, or old name when discontinued)." },
+          "status": { "enum": ["unchanged", "added", "discontinued", "renamed", "merged", "split", "restructured", "changed"] },
+          "old": { "$ref": "#/$defs/nullable_line_side" },
+          "new": { "$ref": "#/$defs/nullable_line_side" },
+          "related": { "type": "array", "items": { "$ref": "#/$defs/line_ref" }, "description": "Other lines of a merge, split or restructuring." },
+          "match": { "$ref": "#/$defs/nullable_match" },
+          "trips": {
+            "description": "Trips per day type and time band, old -> new. Empty for unchanged lines.",
+            "type": "object",
+            "propertyNames": { "$ref": "#/$defs/day_type" },
+            "additionalProperties": {
+              "type": "object",
+              "propertyNames": { "$ref": "#/$defs/time_band" },
+              "additionalProperties": { "$ref": "#/$defs/count_change" }
+            }
+          },
+          "first_last": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["direction", "day_type", "first", "last"],
+              "properties": {
+                "direction": { "$ref": "#/$defs/direction" },
+                "day_type": { "$ref": "#/$defs/day_type" },
+                "first": { "$ref": "#/$defs/time_change" },
+                "last": { "$ref": "#/$defs/time_change" }
+              }
+            }
+          },
+          "patterns": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["direction", "edits"],
+              "properties": {
+                "direction": { "$ref": "#/$defs/direction" },
+                "edits": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["kind", "places"],
+                    "properties": {
+                      "kind": { "enum": ["extended", "shortened", "inserted", "removed", "detour_added", "detour_removed"] },
+                      "places": { "type": "array", "items": { "$ref": "#/$defs/place_ref" }, "minItems": 1 }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "timetables": {
+            "description": "Only for changed direction/day-type combinations. The difference view is built by the viewer from old, new and pairs.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["direction", "day_type", "old", "new", "pairs"],
+              "properties": {
+                "direction": { "$ref": "#/$defs/direction" },
+                "day_type": { "$ref": "#/$defs/day_type" },
+                "old": { "$ref": "#/$defs/nullable_timetable" },
+                "new": { "$ref": "#/$defs/nullable_timetable" },
+                "pairs": {
+                  "description": "Trip columns [old_index, new_index]; null for an added or removed trip.",
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "prefixItems": [
+                      { "type": ["integer", "null"], "minimum": 0 },
+                      { "type": ["integer", "null"], "minimum": 0 }
+                    ],
+                    "minItems": 2,
+                    "maxItems": 2
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "other": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["topic", "counts", "evidence"],
+        "properties": {
+          "topic": { "enum": ["fares", "calendar_exceptions", "agency", "office", "translations", "feed_info", "shapes", "transfers", "other_files"] },
+          "counts": { "type": "object", "additionalProperties": { "$ref": "#/$defs/count" } },
+          "evidence": { "$ref": "#/$defs/evidence" }
+        }
+      }
+    },
+
+    "accounting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["files", "unclassified"],
+      "properties": {
+        "files": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[^/\\\\]+\\.txt$" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["changes", "classified", "outside_comparison", "unclassified"],
+            "properties": {
+              "changes": { "$ref": "#/$defs/count" },
+              "classified": { "$ref": "#/$defs/count" },
+              "outside_comparison": { "$ref": "#/$defs/count" },
+              "unclassified": { "$ref": "#/$defs/count" }
+            }
+          }
+        },
+        "unclassified": { "$ref": "#/$defs/evidence" }
+      }
+    },
+
+    "quality": {
+      "description": "Key of the validation diff this report belongs to, if one exists.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["analysis_key"],
+          "properties": { "analysis_key": { "type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+__(auto|v3|v4)$" } }
+        }
+      ]
+    }
+  },
+
+  "$defs": {
+    "count": { "type": "integer", "minimum": 0 },
+    "count_change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["before", "after"],
+      "properties": { "before": { "$ref": "#/$defs/count" }, "after": { "$ref": "#/$defs/count" } }
+    },
+    "day_type": { "enum": ["weekday", "saturday", "sunday_holiday"] },
+    "time_band": { "type": "string", "pattern": "^[0-9]{2}-[0-9]{2}$" },
+    "direction": { "type": "string", "pattern": "^(0|1|[0-9a-f]{8})$", "description": "direction_id, or a short hash of first/last place when direction_id is missing." },
+    "minutes": { "type": "integer", "minimum": 0, "maximum": 2880, "description": "Minutes after midnight of the service day; values above 1440 are after midnight." },
+    "time_change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["before", "after"],
+      "properties": {
+        "before": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/minutes" }] },
+        "after": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/minutes" }] }
+      }
+    },
+    "nullable_date": { "oneOf": [{ "type": "null" }, { "$ref": "generation.schema.json#/$defs/iso_date" }] },
+    "date_list": { "type": "array", "items": { "$ref": "generation.schema.json#/$defs/iso_date" }, "uniqueItems": true },
+    "file_list": { "type": "array", "items": { "type": "string", "pattern": "^[^/\\\\]+\\.txt$" }, "uniqueItems": true },
+    "period_list": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["day_type", "start", "end"],
+        "properties": {
+          "day_type": { "$ref": "#/$defs/day_type" },
+          "start": { "$ref": "generation.schema.json#/$defs/iso_date" },
+          "end": { "$ref": "generation.schema.json#/$defs/iso_date" }
+        }
+      }
+    },
+    "publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uid", "from_date", "to_date", "published_at", "memo"],
+      "properties": {
+        "uid": { "$ref": "generation.schema.json#/$defs/uid" },
+        "from_date": { "$ref": "generation.schema.json#/$defs/iso_date" },
+        "to_date": { "$ref": "#/$defs/nullable_date" },
+        "published_at": { "type": ["string", "null"] },
+        "memo": { "type": "string", "description": "Source note text, as published." }
+      }
+    },
+    "match": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "confidence"],
+      "properties": {
+        "method": { "enum": ["same_id", "same_name", "near_similar_name", "same_line_name", "served_places", "exact", "assigned"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "nullable_match": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/match" }] },
+    "stop": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stop_id", "name", "lat", "lon"],
+      "properties": {
+        "stop_id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string" },
+        "lat": { "type": ["number", "null"] },
+        "lon": { "type": ["number", "null"] }
+      }
+    },
+    "nullable_stop": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/stop" }] },
+    "line_side": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["names", "route_ids"],
+      "properties": {
+        "names": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "route_ids": { "type": "array", "items": { "type": "string" }, "minItems": 1, "uniqueItems": true }
+      }
+    },
+    "nullable_line_side": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/line_side" }] },
+    "line_ref": { "type": "string", "minLength": 1, "description": "The key of a line in `lines`." },
+    "place_ref": { "type": "integer", "minimum": 0, "description": "Index into `places`." },
+    "timetable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["places", "trips"],
+      "properties": {
+        "places": { "type": "array", "items": { "$ref": "#/$defs/place_ref" }, "minItems": 1 },
+        "trips": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["trip_id", "times"],
+            "properties": {
+              "trip_id": { "type": "string", "minLength": 1 },
+              "times": {
+                "description": "Departure (arrival at the last place) per row of `places`; null where the trip does not stop.",
+                "type": "array",
+                "items": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/minutes" }] }
+              }
+            }
+          }
+        }
+      }
+    },
+    "nullable_timetable": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/timetable" }] },
+    "evidence": {
+      "description": "Raw difference ids (Part 1), in order.",
+      "type": "array",
+      "items": { "type": "string", "pattern": "^c[0-9]{7}$" },
+      "uniqueItems": true
+    }
+  }
+}

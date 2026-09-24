@@ -1,0 +1,513 @@
+{
+  "accounting": {
+    "files": {
+      "stop_times.txt": {
+        "changes": 80,
+        "classified": 76,
+        "outside_comparison": 2,
+        "unclassified": 2
+      }
+    },
+    "unclassified": [
+      "c0000090",
+      "c0000091"
+    ]
+  },
+  "header": {
+    "comparison": {
+      "day_types": {
+        "saturday": {
+          "new_date": "2026-04-04",
+          "old_date": "2026-03-28"
+        },
+        "sunday_holiday": {
+          "new_date": "2026-04-05",
+          "old_date": null
+        },
+        "weekday": {
+          "new_date": "2026-04-01",
+          "old_date": "2026-03-30"
+        }
+      },
+      "mode": "successive_periods"
+    },
+    "coverage": {
+      "explained": 110,
+      "outside_comparison": 6,
+      "raw_total": 120,
+      "unclassified": 4
+    },
+    "engine": {
+      "config": {
+        "trip_max_shift_min": 60
+      },
+      "holidays_version": "jp-holidays-2026.1",
+      "version": "0.1.0"
+    },
+    "feed": {
+      "feed_id": "SampleBus",
+      "org_id": "sample-city"
+    },
+    "new": {
+      "from_date": "2026-04-01",
+      "memo": "令和8年4月改正",
+      "published_at": "2026-03-19T10:00:00+09:00",
+      "to_date": "2027-03-31",
+      "uid": "2da131b0-cb13-4bc2-b8eb-d925bf6050ce"
+    },
+    "notes": [
+      {
+        "code": "FORMAT_DIFFERENCE",
+        "new_files": [
+          "agency_jp.txt"
+        ],
+        "old_files": [
+          "agency_jp.txt",
+          "office_jp.txt"
+        ]
+      }
+    ],
+    "old": {
+      "from_date": "2025-04-01",
+      "memo": "",
+      "published_at": "2025-03-20T10:00:00+09:00",
+      "to_date": "2026-03-31",
+      "uid": "1c8d1613-0633-4b70-9268-c88785f29ac3"
+    }
+  },
+  "lines": [
+    {
+      "first_last": [
+        {
+          "day_type": "weekday",
+          "direction": "0",
+          "first": {
+            "after": 410,
+            "before": 400
+          },
+          "last": {
+            "after": 1290,
+            "before": 1290
+          }
+        }
+      ],
+      "key": "1",
+      "match": {
+        "confidence": 1.0,
+        "method": "same_line_name"
+      },
+      "new": {
+        "names": [
+          "1"
+        ],
+        "route_ids": [
+          "R1"
+        ]
+      },
+      "old": {
+        "names": [
+          "1"
+        ],
+        "route_ids": [
+          "R1"
+        ]
+      },
+      "patterns": [
+        {
+          "direction": "0",
+          "edits": [
+            {
+              "kind": "removed",
+              "places": [
+                3
+              ]
+            },
+            {
+              "kind": "extended",
+              "places": [
+                4
+              ]
+            }
+          ]
+        }
+      ],
+      "related": [],
+      "status": "changed",
+      "timetables": [
+        {
+          "day_type": "weekday",
+          "direction": "0",
+          "new": {
+            "places": [
+              0,
+              1,
+              2,
+              4
+            ],
+            "trips": [
+              {
+                "times": [
+                  410,
+                  415,
+                  420,
+                  430
+                ],
+                "trip_id": "N1"
+              }
+            ]
+          },
+          "old": {
+            "places": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "trips": [
+              {
+                "times": [
+                  400,
+                  405,
+                  410,
+                  415
+                ],
+                "trip_id": "T1"
+              },
+              {
+                "times": [
+                  460,
+                  465,
+                  470,
+                  475
+                ],
+                "trip_id": "T2"
+              }
+            ]
+          },
+          "pairs": [
+            [
+              0,
+              0
+            ],
+            [
+              1,
+              null
+            ]
+          ]
+        }
+      ],
+      "trips": {
+        "weekday": {
+          "07-09": {
+            "after": 5,
+            "before": 6
+          },
+          "09-16": {
+            "after": 10,
+            "before": 10
+          }
+        }
+      }
+    },
+    {
+      "first_last": [],
+      "key": "2",
+      "match": {
+        "confidence": 0.8,
+        "method": "served_places"
+      },
+      "new": {
+        "names": [
+          "2A"
+        ],
+        "route_ids": [
+          "R2A"
+        ]
+      },
+      "old": {
+        "names": [
+          "2"
+        ],
+        "route_ids": [
+          "R2"
+        ]
+      },
+      "patterns": [],
+      "related": [],
+      "status": "renamed",
+      "timetables": [],
+      "trips": {}
+    },
+    {
+      "first_last": [],
+      "key": "3",
+      "match": null,
+      "new": {
+        "names": [
+          "3"
+        ],
+        "route_ids": [
+          "R3"
+        ]
+      },
+      "old": null,
+      "patterns": [],
+      "related": [],
+      "status": "added",
+      "timetables": [],
+      "trips": {
+        "sunday_holiday": {
+          "09-16": {
+            "after": 12,
+            "before": 0
+          }
+        }
+      }
+    },
+    {
+      "first_last": [],
+      "key": "4",
+      "match": {
+        "confidence": 1.0,
+        "method": "same_line_name"
+      },
+      "new": {
+        "names": [
+          "4"
+        ],
+        "route_ids": [
+          "R4"
+        ]
+      },
+      "old": {
+        "names": [
+          "4"
+        ],
+        "route_ids": [
+          "R4"
+        ]
+      },
+      "patterns": [],
+      "related": [],
+      "status": "unchanged",
+      "timetables": [],
+      "trips": {}
+    }
+  ],
+  "other": [
+    {
+      "counts": {
+        "classes_removed": 1,
+        "prices_changed": 2
+      },
+      "evidence": [
+        "c0000001",
+        "c0000002",
+        "c0000003"
+      ],
+      "topic": "fares"
+    }
+  ],
+  "places": [
+    {
+      "lines": [
+        "1",
+        "2"
+      ],
+      "match": {
+        "confidence": 1.0,
+        "method": "same_id"
+      },
+      "moved_m": null,
+      "new": {
+        "lat": 33.0,
+        "lon": 131.0,
+        "name": "駅前",
+        "stop_id": "S1"
+      },
+      "old": {
+        "lat": 33.0,
+        "lon": 131.0,
+        "name": "駅前",
+        "stop_id": "S1"
+      },
+      "status": "unchanged"
+    },
+    {
+      "lines": [
+        "1"
+      ],
+      "match": {
+        "confidence": 0.9,
+        "method": "same_id"
+      },
+      "moved_m": null,
+      "new": {
+        "lat": 33.01,
+        "lon": 131.0,
+        "name": "市役所前",
+        "stop_id": "S2"
+      },
+      "old": {
+        "lat": 33.01,
+        "lon": 131.0,
+        "name": "市役所",
+        "stop_id": "S2"
+      },
+      "status": "renamed"
+    },
+    {
+      "lines": [
+        "1"
+      ],
+      "match": {
+        "confidence": 0.95,
+        "method": "same_name"
+      },
+      "moved_m": 34,
+      "new": {
+        "lat": 33.0203,
+        "lon": 131.0,
+        "name": "病院",
+        "stop_id": "S30"
+      },
+      "old": {
+        "lat": 33.02,
+        "lon": 131.0,
+        "name": "病院",
+        "stop_id": "S3"
+      },
+      "status": "moved"
+    },
+    {
+      "lines": [
+        "1"
+      ],
+      "match": null,
+      "moved_m": null,
+      "new": null,
+      "old": {
+        "lat": 33.03,
+        "lon": 131.0,
+        "name": "旧団地",
+        "stop_id": "S4"
+      },
+      "status": "removed"
+    },
+    {
+      "lines": [
+        "1",
+        "3"
+      ],
+      "match": null,
+      "moved_m": null,
+      "new": {
+        "lat": 33.04,
+        "lon": 131.0,
+        "name": "新団地",
+        "stop_id": "S5"
+      },
+      "old": null,
+      "status": "added"
+    }
+  ],
+  "quality": {
+    "analysis_key": "v0.14.0__auto"
+  },
+  "schema": "gtfs-jp-semantic-report/1",
+  "service_days": {
+    "day_types": {
+      "saturday": {
+        "active_days": {
+          "after": 52,
+          "before": 52
+        }
+      },
+      "sunday_holiday": {
+        "active_days": {
+          "after": 70,
+          "before": 0
+        }
+      },
+      "weekday": {
+        "active_days": {
+          "after": 243,
+          "before": 243
+        }
+      }
+    },
+    "periods": {
+      "new": [
+        {
+          "day_type": "weekday",
+          "end": "2027-03-31",
+          "start": "2026-04-01"
+        }
+      ],
+      "old": [
+        {
+          "day_type": "weekday",
+          "end": "2026-03-31",
+          "start": "2025-04-01"
+        }
+      ]
+    },
+    "special_days": {
+      "new": [],
+      "old": [
+        "2025-12-31"
+      ]
+    }
+  },
+  "summary": {
+    "fares": {
+      "changed": true,
+      "classes_added": 0,
+      "classes_removed": 1,
+      "prices_changed": 2
+    },
+    "first_last_changed": 1,
+    "lines": {
+      "added": 1,
+      "changed": 1,
+      "discontinued": 0,
+      "merged": 0,
+      "renamed": 1,
+      "restructured": 0,
+      "split": 0,
+      "unchanged": 1
+    },
+    "places": {
+      "added": 1,
+      "moved": 1,
+      "removed": 1,
+      "renamed": 1
+    },
+    "quality": {
+      "overall": {
+        "after": 92.0,
+        "before": 91.2,
+        "delta": 0.8
+      },
+      "publish": {
+        "after": 100.0,
+        "before": 100.0,
+        "delta": 0.0
+      }
+    },
+    "trips_by_day_type": {
+      "saturday": {
+        "after": 20,
+        "before": 20
+      },
+      "sunday_holiday": {
+        "after": 12,
+        "before": 0
+      },
+      "weekday": {
+        "after": 38,
+        "before": 40
+      }
+    }
+  }
+}

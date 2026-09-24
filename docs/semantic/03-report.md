@@ -115,6 +115,15 @@ viewer's TR / EN / JA catalogue.
 
 ## Report schema
 
-`gtfs-jp-semantic-report/1` will be defined in `schemas/semantic-report.schema.json` after this
-document is agreed. Its top level follows the sections above:
-`header`, `summary`, `service_days`, `lines`, `places`, `other`, `accounting`, `quality`.
+`schemas/semantic-report.schema.json` (`gtfs-jp-semantic-report/1`) is binding; an example is in
+`tests/fixtures/semantic/report-example.json`. Its top level follows the sections above:
+`header`, `summary`, `service_days`, `places`, `lines`, `other`, `accounting`, `quality`.
+
+- Every place is defined once in `places`; lines, pattern edits and timetables refer to places by
+  index.
+- Reading notes are codes with parameters (`FORMAT_DIFFERENCE`, `POSSIBLE_SCOPE_CHANGE`, ...);
+  the viewer renders their text.
+- Times are minutes after midnight of the service day (values above 1440 after midnight).
+- References JSON Schema cannot express (indices in range, one time per timetable row, every
+  trip in `pairs` exactly once, coverage parts adding up) are checked by
+  `gtfs_jp_semantic.report_check.check_report` before a report is written.
