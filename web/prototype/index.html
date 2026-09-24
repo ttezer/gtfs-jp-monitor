@@ -107,10 +107,12 @@ table.grid tr.feed[aria-selected="true"] td:first-child { box-shadow: inset 3px 
 .dcell .arrow { font-family: var(--mono); font-weight: 600; }
 .up { color: var(--good); } .down { color: var(--bad); } .flat { color: var(--faint); }
 .chip { display: inline-block; font-size: 11px; border-radius: 999px; padding: 0 7px; background: var(--surface-2); color: var(--muted); }
-.chip.next { background: var(--accent-soft); color: var(--accent); }
+.chip.next { background: var(--accent-soft); color: var(--accent); border: 0; cursor: pointer; font: inherit; font-size: 11px; }
+.chip.next.sel { box-shadow: inset 0 0 0 2px var(--accent); }
+.fmt { font-size: 11px; color: var(--warn); background: var(--warn-soft); border-radius: 6px; padding: 6px 8px; }
 
-aside.panel { background: var(--surface); border: 1px solid var(--hair); border-radius: var(--r); padding: 16px; display: grid; gap: 16px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); }
-@media (max-width: 1100px) { aside.panel { position: static; } }
+aside.panel { background: var(--surface); border: 1px solid var(--hair); border-radius: var(--r); padding: 16px; display: grid; gap: 16px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); overflow-y: auto; overscroll-behavior: contain; }
+@media (max-width: 1100px) { aside.panel { position: static; max-height: none; overflow: visible; } }
 .ph { display: grid; gap: 4px; }
 .ph h2 { margin: 0; font-size: 20px; }
 .ph .meta { color: var(--muted); font-size: 12px; display: flex; flex-wrap: wrap; gap: 4px 10px; }
@@ -216,7 +218,7 @@ const T = {
     prev: n => `${n} önceki`, current: "Güncel", delta: "Δ",
     noChange: "±0 değişiklik yok", routes: "hat", stops: "durak", trips: "sefer",
     fixed: n => `${n} kural düzeldi`, newRules: n => `${n} yeni kural`,
-    nextChip: n => `+${n} ileri tarihli`, mergedChip: n => `×${n} yayın`,
+    nextChip: (n, d) => `Sonraki: ${d}${n > 1 ? ` (+${n - 1})` : ""} · karşılaştır`, clickNext: "Güncel ile yaklaşan yayını karşılaştır", jpFiles: "JP dosyaları", formatDiff: (a, b) => `Biçim farkı: eski yayındaki JP dosyaları [${a}], yenideki [${b}]. Kural farklarının bir kısmı hizmet değişikliğinden değil biçim değişikliğinden kaynaklanabilir.`, mergedChip: n => `×${n} yayın`,
     fatal: "ANALİZ YOK", lastPub: "Son yayın",
     pickOld: "Eski", pickNew: "Yeni", backwards: "Eski taraf yeniden sonra seçildi; fark geriye doğru gösteriliyor.",
     sameSide: "İki taraf aynı yayın; farklı iki yayın seçin.",
@@ -248,7 +250,7 @@ const T = {
     prev: n => `${n} back`, current: "Current", delta: "Δ",
     noChange: "±0 no change", routes: "routes", stops: "stops", trips: "trips",
     fixed: n => `${n} rules fixed`, newRules: n => `${n} new rules`,
-    nextChip: n => `+${n} upcoming`, mergedChip: n => `×${n} publications`,
+    nextChip: (n, d) => `Next: ${d}${n > 1 ? ` (+${n - 1})` : ""} · compare`, clickNext: "Compare the current publication with the upcoming one", jpFiles: "JP files", formatDiff: (a, b) => `Format difference: JP files in the old publication [${a}], in the new one [${b}]. Some rule differences may come from the format change rather than from service changes.`, mergedChip: n => `×${n} publications`,
     fatal: "NOT ANALYSED", lastPub: "Latest publication",
     pickOld: "Old", pickNew: "New", backwards: "The old side is newer; the difference is shown backwards.",
     sameSide: "Both sides are the same publication; pick two different ones.",
@@ -280,7 +282,7 @@ const T = {
     prev: n => `${n}つ前`, current: "現行", delta: "Δ",
     noChange: "±0 変更なし", routes: "路線", stops: "停留所", trips: "便",
     fixed: n => `${n}件のルール解消`, newRules: n => `${n}件の新規ルール`,
-    nextChip: n => `+${n} 将来分`, mergedChip: n => `×${n}回公開`,
+    nextChip: (n, d) => `次回: ${d}${n > 1 ? `（+${n - 1}）` : ""}・比較`, clickNext: "現行と次回の公開を比較", jpFiles: "JPファイル", formatDiff: (a, b) => `形式の違い：旧公開のJPファイル［${a}］、新公開［${b}］。ルール差分の一部はサービス変更ではなく形式の変更による可能性があります。`, mergedChip: n => `×${n}回公開`,
     fatal: "解析なし", lastPub: "最新の公開",
     pickOld: "旧", pickNew: "新", backwards: "旧側の方が新しいため、差分を逆方向に表示しています。",
     sameSide: "両側が同じ公開です。異なる2つを選んでください。",
@@ -453,14 +455,14 @@ function renderGrid() {
     return `<tr class="feed" tabindex="0" data-key="${esc(key(f))}" aria-selected="${isSel}">
       <td><div class="fcell"><div class="fname">${esc(f.name)}</div>
         <div class="fsub">${esc(f.organization_name)} · ${esc(prefName(f.pref_id))}</div>
-        ${up ? `<span class="chip next">${esc(t("nextChip", up))}</span>` : ""}
+        ${up ? `<button type="button" class="chip next${isSel && state.oldIdx === ci && state.newIdx === gs.length - 1 ? " sel" : ""}" data-old="${ci}" data-new="${gs.length - 1}" title="${esc(t("clickNext"))}">${esc(t("nextChip", up, gs[gs.length - 1].rep.from_date))}</button>` : ""}
         <div style="width:120px">${spark(series.slice(-24))}</div></div></td>${cells.join("")}</tr>`;
   }).join("");
   $("grid").innerHTML = head + `<tbody>${rows}</tbody>`;
   $("grid").querySelectorAll("tr.feed").forEach(tr => {
     const pick = () => { state.selected = tr.dataset.key; state.oldIdx = state.newIdx = null; state.showSame = false; renderGrid(); renderPanel(); renderHistory(); };
     tr.addEventListener("click", e => {
-      const cell = e.target.closest("td.pickable");
+      const cell = e.target.closest("td.pickable, button.chip.next");
       if (!cell) return pick();
       const gsNew = +cell.dataset.new;
       const f = DATA.feeds.find(x => key(x) === tr.dataset.key);
@@ -496,6 +498,10 @@ function renderPanel() {
   const gs = groups(f);
   const ci = currentIndex(gs);
   const usable = gs.map((gr, i) => [gr, i]).filter(([gr]) => gr.rep.scores);
+  const up = upcoming(gs);
+  if ((state.newIdx == null || state.newIdx >= gs.length) && up && gs[gs.length - 1].rep.scores && gs[ci].rep.scores) {
+    state.newIdx = gs.length - 1; state.oldIdx = ci;  // an upcoming timetable is the most useful default
+  }
   if (state.newIdx == null || state.newIdx >= gs.length) state.newIdx = gs[ci].rep.scores ? ci : (usable.length ? usable[usable.length - 1][1] : ci);
   if (state.oldIdx == null || state.oldIdx >= gs.length) {
     const before = usable.filter(([, i]) => i < state.newIdx);
@@ -535,7 +541,9 @@ function renderPanel() {
         <th class="r">${esc(t("before"))}</th><th class="r">${esc(t("after"))}</th><th class="r">Δ</th></tr></thead><tbody>${bucketRows}${sameRows}</tbody></table></div>`
       : `<p class="hint">${esc(t("noRuleChange"))}</p>`;
     const sameBtn = same.length ? `<button type="button" class="linkbtn" id="toggle-same">${esc(state.showSame ? t("hideSame") : t("showSame", same.length))}</button>` : "";
-    body = `${backwards ? `<p class="hint">${esc(t("backwards"))}</p>` : ""}
+    const fa = (a.jp_files || []).join(", "), fb = (b.jp_files || []).join(", ");
+    const fmtNote = fa !== fb ? `<p class="fmt">${esc(t("formatDiff", fa || "—", fb || "—"))}</p>` : "";
+    body = `${backwards ? `<p class="hint">${esc(t("backwards"))}</p>` : ""}${fmtNote}
       <div><h3>1. ${esc(t("s1"))}</h3><div class="cards">${cards}</div></div>
       <div><h3>2. ${esc(t("s2"))}</h3><table class="mini"><thead><tr><th></th><th class="r">${esc(t("before"))}</th><th class="r">${esc(t("after"))}</th><th class="r">Δ</th></tr></thead><tbody>${metricRows}</tbody></table></div>
       <div><h3>3. ${esc(t("s3"))}</h3>${ruleTable}${sameBtn}</div>
@@ -574,11 +582,11 @@ function renderHistory() {
     const pubs = gr.members.length > 1 ? `${(first.published_at || "").slice(0, 10)} … ${(g.published_at || "").slice(0, 10)}` : (g.published_at || "").slice(0, 10);
     return `<tr><td class="num">${esc(g.from_date)} – ${esc(g.to_date || "…")}</td><td class="num">${esc(pubs)}${gr.members.length > 1 ? ` <span class="merged">${esc(t("mergedChip", gr.members.length))}</span>` : ""}</td>
       <td>${esc(g.status)}</td><td class="r">${g.scores ? fmt1(g.scores.publish) : "—"}</td><td class="r">${g.scores ? fmt1(g.scores.overall) : "—"}</td>
-      <td class="num">${esc(rids)}</td><td>${esc((g.memo || "").replace(/\s+/g, " ").slice(0, 80))}</td></tr>`;
+      <td class="num">${esc(rids)}</td><td class="num">${esc((g.jp_files || []).map(n => n.replace(".txt", "")).join(", ") || "—")}</td><td>${esc((g.memo || "").replace(/\s+/g, " ").slice(0, 80))}</td></tr>`;
   }).join("");
   $("history").innerHTML = `<h3>${esc(f.name)} <small>${esc(f.org_id)}/${esc(f.feed_id)}</small></h3><p class="hint">${esc(t("histIntro"))}</p>
     <div class="scroll" style="border:0"><table class="mini"><thead><tr><th>${esc(t("period"))}</th><th>${esc(t("published"))}</th><th>${esc(t("status"))}</th>
-    <th class="r">Publish</th><th class="r">Overall</th><th>${esc(t("rid"))}</th><th>${esc(t("memo"))}</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    <th class="r">Publish</th><th class="r">Overall</th><th>${esc(t("rid"))}</th><th>${esc(t("jpFiles"))}</th><th>${esc(t("memo"))}</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 function renderStatic() {

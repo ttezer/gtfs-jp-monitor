@@ -17,6 +17,7 @@ from .store import content_digest, generation_path, list_analyses
 
 SCHEMA = "gtfs-jp-monitor-web-export/1"
 LANGS = ("tr", "en", "ja")
+JP_FILES = frozenset({"agency_jp.txt", "office_jp.txt", "routes_jp.txt", "pattern_jp.txt"})
 
 
 def rule_titles(analyzer: Path, rule_ids: set[str], timeout: float = 60) -> dict[str, dict[str, str]]:
@@ -46,6 +47,8 @@ def _summary(entry: dict, doc: dict) -> dict:
         if m else None,
         # [count, severity, class] keeps the file small.
         "rules": {rid: [r["count"], r["severity"], r["class"]] for rid, r in sorted((doc["rules"] or {}).items())},
+        # GTFS-JP extension files present; shown as a fact, not as a version claim.
+        "jp_files": sorted(n for n in (doc["file_row_counts"] or {}) if n in JP_FILES),
     }
 
 
