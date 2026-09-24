@@ -2,7 +2,8 @@
 
 Language-neutral data plus per-language rule titles taken from the analyzer's own catalog.
 Validation diffs are not exported: the page computes them from generation summaries with the
-same rules as `diff.build_diff` (data-model §9).
+same rules as `diff.build_diff` (data-model §9). Semantic change reports are indexed in the
+export and written as per-prefecture bundles the page loads on demand.
 """
 
 from __future__ import annotations
@@ -12,7 +13,10 @@ import json
 import subprocess
 from pathlib import Path
 
+from gtfs_jp_semantic import ENGINE_VERSION
+
 from .catalog import load_catalog
+from .ids import feed_dir
 from .ordering import GenerationRef, order_generations
 from .store import content_digest, generation_path, list_analyses
 
@@ -53,23 +57,30 @@ def _summary(entry: dict, doc: dict) -> dict:
     }
 
 
-def load_reports(reports_dir: Path, feeds: set[tuple[str, str]]) -> dict[str, dict]:
-    """Semantic reports keyed "<old_uid>__<new_uid>", for exported feeds only."""
-    reports: dict[str, dict] = {}
-    for path in sorted(Path(reports_dir).iterdir()):
-        if path.name.endswith(".report.json.gz"):
-            doc = json.loads(gzip.decompress(path.read_bytes()).decode("utf-8"))
-        elif path.name.endswith(".report.json"):
-            doc = json.loads(path.read_text(encoding="utf-8"))
-        else:
+def report_bundles(root: Path, feeds: list[dict], engine_version: str) -> tuple[dict[str, dict], dict[str, dict]]:
+    """Semantic reports of exported feeds: a small index for the page and full reports bundled
+    per prefecture ("pref-01" .. "pref-47", "pref-00" when unknown), loaded on demand."""
+    index: dict[str, dict] = {}
+    bundles: dict[str, dict] = {}
+    for f in feeds:
+        directory = feed_dir(root, f["org_id"], f["feed_id"]) / "changes" / engine_version
+        if not directory.is_dir():
             continue
-        h = doc["header"]
-        if (h["feed"]["org_id"], h["feed"]["feed_id"]) in feeds:
-            reports[f"{h['old']['uid']}__{h['new']['uid']}"] = doc
-    return reports
+        pref = f["pref_id"] if isinstance(f["pref_id"], int) and 1 <= f["pref_id"] <= 47 else 0
+        bundle = f"pref-{pref:02d}"
+        for path in sorted(directory.glob("*.report.json.gz")):
+            doc = json.loads(gzip.decompress(path.read_bytes()).decode("utf-8"))
+            h = doc["header"]
+            pair = f"{h['old']['uid']}__{h['new']['uid']}"
+            bundles.setdefault(bundle, {})[pair] = doc
+            index[pair] = {"bundle": bundle, "feed": [f["org_id"], f["feed_id"]],
+                           "dates": [h["old"]["from_date"], h["new"]["from_date"]],
+                           "summary": doc["summary"], "coverage": h["coverage"]}
+    return index, bundles
 
 
-def build_export(data_dir: Path, key: str, analyzer: Path | None = None, reports_dir: Path | None = None) -> dict:
+def build_export(data_dir: Path, key: str, analyzer: Path | None = None) -> tuple[dict, dict[str, dict]]:
+    """(export for the page, report bundles to write next to it)."""
     root = Path(data_dir)
     catalog_feeds, catalog_gens = load_catalog(root)
     feeds = []
@@ -104,10 +115,12 @@ def build_export(data_dir: Path, key: str, analyzer: Path | None = None, reports
             "listed": row.get("listed", True),
             "generations": gens,  # oldest first (data-model §2)
         })
+    report_index, bundles = report_bundles(root, feeds, ENGINE_VERSION)
     return {
         "schema": SCHEMA,
         "analysis_key": key,
         "feeds": feeds,
         "rule_titles": rule_titles(analyzer, rule_ids) if analyzer else {lang: {} for lang in LANGS},
-        "reports": load_reports(reports_dir, {(f["org_id"], f["feed_id"]) for f in feeds}) if reports_dir else {},
-    }
+        "engine_version": ENGINE_VERSION,
+        "report_index": report_index,
+    }, bundles

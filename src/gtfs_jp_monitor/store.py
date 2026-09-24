@@ -4,6 +4,8 @@ feeds/<org_id>/<feed_id>/
     feed.json
     generations/<uid>/<analysis_key>.json      analysis_key = <release_tag>__<gtfs_jp_profile>
     diffs/<analysis_key>/<old_uid>__<new_uid>.json
+    changes/<engine_version>/<old_uid>__<new_uid>.report.json.gz   semantic change report
+    changes/<engine_version>/<old_uid>__<new_uid>.error.json       report could not be built
 """
 
 from __future__ import annotations
@@ -49,6 +51,17 @@ def generation_path(root: Path, org_id: str, feed_id: str, uid: str, key: str) -
 def diff_path(root: Path, org_id: str, feed_id: str, key: str, old_uid: str, new_uid: str) -> Path:
     split_key(key)
     return feed_dir(root, org_id, feed_id) / "diffs" / key / f"{require_uid(old_uid)}__{require_uid(new_uid)}.json"
+
+
+_ENGINE_RE = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
+
+
+def change_path(root: Path, org_id: str, feed_id: str, engine_version: str, old_uid: str, new_uid: str,
+                suffix: str = ".report.json.gz") -> Path:
+    if not _ENGINE_RE.fullmatch(engine_version) or suffix not in (".report.json.gz", ".error.json"):
+        raise StoreError(f"invalid change path parts {engine_version!r} {suffix!r}")
+    return (feed_dir(root, org_id, feed_id) / "changes" / engine_version
+            / f"{require_uid(old_uid)}__{require_uid(new_uid)}{suffix}")
 
 
 def feed_json_path(root: Path, org_id: str, feed_id: str) -> Path:

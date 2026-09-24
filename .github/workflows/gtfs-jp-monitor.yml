@@ -14,6 +14,10 @@ on:
         description: "Maximum generations to analyze in this run (backfill batch size)"
         required: false
         default: "400"
+      report_limit:
+        description: "Maximum semantic change reports to build in this run (newest pairs first)"
+        required: false
+        default: "300"
       only:
         description: "Optional ORG_ID/FEED_ID to restrict the run to one feed"
         required: false
@@ -39,6 +43,7 @@ jobs:
       PYTHONPATH: src
       GTFS_JP_PROFILE: ${{ inputs.profile || vars.GTFS_JP_PROFILE || 'auto' }}
       LIMIT: ${{ inputs.limit || '400' }}
+      REPORT_LIMIT: ${{ inputs.report_limit || '300' }}
       ONLY: ${{ inputs.only }}
       TRIGGER: ${{ github.event_name }}
     steps:
@@ -50,6 +55,9 @@ jobs:
           esac
           case "$LIMIT" in
             ''|*[!0-9]*) echo "::error::limit must be a positive integer"; exit 1 ;;
+          esac
+          case "$REPORT_LIMIT" in
+            ''|*[!0-9]*) echo "::error::report_limit must be a positive integer"; exit 1 ;;
           esac
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -90,6 +98,12 @@ jobs:
             --analyzer "$RUNNER_TEMP/analyzer/gtfs-analyzer" \
             --profile "$GTFS_JP_PROFILE" --trigger "$TRIGGER" \
             --extra-warnings "$RUNNER_TEMP/catalog-events.json" "${args[@]}"
+
+      - name: Build semantic change reports
+        run: |
+          args=(--limit "$REPORT_LIMIT")
+          if [ -n "$ONLY" ]; then args+=(--only "$ONLY"); fi
+          python -m gtfs_jp_monitor semantic-reports --data-dir data --profile "$GTFS_JP_PROFILE" "${args[@]}"
 
       - name: Commit and push data
         working-directory: data

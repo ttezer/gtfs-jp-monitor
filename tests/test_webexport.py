@@ -5,7 +5,9 @@ from pathlib import Path
 
 from gtfs_jp_monitor.canonical import write_json
 from gtfs_jp_monitor.catalog import sync_catalog
-from gtfs_jp_monitor.store import generation_path
+from gtfs_jp_monitor.store import change_path, generation_path
+from gtfs_jp_semantic import ENGINE_VERSION
+from gtfs_jp_semantic.rawdiff import gzip_bytes
 from gtfs_jp_monitor.webexport import build_export
 
 from .schema_support import FIXTURES, load_json
@@ -25,7 +27,7 @@ class WebExportTest(unittest.TestCase):
                 doc = copy.deepcopy(base)
                 doc["generation"]["uid"] = uid(n)
                 write_json(generation_path(root, ORG, FEED, uid(n), KEY), doc)
-            export = build_export(root, KEY)
+            export, bundles = build_export(root, KEY)
         self.assertEqual(export["schema"], "gtfs-jp-monitor-web-export/1")
         self.assertEqual([f["feed_id"] for f in export["feeds"]], [FEED])  # feeds without analyses are left out
         feed = export["feeds"][0]
@@ -34,27 +36,27 @@ class WebExportTest(unittest.TestCase):
         self.assertEqual(g["rid"], "current")
         self.assertEqual(g["rules"]["JPN_030"], [4, "MEDIUM", "QUALITY"])
         self.assertEqual(export["rule_titles"], {"tr": {}, "en": {}, "ja": {}})
-        self.assertEqual(export["reports"], {})
+        self.assertEqual((export["report_index"], bundles), ({}, {}))
 
-    def test_embeds_reports_of_exported_feeds(self):
+    def test_indexes_and_bundles_stored_reports(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp) / "data"
+            root = Path(tmp)
             sync_catalog(FakeClient([feed_record()], {(ORG, FEED): [gen(1, "current", "2026-04-01")]}), root)
             doc = copy.deepcopy(load_json(FIXTURES / "generation" / "complete.json"))
             doc["generation"]["uid"] = uid(1)
             write_json(generation_path(root, ORG, FEED, uid(1), KEY), doc)
-            reports = Path(tmp) / "reports"
-            reports.mkdir()
-            example = load_json(FIXTURES / "semantic" / "report-example.json")
-            mine = copy.deepcopy(example)
-            mine["header"]["feed"] = {"org_id": ORG, "feed_id": FEED}
-            write_json(reports / "mine.report.json", mine)
-            write_json(reports / "other.report.json", example)  # feed not exported
-            (reports / "notes.txt").write_text("ignored", encoding="utf-8")
-            export = build_export(root, KEY, reports_dir=reports)
-        h = mine["header"]
-        self.assertEqual(list(export["reports"]), [f"{h['old']['uid']}__{h['new']['uid']}"])
-
+            report = copy.deepcopy(load_json(FIXTURES / "semantic" / "report-example.json"))
+            report["header"]["feed"] = {"org_id": ORG, "feed_id": FEED}
+            h = report["header"]
+            path = change_path(root, ORG, FEED, ENGINE_VERSION, h["old"]["uid"], h["new"]["uid"])
+            path.parent.mkdir(parents=True)
+            path.write_bytes(gzip_bytes(report))
+            export, bundles = build_export(root, KEY)
+        pair = f"{h['old']['uid']}__{h['new']['uid']}"
+        entry = export["report_index"][pair]
+        self.assertEqual((entry["bundle"], entry["feed"]), ("pref-10", [ORG, FEED]))  # feed_record pref 10
+        self.assertEqual(entry["summary"], report["summary"])
+        self.assertEqual(bundles, {"pref-10": {pair: report}})
 
 if __name__ == "__main__":
     unittest.main()

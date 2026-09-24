@@ -87,14 +87,18 @@ The validation diff (scores, rule counts) already produced by the monitoring pip
 
 ## Storage
 
-Per consecutive, non-equivalent pair, under the feed's directory in the data repository:
+Per pair of neighbouring, non-equivalent publications (data-model §11), under the feed's
+directory in the data repository:
 
 ```text
-changes/<engine_version>/<old_uid>__<new_uid>.report.json.gz   sections 0–5 and 7, and 6 as counts
-changes/<engine_version>/<old_uid>__<new_uid>.raw.json.gz      Part 1 raw differences (section 6 detail)
+changes/<engine_version>/<old_uid>__<new_uid>.report.json.gz   the report
+changes/<engine_version>/<old_uid>__<new_uid>.error.json       marker when it could not be built
 ```
 
-Both files are canonical JSON, gzip-compressed without timestamps (data-model §5.1).
+Reports are canonical JSON, gzip-compressed without timestamps (data-model §5.1). Raw
+differences are not stored: section 6 keeps per-file counts and the unclassified ids, and
+section 5 keeps row-level details up to `report.other_details_max` per topic; the full list is
+rebuilt from the two ZIPs when needed.
 
 Timetables are the largest part. To keep them compact:
 
@@ -105,8 +109,8 @@ Timetables are the largest part. To keep them compact:
   removed);
 - unchanged combinations store no timetable.
 
-Size is measured on pilot feeds before full production; if the repository approaches 1 GB,
-older pairs' raw files move to release assets first (the report stays in git).
+Pilot reports are 3–180 KB compressed. The web export indexes every report in the page and
+writes the reports in one bundle per prefecture, which the page loads when a pair is opened.
 
 ## Language
 

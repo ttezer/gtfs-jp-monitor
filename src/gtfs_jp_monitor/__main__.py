@@ -140,6 +140,17 @@ def _cmd_semantic_report(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_semantic_reports(args: argparse.Namespace) -> int:
+    from .changes import run_reports
+    from .store import analysis_key
+
+    key = analysis_key(Lock.load(Path(args.lock)).release_tag, args.profile)
+    run = run_reports(Path(args.data_dir), key, limit=args.limit, only=set(args.only) if args.only else None)
+    print(json.dumps({"analysis_key": key, "counts": dict(sorted(run.counts.items())),
+                      "failed": [i for i in run.items if i["action"] == "failed"][:50]}, ensure_ascii=False, indent=2))
+    return 0
+
+
 DEFAULT_TEMPLATE = Path(__file__).resolve().parents[2] / "web" / "prototype" / "index.html"
 
 
@@ -147,8 +158,7 @@ def _cmd_export_web(args: argparse.Namespace) -> int:
     from .webexport import build_export
 
     key = f"{args.release_tag}__{args.profile}"
-    export = build_export(Path(args.data_dir), key, Path(args.analyzer) if args.analyzer else None,
-                          Path(args.reports) if args.reports else None)
+    export, bundles = build_export(Path(args.data_dir), key, Path(args.analyzer) if args.analyzer else None)
     if args.json:
         from .canonical import write_json
         write_json(Path(args.json), export)
@@ -158,9 +168,18 @@ def _cmd_export_web(args: argparse.Namespace) -> int:
         if template.count("/*__EXPORT__*/") != 1:
             raise SystemExit("template must contain exactly one /*__EXPORT__*/ placeholder")
         Path(args.html).write_text(template.replace("/*__EXPORT__*/", payload), encoding="utf-8")
+        from gtfs_jp_semantic.rawdiff import gzip_bytes
+
+        out = Path(args.html).parent / "reports"
+        out.mkdir(parents=True, exist_ok=True)
+        for old in out.glob("pref-*.json.gz"):
+            if old.name[:-len(".json.gz")] not in bundles:
+                old.unlink()
+        for name, docs in bundles.items():
+            (out / f"{name}.json.gz").write_bytes(gzip_bytes(docs))
     print(json.dumps({"feeds": len(export["feeds"]),
                       "generations": sum(len(f["generations"]) for f in export["feeds"]),
-                      "reports": len(export["reports"])}, indent=2))
+                      "reports": len(export["report_index"]), "bundles": len(bundles)}, indent=2))
     return 0
 
 
@@ -215,6 +234,14 @@ def main(argv: list[str] | None = None) -> int:
     rep.add_argument("-o", "--output", required=True, help="output .report.json or .report.json.gz")
     rep.set_defaults(func=_cmd_semantic_report)
 
+    reps = sub.add_parser("semantic-reports", help="build missing change reports of consecutive publications into the data repository")
+    reps.add_argument("--data-dir", required=True)
+    reps.add_argument("--profile", default="auto", choices=PROFILES)
+    reps.add_argument("--lock", default=str(DEFAULT_LOCK), help="the analysis key uses the pinned release of this lock")
+    reps.add_argument("--limit", type=int, help="build at most this many reports (newest pairs first)")
+    reps.add_argument("--only", type=_feed_key, action="append", metavar="ORG_ID/FEED_ID")
+    reps.set_defaults(func=_cmd_semantic_reports)
+
     web = sub.add_parser("export-web", help="export data for the web page (prototype)")
     web.add_argument("--data-dir", required=True)
     web.add_argument("--release-tag", required=True, help="analysis release, e.g. v0.14.0")
@@ -223,7 +250,6 @@ def main(argv: list[str] | None = None) -> int:
     web.add_argument("--json", help="write the export JSON here")
     web.add_argument("--html", help="write a self-contained page here")
     web.add_argument("--template", default=str(DEFAULT_TEMPLATE))
-    web.add_argument("--reports", help="directory of semantic reports (*.report.json[.gz]) to embed")
     web.set_defaults(func=_cmd_export_web)
 
     args = parser.parse_args(argv)

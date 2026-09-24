@@ -40,6 +40,8 @@ catalog/generations/<org_id>/<feed_id>.json
 feeds/<org_id>/<feed_id>/feed.json
 feeds/<org_id>/<feed_id>/generations/<uid>/<analysis_key>.json
 feeds/<org_id>/<feed_id>/diffs/<analysis_key>/<old_uid>__<new_uid>.json
+feeds/<org_id>/<feed_id>/changes/<engine_version>/<old_uid>__<new_uid>.report.json.gz
+feeds/<org_id>/<feed_id>/changes/<engine_version>/<old_uid>__<new_uid>.error.json
 runs/<YYYY>/<run_id>.json
 ```
 
@@ -141,5 +143,23 @@ can be selected per run.
 ## §10 Scheduled workflow
 
 `.github/workflows/gtfs-jp-monitor.yml` runs daily at 04:10 JST and on demand: unit tests,
-pinned analyzer installation, catalog sync, incremental analysis, and one commit to the data
-repository when something changed. A single concurrency group guarantees one writer at a time.
+pinned analyzer installation, catalog sync, incremental analysis, semantic change reports
+(§11), and one commit to the data repository when something changed. A single concurrency
+group guarantees one writer at a time.
+
+## §11 Semantic change reports
+
+- One report per pair of neighbouring publications as the web page shows them: analysed for
+  the key and not `FATAL` (`PARTIAL` counts, since the engine reads the ZIP, not the validation
+  result); unanalysed publications are passed over, a `FATAL` one breaks the chain, and
+  equivalent pairs (§4.2) get no report. `report_pairs` in `src/gtfs_jp_monitor/changes.py`
+  is the reference.
+- Both ZIPs are downloaded again and must match the analysed SHA-256; reports are produced on
+  the production platform only, like analyses (§6.2).
+- A pair that cannot be reported (source unavailable or changed, engine error) gets an
+  `.error.json` marker and is not retried for that engine version; a transient download
+  failure writes nothing and is retried next run. A new engine version reports every pair
+  again under its own directory.
+- Raw differences (docs/semantic/01-raw-diff.md) are not stored; they can be rebuilt from the
+  two ZIPs. Newest pairs are reported first, round-robin across feeds, at most
+  `report_limit` per run.
