@@ -271,7 +271,7 @@ const PREFS = [["北海道","Hokkaido"],["青森県","Aomori"],["岩手県","Iwa
 const T = {
   tr: {
     tagline: "Feed kalitesi, yayına hazırlık ve değişiklik geçmişi",
-    notice: (f, g, rel, prof) => `<b>Önizleme.</b> ${f} feed, ${g} yayın; GTFS Analyzer ${rel} (${prof} profili). Şimdilik her feed'in son 4 yayını analiz edildi; daha eski yayınlar her gün arka planda ekleniyor. Semantic değişiklik raporları şimdilik yalnız birkaç pilot feed'in son yayın çifti için var (Diff Raporları sekmesi).`,
+    notice: (f, g, rel, prof) => `<b>Önizleme.</b> ${f} feed, ${g} yayın; GTFS Analyzer ${rel} (${prof} profili). Şimdilik her feed'in son 4 yayını analiz edildi; daha eski yayınlar her gün arka planda ekleniyor. Semantic değişiklik raporları her gün en yeni yayın çiftlerinden başlayarak ekleniyor (Diff Raporları sekmesi).`,
     overview: "Genel Bakış", history: "Feed Geçmişi", reports: "Diff Raporları", gtfsjp: "GTFS-JP",
     search: "Feed ara", prefecture: "İl", readiness: "Yayın durumu", sort: "Sırala", all: "Tümü",
     ready: "Yayınlanmaya hazır", notReady: "Hazır değil", merge: "Eşdeğer yayınları birleştir",
@@ -304,7 +304,7 @@ const T = {
   },
   en: {
     tagline: "Feed quality, publication readiness and change history",
-    notice: (f, g, rel, prof) => `<b>Preview.</b> ${f} feeds, ${g} publications; GTFS Analyzer ${rel} (${prof} profile). For now the latest 4 publications of each feed are analysed; older ones are added daily in the background. Semantic change reports exist for now only for the latest pair of a few pilot feeds (Diff reports tab).`,
+    notice: (f, g, rel, prof) => `<b>Preview.</b> ${f} feeds, ${g} publications; GTFS Analyzer ${rel} (${prof} profile). For now the latest 4 publications of each feed are analysed; older ones are added daily in the background. Semantic change reports are added daily, newest publication pairs first (Diff reports tab).`,
     overview: "Overview", history: "Feed history", reports: "Diff reports", gtfsjp: "GTFS-JP",
     search: "Search feeds", prefecture: "Prefecture", readiness: "Readiness", sort: "Sort", all: "All",
     ready: "Ready to publish", notReady: "Not ready", merge: "Merge equivalent publications",
@@ -337,7 +337,7 @@ const T = {
   },
   ja: {
     tagline: "フィードの品質・公開準備・変更履歴",
-    notice: (f, g, rel, prof) => `<b>プレビュー。</b>${f}フィード・${g}公開分、GTFS Analyzer ${rel}（${prof}プロファイル）。現在は各フィードの最新4公開のみ解析済みで、それ以前の公開は毎日バックグラウンドで追加されます。セマンティック変更レポートは現在、いくつかの試行フィードの最新ペアのみです（差分レポートタブ）。`,
+    notice: (f, g, rel, prof) => `<b>プレビュー。</b>${f}フィード・${g}公開分、GTFS Analyzer ${rel}（${prof}プロファイル）。現在は各フィードの最新4公開のみ解析済みで、それ以前の公開は毎日バックグラウンドで追加されます。セマンティック変更レポートは新しい公開ペアから毎日追加されています（差分レポートタブ）。`,
     overview: "概要", history: "フィード履歴", reports: "差分レポート", gtfsjp: "GTFS-JP",
     search: "フィード検索", prefecture: "都道府県", readiness: "公開状態", sort: "並び替え", all: "すべて",
     ready: "公開準備完了", notReady: "未準備", merge: "同一内容の公開をまとめる",
@@ -414,13 +414,14 @@ const R = {
       NO_COMMON_DAY_TYPE: () => "İki yayının ortak gün tipi yok; sefer karşılaştırması yapılamadı.",
       OUTSIDE_COMPARISON_PRESENT: () => "Bazı seferler yalnız karşılaştırılmayan günlerde çalışıyor (özel günler, kısa dönemler); bunlar 'karşılaştırma dışı' sayıldı.",
     },
-    panelOpen: "Raporun tamamı →", panelNone: "Bu çift için henüz semantic rapor yok; şimdilik yalnız pilot feed'lerin son çifti raporlandı.",
+    panelOpen: "Raporun tamamı →", panelNone: "Bu çift için henüz semantic rapor yok. Raporlar her gün en yeni çiftlerden başlayarak üretiliyor; rapor üretilemeyen çiftler (ör. kaynağı artık indirilemeyen yayın) boş kalır.",
     panelNotAdjacent: "Semantic rapor yalnız ardışık iki yayın için üretilir. Tablodaki Δ hücresine tıklayın.",
     panelLines: s => `Hat: ${s.changed} değişti · ${s.added} eklendi · ${s.discontinued} kaldırıldı · ${s.renamed + s.merged + s.split + s.restructured} ad/yapı değişti`,
     panelPlaces: s => `Durak: ${s.added} eklendi · ${s.removed} kaldırıldı · ${s.renamed} adı değişti · ${s.moved} taşındı`,
     panelCov: p => `Ham farkların %${p}'i açıklandı`,
     backward: "Seçim geriye doğru; rapor eskiden yeniye gösteriliyor.",
-    pick: "Genel Bakış'ta bir feed seçip iki ardışık yayını karşılaştırın; o çiftin raporu burada açılır. Şu an raporu olan çiftler:",
+    pick: n => `Genel Bakış'ta bir feed seçip iki ardışık yayını karşılaştırın; o çiftin raporu burada açılır. Raporu olan ${n} çift:`,
+    loading: "Rapor yükleniyor…", loadFailed: e => `Rapor yüklenemedi (${e}).`,
     metres: m => `${m} m`, others: "Raporu olan diğer çiftler",
     tripChanges: "Sefer değişiklikleri",
     tcCols: ["Yön", "Gün tipi", "Değişiklik", "Eski kalkış", "Yeni kalkış", "Fark (dk)", "Eski varış", "Yeni varış", "Not"],
@@ -467,13 +468,14 @@ const R = {
       NO_COMMON_DAY_TYPE: () => "The publications share no day type; trips could not be compared.",
       OUTSIDE_COMPARISON_PRESENT: () => "Some trips run only on days that were not compared (special days, short periods); they are counted as outside comparison.",
     },
-    panelOpen: "Full report →", panelNone: "No semantic report for this pair yet; for now only the latest pair of the pilot feeds is reported.",
+    panelOpen: "Full report →", panelNone: "No semantic report for this pair yet. Reports are built daily, newest pairs first; pairs that cannot be reported (for example a publication that can no longer be downloaded) stay empty.",
     panelNotAdjacent: "Semantic reports exist only for two consecutive publications. Click a Δ cell in the table.",
     panelLines: s => `Lines: ${s.changed} changed · ${s.added} added · ${s.discontinued} discontinued · ${s.renamed + s.merged + s.split + s.restructured} renamed/restructured`,
     panelPlaces: s => `Stops: ${s.added} added · ${s.removed} removed · ${s.renamed} renamed · ${s.moved} moved`,
     panelCov: p => `${p}% of raw differences explained`,
     backward: "The selection is backwards; the report is shown old to new.",
-    pick: "Select a feed in Overview and compare two consecutive publications; the report of that pair opens here. Pairs with a report:",
+    pick: n => `Select a feed in Overview and compare two consecutive publications; the report of that pair opens here. ${n} pairs with a report:`,
+    loading: "Loading report…", loadFailed: e => `The report could not be loaded (${e}).`,
     metres: m => `${m} m`, others: "Other pairs with a report",
     tripChanges: "Trip changes",
     tcCols: ["Direction", "Day type", "Change", "Old departure", "New departure", "Δ (min)", "Old arrival", "New arrival", "Note"],
@@ -520,13 +522,14 @@ const R = {
       NO_COMMON_DAY_TYPE: () => "共通の曜日区分がなく、便を比較できませんでした。",
       OUTSIDE_COMPARISON_PRESENT: () => "比較しなかった日（特別な日・短い期間）のみ運行する便があり、比較対象外として数えています。",
     },
-    panelOpen: "レポート全体 →", panelNone: "このペアのセマンティックレポートはまだありません。現在は試行フィードの最新ペアのみです。",
+    panelOpen: "レポート全体 →", panelNone: "このペアのセマンティックレポートはまだありません。レポートは新しいペアから毎日作成されます。作成できないペア（公開ファイルを取得できない場合など）は空欄のままです。",
     panelNotAdjacent: "セマンティックレポートは連続する2つの公開のみです。表のΔセルをクリックしてください。",
     panelLines: s => `路線：変更${s.changed}・新設${s.added}・廃止${s.discontinued}・改称/再編${s.renamed + s.merged + s.split + s.restructured}`,
     panelPlaces: s => `停留所：新設${s.added}・廃止${s.removed}・改称${s.renamed}・移設${s.moved}`,
     panelCov: p => `差分の${p}%を説明済み`,
     backward: "選択が逆順です。レポートは旧→新で表示します。",
-    pick: "概要タブでフィードを選び、連続する2つの公開を比較すると、そのレポートがここに表示されます。レポートのあるペア：",
+    pick: n => `概要タブでフィードを選び、連続する2つの公開を比較すると、そのレポートがここに表示されます。レポートのあるペア（${n}）：`,
+    loading: "レポートを読み込み中…", loadFailed: e => `レポートを読み込めませんでした（${e}）。`,
     metres: m => `${m} m`, others: "レポートのある他のペア",
     tripChanges: "便の変更",
     tcCols: ["方向", "曜日区分", "変更", "旧発車", "新発車", "差（分）", "旧到着", "新到着", "備考"],
@@ -549,24 +552,43 @@ const hm = m => m == null ? "" : `${Math.floor(m / 60)}:${String(m % 60).padStar
 state.openLines = new Set(); state.tt = {};
 
 // Report of two neighbouring groups: old = last member of the older group, new = first member of the newer one.
+// Reports are indexed in the page and loaded per prefecture bundle when first needed.
+const REPORTS = DATA.report_index || {};
+const bundles = new Map();
+function loadBundle(name) {
+  if (!bundles.has(name)) {
+    const p = fetch(`reports/${name}.json.gz`).then(async r => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const buf = new Uint8Array(await r.arrayBuffer());
+      // Some servers already decode gzip (Content-Encoding); only decompress real gzip bytes.
+      const text = buf[0] === 0x1f && buf[1] === 0x8b
+        ? await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"))).text()
+        : new TextDecoder().decode(buf);
+      return JSON.parse(text);
+    });
+    p.catch(() => bundles.delete(name));
+    bundles.set(name, p);
+  }
+  return bundles.get(name);
+}
 function pairReport(gs, lo, hi) {
-  if (Math.abs(lo - hi) !== 1) return { adjacent: false, report: null };
+  if (Math.abs(lo - hi) !== 1) return { adjacent: false, pair: null, entry: null };
   const [o, n] = lo < hi ? [gs[lo], gs[hi]] : [gs[hi], gs[lo]];
   const k = `${o.rep.uid}__${n.members[0].uid}`;
-  return { adjacent: true, report: (DATA.reports || {})[k] || null };
+  return { adjacent: true, pair: k, entry: REPORTS[k] || null };
 }
 function selectedReport() {
   const f = DATA.feeds.find(x => key(x) === state.selected);
-  if (!f || state.oldIdx == null || state.newIdx == null) return { f, adjacent: false, report: null };
+  if (!f || state.oldIdx == null || state.newIdx == null) return { f, adjacent: false, pair: null, entry: null };
   const gs = groups(f);
   return { f, backwards: state.oldIdx > state.newIdx, ...pairReport(gs, state.oldIdx, state.newIdx) };
 }
 
 function panelSemantic() {
-  const { adjacent, report } = selectedReport();
+  const { adjacent, entry } = selectedReport();
   if (!adjacent) return `<p class="hint">${esc(rt("panelNotAdjacent"))}</p>`;
-  if (!report) return `<div class="empty">${esc(rt("panelNone"))}</div>`;
-  const s = report.summary, c = report.header.coverage;
+  if (!entry) return `<div class="empty">${esc(rt("panelNone"))}</div>`;
+  const s = entry.summary, c = entry.coverage;
   const pct = c.raw_total ? Math.floor(c.explained / c.raw_total * 1000) / 10 : 100;
   const trips = DAYS.filter(d => s.trips_by_day_type[d]).map(d => {
     const x = s.trips_by_day_type[d], dv = x.after - x.before;
@@ -779,18 +801,18 @@ function pubBox(label, p) {
 }
 
 function reportList(intro = true) {
-  const items = Object.values(DATA.reports || {}).map(r => {
-    const h = r.header, f = DATA.feeds.find(x => x.org_id === h.feed.org_id && x.feed_id === h.feed.feed_id);
-    return f ? { r, f } : null;
-  }).filter(Boolean).sort((a, b) => a.f.name.localeCompare(b.f.name, "ja"));
-  return `${intro ? `<p>${esc(rt("pick"))}</p>` : ""}<ul>${items.map(({ r, f }) => `<li><button type="button" class="linkbtn" data-pick="${esc(r.header.old.uid)}__${esc(r.header.new.uid)}">${esc(f.organization_name)} — ${esc(f.name)} · ${esc(r.header.old.from_date)} → ${esc(r.header.new.from_date)}</button></li>`).join("")}</ul>`;
+  const items = Object.entries(REPORTS).map(([pair, e]) => {
+    const f = DATA.feeds.find(x => x.org_id === e.feed[0] && x.feed_id === e.feed[1]);
+    return f ? { pair, e, f } : null;
+  }).filter(Boolean).sort((a, b) => a.f.organization_name.localeCompare(b.f.organization_name, "ja") || a.f.name.localeCompare(b.f.name, "ja") || a.e.dates[1].localeCompare(b.e.dates[1]));
+  return `${intro ? `<p>${esc(rt("pick", items.length))}</p>` : ""}<ul>${items.map(({ pair, e, f }) => `<li><button type="button" class="linkbtn" data-pick="${esc(pair)}">${esc(f.organization_name)} — ${esc(f.name)} · ${esc(e.dates[0])} → ${esc(e.dates[1])}</button></li>`).join("")}</ul>`;
 }
 
 function openPair(pairKey) {
-  const r = DATA.reports[pairKey], h = r.header;
-  const f = DATA.feeds.find(x => x.org_id === h.feed.org_id && x.feed_id === h.feed.feed_id);
+  const e = REPORTS[pairKey], newUid = pairKey.split("__")[1];
+  const f = DATA.feeds.find(x => x.org_id === e.feed[0] && x.feed_id === e.feed[1]);
   const gs = groups(f);
-  const ni = gs.findIndex(g => g.members.some(m => m.uid === h.new.uid));
+  const ni = gs.findIndex(g => g.members.some(m => m.uid === newUid));
   state.selected = key(f); state.newIdx = ni; state.oldIdx = ni - 1;
   state.openLines = new Set(); state.tt = {};
   renderAll();
@@ -870,12 +892,22 @@ function initMap(rep) {
 
 function renderReport() {
   const box = $("reports");
-  const { report: rep, backwards } = selectedReport();
-  if (!rep) {
+  const { pair, entry, backwards } = selectedReport();
+  if (!entry) {
     box.innerHTML = reportList();
     box.querySelectorAll("button[data-pick]").forEach(b => b.addEventListener("click", () => openPair(b.dataset.pick)));
     return;
   }
+  const cached = state.loaded && state.loaded.pair === pair ? state.loaded.rep : null;
+  if (!cached) {
+    box.innerHTML = `<p class="hint">${esc(rt("loading"))}</p>`;
+    loadBundle(entry.bundle).then(docs => {
+      state.loaded = { pair, rep: docs[pair] };
+      if (selectedReport().pair === pair && state.loaded.rep) renderReport();
+    }).catch(err => { if (selectedReport().pair === pair) box.innerHTML = `<p class="fmt">${esc(rt("loadFailed", String(err.message || err)))}</p>`; });
+    return;
+  }
+  const rep = cached;
   const pairKey = `${rep.header.old.uid}__${rep.header.new.uid}`;
   if (state.lastPair !== pairKey) { state.lastPair = pairKey; state.openLines = new Set(); state.tt = {}; }
   state.flShift = (rep.header.engine.config.matching || {}).first_last_min_shift ?? "?";
