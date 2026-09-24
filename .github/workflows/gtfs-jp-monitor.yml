@@ -7,7 +7,7 @@ name: gtfs-jp-monitor
 
 on:
   schedule:
-    - cron: "0 19 * * *" # 04:00 JST daily (GitHub may start scheduled runs late)
+    - cron: "10 19 * * *" # 04:10 JST daily (GitHub may start scheduled runs late)
   workflow_dispatch:
     inputs:
       limit:

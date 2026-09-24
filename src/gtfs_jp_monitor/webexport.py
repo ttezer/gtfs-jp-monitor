@@ -82,6 +82,9 @@ def build_export(data_dir: Path, key: str, analyzer: Path | None = None) -> dict
             "organization_name": row.get("organization_name", ""),
             "pref_id": row.get("feed_pref_id"),
             "license": (row.get("license") or {}).get("raw", ""),
+            "is_discontinued": bool(row.get("is_discontinued")),
+            "discontinued_date": row.get("discontinued_date"),
+            "listed": row.get("listed", True),
             "generations": gens,  # oldest first (data-model §2)
         })
     return {

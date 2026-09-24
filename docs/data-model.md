@@ -140,6 +140,6 @@ can be selected per run.
 
 ## §10 Scheduled workflow
 
-`.github/workflows/gtfs-jp-monitor.yml` runs daily at 04:00 JST and on demand: unit tests,
+`.github/workflows/gtfs-jp-monitor.yml` runs daily at 04:10 JST and on demand: unit tests,
 pinned analyzer installation, catalog sync, incremental analysis, and one commit to the data
 repository when something changed. A single concurrency group guarantees one writer at a time.

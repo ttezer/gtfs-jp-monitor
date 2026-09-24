@@ -109,6 +109,12 @@ table.grid tr.feed[aria-selected="true"] td:first-child { box-shadow: inset 3px 
 .chip { display: inline-block; font-size: 11px; border-radius: 999px; padding: 0 7px; background: var(--surface-2); color: var(--muted); }
 .chip.next { background: var(--accent-soft); color: var(--accent); border: 0; cursor: pointer; font: inherit; font-size: 11px; }
 .chip.next.sel { box-shadow: inset 0 0 0 2px var(--accent); }
+.chip.disc { background: var(--surface-2); color: var(--muted); }
+tr.feed.disc td > * { opacity: .55; }
+tr.orghead td { background: var(--surface-2); padding: 6px 10px; font-weight: 700; font-size: 13px; cursor: pointer; }
+tr.orghead td .n { font-weight: 400; color: var(--muted); margin-left: 6px; }
+tr.orghead td .caret { display: inline-block; width: 1em; color: var(--muted); }
+tr.feed.child td:first-child { padding-left: 22px; }
 .fmt { font-size: 11px; color: var(--warn); background: var(--warn-soft); border-radius: 6px; padding: 6px 8px; }
 
 aside.panel { background: var(--surface); border: 1px solid var(--hair); border-radius: var(--r); padding: 16px; display: grid; gap: 16px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); overflow-y: auto; overscroll-behavior: contain; }
@@ -177,9 +183,12 @@ footer { margin-top: 24px; color: var(--faint); font-size: 12px; }
     <div class="filters">
       <div class="field grow"><label for="q" data-t="search"></label><input id="q" type="search" autocomplete="off"></div>
       <div class="field"><label for="pref" data-t="prefecture"></label><select id="pref"></select></div>
+      <div class="field"><label for="org" data-t="organization"></label><select id="org"></select></div>
+      <div class="field"><label for="feedsel" data-t="feedPick"></label><select id="feedsel"></select></div>
       <div class="field"><label for="pub" data-t="readiness"></label><select id="pub"></select></div>
       <div class="field"><label for="sort" data-t="sort"></label><select id="sort"></select></div>
       <label class="toggle"><input id="merge" type="checkbox" checked> <span data-t="merge"></span></label>
+      <label class="toggle"><input id="showdisc" type="checkbox" checked> <span data-t="showDisc"></span></label>
       <div class="count" id="count"></div>
     </div>
     <p class="hint" id="merge-note"></p>
@@ -236,6 +245,7 @@ const T = {
     footer: "Veri kaynağı: gtfs-data.jp ve ilgili işletmeciler. Feed ve durak adları kaynaktaki hâliyle gösterilir. Skor rengi eşikleri geçicidir (≥95 / ≥85).",
     mergeNote: "Birleştirilmiş yayınlar \"×N yayın\" ile gösterilir: analiz özeti (skorlar, metrikler, kural ve dosya satır sayıları) bir öncekiyle birebir aynı olan yayınlar tek sütunda toplanır. ZIP dosyaları farklı olabilir; hiçbir yayın silinmez, tamamı Feed Geçmişi sekmesinde listelenir.",
     dataUpdated: "±0 skor · veri güncellendi", validity: "Geçerlilik",
+    organization: "Kurum", feedPick: "Feed", showDisc: "Kapanan feed'leri göster", discChip: d => `Kapandı: ${d}`, orgCount: (n, a) => `${n} feed · ${a} aktif`, scopeNote: (dr, list) => `Kapsam değişikliği olası: hat sayısı ${dr} değişti ve kurumun şu feed'leri bu dönemde kapandı: ${list}. Hatlar feed'ler arasında taşınmış olabilir; bu bir tahmindir.`,
     compare: "Karşılaştır", compareHint: "Tablodaki eski bir yayına tıklayınca o yayın Güncel ile, Güncel'e tıklayınca bir öncekiyle, bir Δ hücresine tıklayınca iki komşu yayın karşılaştırılır. Aşağıdan herhangi iki yayını da seçebilirsiniz.", clickGen: "Bu yayını Güncel ile karşılaştır", clickCurrent: "Güncel'i bir önceki yayınla karşılaştır", clickDelta: "Bu iki yayını karşılaştır",
     license: "Lisans", org: "Kurum"
   },
@@ -268,6 +278,7 @@ const T = {
     footer: "Data: gtfs-data.jp and the transit operators. Feed and stop names are shown as published. Score colour thresholds are provisional (≥95 / ≥85).",
     mergeNote: "Merged publications are marked \"×N publications\": publications whose analysis summary (scores, metrics, rule and file row counts) is identical to the previous one share a column. Their ZIP files may differ; none is removed, and all are listed under Feed history.",
     dataUpdated: "±0 score · data updated", validity: "Validity",
+    organization: "Organisation", feedPick: "Feed", showDisc: "Show discontinued feeds", discChip: d => `Discontinued: ${d}`, orgCount: (n, a) => `${n} feeds · ${a} active`, scopeNote: (dr, list) => `Possible change of scope: the route count changed by ${dr} and these feeds of the same organisation ended in this period: ${list}. Routes may have moved between feeds; this is an estimate.`,
     compare: "Compare", compareHint: "Click an older publication in the table to compare it with the current one, click Current to compare it with the one before, or click a Δ cell to compare two neighbours. You can also pick any two below.", clickGen: "Compare this publication with the current one", clickCurrent: "Compare the current publication with the previous one", clickDelta: "Compare these two publications",
     license: "License", org: "Organisation"
   },
@@ -300,6 +311,7 @@ const T = {
     footer: "データ：gtfs-data.jpおよび各事業者。フィード名・停留所名は公開時のまま表示します。スコアの色の閾値は暫定です（≥95 / ≥85）。",
     mergeNote: "まとめた公開は「×N回公開」と表示します：解析の要約（スコア・指標・ルール件数・ファイル行数）が直前と完全に同じ公開を1列にまとめています。ZIPファイル自体は異なる場合があり、どの公開も削除せず、すべてフィード履歴に一覧表示します。",
     dataUpdated: "±0 スコア・データ更新", validity: "有効期間",
+    organization: "事業者", feedPick: "フィード", showDisc: "終了したフィードを表示", discChip: d => `終了: ${d}`, orgCount: (n, a) => `${n}フィード・${a}件有効`, scopeNote: (dr, list) => `対象範囲の変更の可能性：路線数が${dr}変化し、同じ事業者の次のフィードがこの期間に終了しています：${list}。路線がフィード間で移った可能性があります（推定）。`,
     compare: "比較", compareHint: "表の過去の公開をクリックすると現行と、現行をクリックするとその1つ前と、Δセルをクリックすると隣り合う2つを比較します。下で任意の2つを選ぶこともできます。", clickGen: "この公開を現行と比較", clickCurrent: "現行を1つ前の公開と比較", clickDelta: "この2つの公開を比較",
     license: "ライセンス", org: "事業者"
   }
@@ -308,7 +320,7 @@ const T = {
 const SCORES = ["publish", "overall", "spec", "interop", "quality", "analytics"];
 const METRICS = [["routes", "mRoutes"], ["stops", "mStops"], ["trips", "mTrips"], ["shapes", "mShapes"], ["active_service_days", "mDays"], ["avg_daily_trips", "mAvg"]];
 
-const state = { lang: "tr", tab: "overview", selected: null, merge: true, oldIdx: null, newIdx: null, showSame: false };
+const state = { lang: "tr", tab: "overview", selected: null, merge: true, oldIdx: null, newIdx: null, showSame: false, collapsed: new Set() };
 try {
   const saved = localStorage.getItem("gjm-lang");
   if (saved && T[saved]) state.lang = saved;
@@ -418,16 +430,43 @@ function deltaCell(a, b, ia, ib, sel) {
 
 function visibleFeeds() {
   const q = $("q").value.trim().toLowerCase();
-  const pref = $("pref").value, pub = $("pub").value, sort = $("sort").value;
+  const pref = $("pref").value, pub = $("pub").value, sort = $("sort").value, org = $("org").value, one = $("feedsel").value;
   let list = DATA.feeds.map(f => { const gs = groups(f); const ci = currentIndex(gs); return { f, gs, ci, cur: gs[ci].rep }; });
   list = list.filter(({ f }) => !q || [f.name, f.feed_id, f.org_id, f.organization_name].some(s => (s || "").toLowerCase().includes(q)));
   if (pref) list = list.filter(({ f }) => String(f.pref_id) === pref);
+  if (org) list = list.filter(({ f }) => f.org_id === org);
+  if (one) list = list.filter(({ f }) => key(f) === one);
+  if (!$("showdisc").checked) list = list.filter(({ f }) => !f.is_discontinued);
   if (pub) list = list.filter(({ cur }) => String(!!cur.publishable) === pub);
   const lastPub = x => x.f.generations[x.f.generations.length - 1].published_at || "";
   const ov = x => x.cur.scores ? x.cur.scores.overall : -1;
   const sorters = { recent: (a, b) => lastPub(b).localeCompare(lastPub(a)), name: (a, b) => a.f.name.localeCompare(b.f.name, "ja"),
     low: (a, b) => ov(a) - ov(b), high: (a, b) => ov(b) - ov(a) };
   return list.sort(sorters[sort] || sorters.recent);
+}
+
+function feedRow({ f, gs, ci }, child) {
+  const isSel = key(f) === state.selected;
+  const idxs = [ci, ci - 1, ci - 2, ci - 3];  // newest first
+  const series = gs.map(gr => gr.rep.scores ? gr.rep.scores.overall : null);
+  const up = upcoming(gs);
+  const cells = [];
+  idxs.forEach((i, n) => {
+    if (n > 0) {
+      const newer = idxs[n - 1], older = i;
+      const sel = isSel && state.oldIdx === older && state.newIdx === newer;
+      cells.push(older >= 0 ? deltaCell(gs[older], gs[newer], older, newer, sel) : `<td></td>`);
+    }
+    const sel = isSel && (state.oldIdx === i || state.newIdx === i);
+    cells.push(i >= 0 ? genCell(gs[i], i, sel, i === ci) : `<td></td>`);
+  });
+  const disc = f.is_discontinued ? `<span class="chip disc">${esc(t("discChip", f.discontinued_date || lastTo(f) || "?"))}</span>` : "";
+  const sub = child ? esc(prefName(f.pref_id)) : `${esc(f.organization_name)} · ${esc(prefName(f.pref_id))}`;
+  return `<tr class="feed${child ? " child" : ""}${f.is_discontinued ? " disc" : ""}" tabindex="0" data-key="${esc(key(f))}" aria-selected="${isSel}">
+    <td><div class="fcell"><div class="fname">${esc(f.name)}</div>
+      <div class="fsub">${sub}</div>${disc}
+      ${up ? `<button type="button" class="chip next${isSel && state.oldIdx === ci && state.newIdx === gs.length - 1 ? " sel" : ""}" data-old="${ci}" data-new="${gs.length - 1}" title="${esc(t("clickNext"))}">${esc(t("nextChip", up, gs[gs.length - 1].rep.from_date))}</button>` : ""}
+      <div style="width:120px">${spark(series.slice(-24))}</div></div></td>${cells.join("")}</tr>`;
 }
 
 function renderGrid() {
@@ -437,28 +476,23 @@ function renderGrid() {
   const head = `<thead><tr><th>${esc(t("feed"))}</th>
     <th class="gen now">${esc(t("current"))}</th><th>${t("delta")}</th><th class="gen">${esc(t("prev", 1))}</th><th>${t("delta")}</th>
     <th class="gen">${esc(t("prev", 2))}</th><th>${t("delta")}</th><th class="gen">${esc(t("prev", 3))}</th></tr></thead>`;
-  const rows = list.map(({ f, gs, ci }) => {
-    const isSel = key(f) === state.selected;
-    const idxs = [ci, ci - 1, ci - 2, ci - 3];  // newest first
-    const series = gs.map(gr => gr.rep.scores ? gr.rep.scores.overall : null);
-    const up = upcoming(gs);
-    const cells = [];
-    idxs.forEach((i, n) => {
-      if (n > 0) {
-        const newer = idxs[n - 1], older = i;
-        const sel = isSel && state.oldIdx === older && state.newIdx === newer;
-        cells.push(older >= 0 ? deltaCell(gs[older], gs[newer], older, newer, sel) : `<td></td>`);
-      }
-      const sel = isSel && (state.oldIdx === i || state.newIdx === i);
-      cells.push(i >= 0 ? genCell(gs[i], i, sel, i === ci) : `<td></td>`);
-    });
-    return `<tr class="feed" tabindex="0" data-key="${esc(key(f))}" aria-selected="${isSel}">
-      <td><div class="fcell"><div class="fname">${esc(f.name)}</div>
-        <div class="fsub">${esc(f.organization_name)} · ${esc(prefName(f.pref_id))}</div>
-        ${up ? `<button type="button" class="chip next${isSel && state.oldIdx === ci && state.newIdx === gs.length - 1 ? " sel" : ""}" data-old="${ci}" data-new="${gs.length - 1}" title="${esc(t("clickNext"))}">${esc(t("nextChip", up, gs[gs.length - 1].rep.from_date))}</button>` : ""}
-        <div style="width:120px">${spark(series.slice(-24))}</div></div></td>${cells.join("")}</tr>`;
-  }).join("");
-  $("grid").innerHTML = head + `<tbody>${rows}</tbody>`;
+  // Organisations with several visible feeds get a collapsible header; the first member's position keeps the sort order.
+  const byOrg = new Map();
+  list.forEach(x => { if (!byOrg.has(x.f.org_id)) byOrg.set(x.f.org_id, []); byOrg.get(x.f.org_id).push(x); });
+  const out = [];
+  byOrg.forEach((members, orgId) => {
+    if (members.length === 1) { out.push(feedRow(members[0], false)); return; }
+    const open = !state.collapsed.has(orgId);
+    const active = members.filter(m => !m.f.is_discontinued).length;
+    out.push(`<tr class="orghead" data-org="${esc(orgId)}"><td colspan="8"><span class="caret">${open ? "▾" : "▸"}</span>${esc(members[0].f.organization_name)}<span class="n">${esc(t("orgCount", members.length, active))}</span></td></tr>`);
+    if (open) members.forEach(m => out.push(feedRow(m, true)));
+  });
+  $("grid").innerHTML = head + `<tbody>${out.join("")}</tbody>`;
+  $("grid").querySelectorAll("tr.orghead").forEach(tr => tr.addEventListener("click", () => {
+    const o = tr.dataset.org;
+    if (state.collapsed.has(o)) state.collapsed.delete(o); else state.collapsed.add(o);
+    renderGrid();
+  }));
   $("grid").querySelectorAll("tr.feed").forEach(tr => {
     const pick = () => { state.selected = tr.dataset.key; state.oldIdx = state.newIdx = null; state.showSame = false; renderGrid(); renderPanel(); renderHistory(); };
     tr.addEventListener("click", e => {
@@ -480,6 +514,21 @@ function renderGrid() {
     });
     tr.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
   });
+}
+
+const lastTo = f => { const ds = f.generations.map(g => g.to_date).filter(Boolean).sort(); return ds[ds.length - 1] || null; };
+
+// Heuristic, shown as "possible": the route count jumps and another feed of the same
+// organisation ends around the same time, so routes may have moved between feeds.
+function scopeNote(f, a, b) {
+  if (!a.metrics || !b.metrics) return "";
+  const dr = b.metrics.routes - a.metrics.routes;
+  if (Math.abs(dr) < 2 && !(a.metrics.routes && Math.abs(dr) / a.metrics.routes >= 0.5)) return "";
+  const lo = a.from_date, hi = b.to_date || b.from_date;
+  const ended = DATA.feeds.filter(o => o.org_id === f.org_id && key(o) !== key(f) && o.is_discontinued)
+    .map(o => ({ o, end: o.discontinued_date || lastTo(o) })).filter(x => x.end && x.end >= lo && x.end <= hi);
+  if (!ended.length) return "";
+  return `<p class="fmt">${esc(t("scopeNote", signed(dr), ended.map(x => `${x.o.name} (${x.end})`).join(", ")))}</p>`;
 }
 
 function genLabel(gr) {
@@ -542,7 +591,7 @@ function renderPanel() {
       : `<p class="hint">${esc(t("noRuleChange"))}</p>`;
     const sameBtn = same.length ? `<button type="button" class="linkbtn" id="toggle-same">${esc(state.showSame ? t("hideSame") : t("showSame", same.length))}</button>` : "";
     const fa = (a.jp_files || []).join(", "), fb = (b.jp_files || []).join(", ");
-    const fmtNote = fa !== fb ? `<p class="fmt">${esc(t("formatDiff", fa || "—", fb || "—"))}</p>` : "";
+    const fmtNote = (fa !== fb ? `<p class="fmt">${esc(t("formatDiff", fa || "—", fb || "—"))}</p>` : "") + scopeNote(f, a, b);
     body = `${backwards ? `<p class="hint">${esc(t("backwards"))}</p>` : ""}${fmtNote}
       <div><h3>1. ${esc(t("s1"))}</h3><div class="cards">${cards}</div></div>
       <div><h3>2. ${esc(t("s2"))}</h3><table class="mini"><thead><tr><th></th><th class="r">${esc(t("before"))}</th><th class="r">${esc(t("after"))}</th><th class="r">Δ</th></tr></thead><tbody>${metricRows}</tbody></table></div>
@@ -602,6 +651,17 @@ function renderStatic() {
   const prefs = [...new Set(DATA.feeds.map(f => f.pref_id).filter(Boolean))].sort((a, b) => a - b);
   prefSel.innerHTML = `<option value="">${esc(t("all"))}</option>` + prefs.map(p => `<option value="${p}">${esc(prefName(p))}</option>`).join("");
   prefSel.value = pv;
+  const orgSel = $("org"), ov = orgSel.value;
+  const orgs = new Map();
+  DATA.feeds.filter(f => !prefSel.value || String(f.pref_id) === prefSel.value).forEach(f => orgs.set(f.org_id, f.organization_name));
+  orgSel.innerHTML = `<option value="">${esc(t("all"))}</option>` + [...orgs].sort((a, b) => a[1].localeCompare(b[1], "ja"))
+    .map(([id, name]) => `<option value="${esc(id)}">${esc(name)}</option>`).join("");
+  orgSel.value = orgs.has(ov) ? ov : "";
+  const feedSel = $("feedsel"), fv = feedSel.value;
+  const fl = DATA.feeds.filter(f => (!prefSel.value || String(f.pref_id) === prefSel.value) && (!orgSel.value || f.org_id === orgSel.value));
+  feedSel.innerHTML = `<option value="">${esc(t("all"))}</option>` + fl.slice().sort((a, b) => a.name.localeCompare(b.name, "ja"))
+    .map(f => `<option value="${esc(key(f))}">${esc(orgSel.value ? f.name : `${f.organization_name} — ${f.name}`)}${f.is_discontinued ? " ✕" : ""}</option>`).join("");
+  feedSel.value = fl.some(f => key(f) === fv) ? fv : "";
   const pubSel = $("pub"), bv = pubSel.value;
   pubSel.innerHTML = `<option value="">${esc(t("all"))}</option><option value="true">${esc(t("ready"))}</option><option value="false">${esc(t("notReady"))}</option>`;
   pubSel.value = bv;
@@ -623,7 +683,13 @@ document.querySelectorAll(".langs button").forEach(b => b.addEventListener("clic
   renderAll();
 }));
 document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => { state.tab = b.dataset.tab; renderStatic(); }));
-["q", "pref", "pub", "sort"].forEach(id => $(id).addEventListener("input", () => { renderGrid(); renderPanel(); renderHistory(); }));
+["q", "pub", "sort", "showdisc"].forEach(id => $(id).addEventListener("input", () => { renderGrid(); renderPanel(); renderHistory(); }));
+["pref", "org", "feedsel"].forEach(id => $(id).addEventListener("change", () => {
+  if (id === "pref") { $("org").value = ""; $("feedsel").value = ""; }
+  if (id === "org") $("feedsel").value = "";
+  if (id === "feedsel" && $("feedsel").value) { state.selected = $("feedsel").value; state.oldIdx = state.newIdx = null; }
+  renderAll();
+}));
 $("merge").addEventListener("change", e => { state.merge = e.target.checked; state.oldIdx = state.newIdx = null; renderAll(); });
 
 renderAll();
