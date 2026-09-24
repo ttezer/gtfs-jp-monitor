@@ -1,0 +1,27 @@
+# Internal planning material — kept out of the public repository
+/WORKPLAN.md
+/sample_web_pages.png
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+
+# Downloaded feeds and local work files — never committed
+*.zip
+/work/
+/tmp/
+
+# Local environment
+.env
+.DS_Store
+
+# Local scratch analysis output
+.unpinned-scratch
+/scratch/

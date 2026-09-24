@@ -1,0 +1,41 @@
+{
+  "analyzer": {
+    "binary_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "gtfs_jp_profile": "auto",
+    "platform": {
+      "arch": "x86_64",
+      "os": "linux"
+    },
+    "release_tag": "v0.14.0",
+    "validate_date": "2026-04-01",
+    "validate_date_source": "from_date",
+    "version": "0.14.0"
+  },
+  "coverage_complete": null,
+  "fatal": {
+    "code": "INVALID_ZIP"
+  },
+  "feed": {
+    "feed_id": "Nagaibus",
+    "name": "永井運輸バス",
+    "org_id": "nagai-unyu"
+  },
+  "file_row_counts": null,
+  "generation": {
+    "from_date": "2026-04-01",
+    "license": "CC BY 4.0",
+    "published_at": "2026-07-08T18:09:26.517446+09:00",
+    "sha256": "0a1323615c1b2a2157c1cd9667d8a6eeda480a5d97dca8e509093387f04d4ddc",
+    "to_date": "2027-03-31",
+    "uid": "17ab34e1-dcb8-4b2e-9cda-ae2b68f4c444"
+  },
+  "is_gtfs_jp": null,
+  "metrics": null,
+  "partial": null,
+  "publishable": null,
+  "rules": null,
+  "schema": "gtfs-jp-monitor-generation/1",
+  "scores": null,
+  "summary": null,
+  "validation_status": "FATAL"
+}

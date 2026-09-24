@@ -1,0 +1,20 @@
+[project]
+name = "gtfs-jp-monitor"
+version = "0.0.0"
+description = "Monitoring pipeline for GTFS feeds published on gtfs-data.jp"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+# Only needed to validate generated data against schemas/ in tests.
+dev = ["jsonschema>=4.18"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+gtfs_jp_semantic = ["default_config.json"]

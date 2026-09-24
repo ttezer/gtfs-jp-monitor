@@ -1,0 +1,146 @@
+{
+  "analyzer": {
+    "binary_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "gtfs_jp_profile": "auto",
+    "platform": {
+      "arch": "x86_64",
+      "os": "linux"
+    },
+    "release_tag": "v0.14.0",
+    "version": "0.14.0"
+  },
+  "feed": {
+    "feed_id": "Nagaibus",
+    "org_id": "nagai-unyu"
+  },
+  "files": {
+    "stop_times.txt": {
+      "after": 15581,
+      "before": 15400,
+      "delta": 181
+    },
+    "translations.txt": {
+      "after": 650,
+      "before": null,
+      "delta": 650
+    }
+  },
+  "metrics": {
+    "active_service_days": {
+      "after": 365,
+      "before": 182,
+      "delta": 183
+    },
+    "avg_daily_trips": {
+      "after": 200.0,
+      "before": 198.4,
+      "delta": 1.6
+    },
+    "routes": {
+      "after": 24,
+      "before": 22,
+      "delta": 2
+    },
+    "shapes": {
+      "after": 49,
+      "before": 49,
+      "delta": 0
+    },
+    "stops": {
+      "after": 401,
+      "before": 398,
+      "delta": 3
+    },
+    "trips": {
+      "after": 520,
+      "before": 515,
+      "delta": 5
+    }
+  },
+  "new_uid": "17ab34e1-dcb8-4b2e-9cda-ae2b68f4c444",
+  "old_uid": "b1be1add-3553-4b31-86bc-348479c25526",
+  "publishable": {
+    "after": true,
+    "before": true
+  },
+  "ranges": {
+    "feed_validity": {
+      "after": {
+        "end": "2027-03-31",
+        "start": "2026-04-01"
+      },
+      "before": null
+    },
+    "service_range": {
+      "after": {
+        "end": "2027-03-31",
+        "start": "2026-04-01"
+      },
+      "before": {
+        "end": "2026-03-31",
+        "start": "2025-10-01"
+      }
+    }
+  },
+  "rules": {
+    "decreased": {
+      "STP_037": {
+        "after": 5,
+        "before": 12
+      }
+    },
+    "fixed": {
+      "CAL_013": {
+        "after": 0,
+        "before": 3
+      }
+    },
+    "increased": {},
+    "new": {
+      "JPN_030": {
+        "after": 4,
+        "before": 0
+      }
+    },
+    "same": {
+      "FRQ_002": {
+        "after": 1,
+        "before": 1
+      }
+    }
+  },
+  "schema": "gtfs-jp-monitor-diff/1",
+  "scores": {
+    "analytics": {
+      "after": 84.0,
+      "before": 84.0,
+      "delta": 0.0
+    },
+    "interop": {
+      "after": 100.0,
+      "before": 100.0,
+      "delta": 0.0
+    },
+    "overall": {
+      "after": 93.4,
+      "before": 93.4,
+      "delta": 0.0
+    },
+    "publish": {
+      "after": 98.1,
+      "before": 96.2,
+      "delta": 1.9
+    },
+    "quality": {
+      "after": 82.6,
+      "before": 80.1,
+      "delta": 2.5
+    },
+    "spec": {
+      "after": 96.2,
+      "before": 96.2,
+      "delta": 0.0
+    }
+  },
+  "skipped_uids": []
+}

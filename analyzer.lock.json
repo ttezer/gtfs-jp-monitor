@@ -1,0 +1,17 @@
+{
+  "assets": {
+    "aarch64-macos": {
+      "name": "gtfs-analyzer-aarch64-macos.tar.gz",
+      "sha256": "dc47ab882e819aca8193bf8d0ca8f35faece926af143d9506c79a42ee30fa04d"
+    },
+    "x86_64-linux": {
+      "name": "gtfs-analyzer-x86_64-linux.tar.gz",
+      "sha256": "1ee1f82ef766db360118aca4d02b3c71666a22b854026f9f3b89beaab1013ca9"
+    }
+  },
+  "production_platform": "x86_64-linux",
+  "release_tag": "v0.14.0",
+  "repository": "ttezer/gtfs-analyzer",
+  "schema": "gtfs-jp-monitor-analyzer-lock/1",
+  "version": "0.14.0"
+}

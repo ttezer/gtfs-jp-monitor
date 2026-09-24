@@ -1,0 +1,43 @@
+{
+  "discontinued": {
+    "date": null,
+    "is_discontinued": false
+  },
+  "feed_id": "Nagaibus",
+  "generations": [
+    {
+      "analyses": [
+        {
+          "gtfs_jp_profile": "auto",
+          "release_tag": "v0.14.0",
+          "validation_status": "COMPLETE"
+        }
+      ],
+      "canonical": {
+        "gtfs_jp_profile": "auto",
+        "release_tag": "v0.14.0"
+      },
+      "from_date": "2025-10-01",
+      "published_at": "2025-09-26T06:23:03.882725+09:00",
+      "source_status": "AVAILABLE",
+      "to_date": "2026-03-31",
+      "uid": "b1be1add-3553-4b31-86bc-348479c25526"
+    },
+    {
+      "analyses": [],
+      "canonical": null,
+      "from_date": "2026-04-01",
+      "published_at": "2026-07-08T18:09:26.517446+09:00",
+      "source_status": "AVAILABLE",
+      "to_date": "2027-03-31",
+      "uid": "17ab34e1-dcb8-4b2e-9cda-ae2b68f4c444"
+    }
+  ],
+  "license": {
+    "id": "CC-BY-4.0",
+    "raw": "CC BY 4.0"
+  },
+  "name": "永井運輸バス",
+  "org_id": "nagai-unyu",
+  "schema": "gtfs-jp-monitor-feed/1"
+}

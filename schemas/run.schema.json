@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ttezer/gtfs-jp-monitor/schemas/run.schema.json",
+  "title": "gtfs-jp-monitor-run/1",
+  "description": "One pipeline run (runs/<YYYY>/<run_id>.json). The only place for run times, observed rid values, durations and free-text error messages. Written only when data changed or a warning/error occurred (data-model §4.1). Never contains tokens or redirect URLs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "run_id", "started_at", "finished_at", "trigger", "analyzer", "counts", "items", "warnings"],
+  "properties": {
+    "schema": { "const": "gtfs-jp-monitor-run/1" },
+    "run_id": { "type": "string", "pattern": "^[0-9]{8}T[0-9]{6}Z-[A-Za-z0-9]{1,32}$", "description": "UTC start time plus a short unique suffix, e.g. 20260924T013000Z-12345678." },
+    "started_at": { "type": "string", "format": "date-time" },
+    "finished_at": { "type": "string", "format": "date-time" },
+    "trigger": { "type": "string", "enum": ["schedule", "workflow_dispatch", "local"] },
+    "analyzer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["release_tag", "binary_sha256", "platform"],
+      "properties": {
+        "release_tag": { "$ref": "generation.schema.json#/properties/analyzer/properties/release_tag" },
+        "binary_sha256": { "$ref": "generation.schema.json#/$defs/sha256" },
+        "platform": { "$ref": "generation.schema.json#/properties/analyzer/properties/platform" }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["feeds_scanned", "generations_seen", "new_generations", "analyzed", "skipped", "failed"],
+      "properties": {
+        "feeds_scanned": { "$ref": "generation.schema.json#/$defs/count" },
+        "generations_seen": { "$ref": "generation.schema.json#/$defs/count" },
+        "new_generations": { "$ref": "generation.schema.json#/$defs/count" },
+        "analyzed": { "$ref": "generation.schema.json#/$defs/count" },
+        "skipped": { "$ref": "generation.schema.json#/$defs/count" },
+        "failed": { "$ref": "generation.schema.json#/$defs/count" }
+      }
+    },
+    "items": {
+      "description": "One entry per generation the run acted on (analysed or failed). Skipped generations are only counted.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["org_id", "feed_id", "uid", "rid_observed", "action", "validation_status", "duration_ms", "error_code", "message"],
+        "properties": {
+          "org_id": { "$ref": "generation.schema.json#/$defs/path_id" },
+          "feed_id": { "$ref": "generation.schema.json#/$defs/path_id" },
+          "uid": { "$ref": "generation.schema.json#/$defs/uid" },
+          "rid_observed": { "type": "string", "pattern": "^(current|prev_[0-9]+|next_[0-9]+)$" },
+          "action": { "type": "string", "enum": ["analyzed", "failed"] },
+          "validation_status": {
+            "oneOf": [{ "type": "null" }, { "$ref": "generation.schema.json#/properties/validation_status" }]
+          },
+          "duration_ms": { "type": "integer", "minimum": 0 },
+          "error_code": { "type": ["string", "null"], "pattern": "^[A-Z][A-Z0-9_]*$" },
+          "message": { "type": ["string", "null"], "maxLength": 2000, "description": "Free text allowed here only; truncated." }
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code"],
+        "properties": {
+          "code": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+          "org_id": { "$ref": "generation.schema.json#/$defs/path_id" },
+          "feed_id": { "$ref": "generation.schema.json#/$defs/path_id" },
+          "uid": { "$ref": "generation.schema.json#/$defs/uid" },
+          "detail": { "type": "string", "maxLength": 2000 }
+        }
+      }
+    }
+  }
+}

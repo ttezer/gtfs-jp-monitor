@@ -1,0 +1,99 @@
+{
+  "analyzer": {
+    "binary_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "gtfs_jp_profile": "auto",
+    "platform": {
+      "arch": "x86_64",
+      "os": "linux"
+    },
+    "release_tag": "v0.14.0",
+    "validate_date": "2026-04-01",
+    "validate_date_source": "from_date",
+    "version": "0.14.0"
+  },
+  "coverage_complete": false,
+  "fatal": null,
+  "feed": {
+    "feed_id": "Nagaibus",
+    "name": "永井運輸バス",
+    "org_id": "nagai-unyu"
+  },
+  "file_row_counts": {
+    "agency.txt": 1,
+    "calendar.txt": 2,
+    "stop_times.txt": 15581,
+    "stops.txt": 401,
+    "trips.txt": 520
+  },
+  "generation": {
+    "from_date": "2026-04-01",
+    "license": "CC BY 4.0",
+    "published_at": "2026-07-08T18:09:26.517446+09:00",
+    "sha256": "0a1323615c1b2a2157c1cd9667d8a6eeda480a5d97dca8e509093387f04d4ddc",
+    "to_date": "2027-03-31",
+    "uid": "17ab34e1-dcb8-4b2e-9cda-ae2b68f4c444"
+  },
+  "is_gtfs_jp": true,
+  "metrics": {
+    "active_service_days": 365,
+    "avg_daily_trips": 200.0,
+    "feed_validity": {
+      "end": "2027-03-31",
+      "start": "2026-04-01"
+    },
+    "routes": 24,
+    "service_range": {
+      "end": "2027-03-31",
+      "start": "2026-04-01"
+    },
+    "shapes": 49,
+    "stops": 401,
+    "trips": 520
+  },
+  "partial": {
+    "root_structural_error_count": 0,
+    "skipped_checks": [],
+    "skipped_stages": [],
+    "unavailable_files": [
+      "shapes.txt"
+    ]
+  },
+  "publishable": false,
+  "rules": {
+    "JPN_030": {
+      "class": "QUALITY",
+      "count": 4,
+      "severity": "MEDIUM"
+    },
+    "STP_037": {
+      "class": "QUALITY",
+      "count": 12,
+      "severity": "LOW"
+    }
+  },
+  "schema": "gtfs-jp-monitor-generation/1",
+  "scores": {
+    "analytics": 84.0,
+    "interop": 100.0,
+    "overall": 93.4,
+    "publish": 100.0,
+    "quality": 82.6,
+    "spec": 96.2
+  },
+  "summary": {
+    "by_class": {
+      "ANALYTICS": 209,
+      "INTEROP": 0,
+      "QUALITY": 656,
+      "SPEC": 1
+    },
+    "by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "INFO": 196,
+      "LOW": 111,
+      "MEDIUM": 559
+    }
+  },
+  "validation_status": "PARTIAL"
+}

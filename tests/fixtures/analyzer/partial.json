@@ -1,0 +1,153 @@
+{
+  "capped_totals": [],
+  "metrics": {
+    "active_service_days": 30,
+    "avg_daily_trips": 1.95,
+    "feed_end_date": 0,
+    "feed_start_date": 0,
+    "file_stats": [
+      {
+        "bytes": 100,
+        "name": "stops.txt",
+        "rows": 3
+      },
+      {
+        "bytes": 50,
+        "name": "trips.txt",
+        "rows": 2
+      }
+    ],
+    "gtfs_jp_profile": "auto",
+    "is_gtfs_jp": true,
+    "route_count": 1,
+    "service_end_date": 20260430,
+    "service_start_date": 20260401,
+    "shape_count": 0,
+    "stop_count": 3,
+    "trip_count": 2
+  },
+  "name_index": {},
+  "notices": [
+    {
+      "base_effort": 1,
+      "blocks": [],
+      "details": {},
+      "entity_id": "s1",
+      "entity_type": "stop",
+      "field": "stop_name",
+      "file": "stops.txt",
+      "id": "n1",
+      "line": 1,
+      "message": "İnsan-okunur mesaj",
+      "remediation": "Düzeltme önerisi",
+      "rule_class": "QUALITY",
+      "rule_id": "JPN_030",
+      "severity": "MEDIUM",
+      "title": "Başlık metni"
+    },
+    {
+      "base_effort": 1,
+      "blocks": [],
+      "details": {},
+      "entity_id": "s2",
+      "entity_type": "stop",
+      "field": "stop_name",
+      "file": "stops.txt",
+      "id": "n2",
+      "line": 2,
+      "message": "İnsan-okunur mesaj",
+      "remediation": "Düzeltme önerisi",
+      "rule_class": "QUALITY",
+      "rule_id": "JPN_030",
+      "severity": "MEDIUM",
+      "title": "Başlık metni"
+    },
+    {
+      "base_effort": 1,
+      "blocks": [],
+      "details": {},
+      "entity_id": "s3",
+      "entity_type": "stop",
+      "field": "stop_name",
+      "file": "stops.txt",
+      "id": "n3",
+      "line": 3,
+      "message": "İnsan-okunur mesaj",
+      "remediation": "Düzeltme önerisi",
+      "rule_class": "QUALITY",
+      "rule_id": "STP_037",
+      "severity": "LOW",
+      "title": "Başlık metni"
+    },
+    {
+      "base_effort": 1,
+      "blocks": [],
+      "details": {},
+      "entity_id": "s4",
+      "entity_type": "stop",
+      "field": "stop_name",
+      "file": "stops.txt",
+      "id": "n4",
+      "line": 4,
+      "message": "İnsan-okunur mesaj",
+      "remediation": "Düzeltme önerisi",
+      "rule_class": "ANALYTICS",
+      "rule_id": "DQ_005b",
+      "severity": "INFO",
+      "title": "Başlık metni"
+    },
+    {
+      "base_effort": 1,
+      "blocks": [],
+      "details": {},
+      "entity_id": "s5",
+      "entity_type": "stop",
+      "field": "stop_name",
+      "file": "stops.txt",
+      "id": "n5",
+      "line": 5,
+      "message": "İnsan-okunur mesaj",
+      "remediation": "Düzeltme önerisi",
+      "rule_class": "SPEC",
+      "rule_id": "TRP_002",
+      "severity": "CRITICAL",
+      "title": "Başlık metni"
+    }
+  ],
+  "partial": {
+    "root_structural_errors": [
+      "alt dizin içinde birden fazla klasör"
+    ],
+    "skipped_checks": [],
+    "skipped_stages": [
+      "K4"
+    ],
+    "unavailable_files": [
+      "shapes.txt",
+      "shapes.txt",
+      "calendar.txt"
+    ]
+  },
+  "reports": {
+    "r1": {
+      "blocker_notice_ids": [
+        "n5"
+      ],
+      "coverage_complete": false,
+      "publishable": false
+    },
+    "r2": {
+      "items": []
+    },
+    "r5": {
+      "analytics_score": 99.95,
+      "interop_score": 100,
+      "pub_score": 60.0,
+      "quality_score": 77.75,
+      "score": 81.25,
+      "spec_score": 90.04
+    }
+  },
+  "status": "partial",
+  "validation_status": "PARTIAL"
+}

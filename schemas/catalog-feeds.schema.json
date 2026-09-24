@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ttezer/gtfs-jp-monitor/schemas/catalog-feeds.schema.json",
+  "title": "gtfs-jp-monitor-catalog-feeds/1",
+  "description": "catalog/feeds.json: every feed ever listed by gtfs-data.jp, sorted by org_id then feed_id. No timestamps of the run, so an unchanged source produces an unchanged file. Contact fields (e-mail etc.) are never copied.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "feeds"],
+  "properties": {
+    "schema": { "const": "gtfs-jp-monitor-catalog-feeds/1" },
+    "feeds": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "org_id",
+          "feed_id",
+          "feed_name",
+          "organization_name",
+          "feed_pref_id",
+          "license",
+          "license_url",
+          "is_discontinued",
+          "discontinued_date",
+          "latest_feed_start_date",
+          "latest_feed_end_date",
+          "memo",
+          "listed"
+        ],
+        "properties": {
+          "org_id": { "$ref": "generation.schema.json#/$defs/path_id" },
+          "feed_id": { "$ref": "generation.schema.json#/$defs/path_id" },
+          "feed_name": { "type": "string" },
+          "organization_name": { "type": "string" },
+          "feed_pref_id": { "type": ["integer", "null"] },
+          "license": { "$ref": "feed.schema.json#/properties/license" },
+          "license_url": { "type": ["string", "null"] },
+          "is_discontinued": { "type": "boolean" },
+          "discontinued_date": { "type": ["string", "null"] },
+          "latest_feed_start_date": { "type": ["string", "null"] },
+          "latest_feed_end_date": { "type": ["string", "null"] },
+          "memo": { "type": "string", "description": "Source text, not translated." },
+          "listed": { "type": "boolean", "description": "False when the feed is no longer in the /feeds list; its history is kept." }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ttezer/gtfs-jp-monitor/schemas/feed.schema.json",
+  "title": "gtfs-jp-monitor-feed/1",
+  "description": "Per-feed index (feeds/<org_id>/<feed_id>/feed.json): generations in data-model §2 order, their source status and which analysis is canonical. Contains no rid and no run time.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "org_id", "feed_id", "name", "license", "discontinued", "generations"],
+  "properties": {
+    "schema": { "const": "gtfs-jp-monitor-feed/1" },
+    "org_id": { "$ref": "generation.schema.json#/$defs/path_id" },
+    "feed_id": { "$ref": "generation.schema.json#/$defs/path_id" },
+    "name": { "type": "string" },
+    "license": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["raw", "id"],
+      "properties": {
+        "raw": { "type": "string", "description": "Value published by gtfs-data.jp, verbatim." },
+        "id": {
+          "type": ["string", "null"],
+          "enum": ["CC-BY-4.0", "CC0-1.0", "CC-BY-2.1-JP", null],
+          "description": "Normalized identifier; null when the raw value is not recognised (a warning is logged in the run)."
+        }
+      }
+    },
+    "discontinued": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["is_discontinued", "date"],
+      "properties": {
+        "is_discontinued": { "type": "boolean" },
+        "date": { "oneOf": [{ "type": "null" }, { "$ref": "generation.schema.json#/$defs/iso_date" }] }
+      }
+    },
+    "generations": {
+      "description": "Oldest first: from_date, then published_at, then uid (data-model §2). Generations without from_date are listed last with source_status ORDERING_UNKNOWN.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/generation_entry" }
+    }
+  },
+  "$defs": {
+    "analysis_key": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["release_tag", "gtfs_jp_profile"],
+      "properties": {
+        "release_tag": { "$ref": "generation.schema.json#/properties/analyzer/properties/release_tag" },
+        "gtfs_jp_profile": { "$ref": "generation.schema.json#/properties/analyzer/properties/gtfs_jp_profile" }
+      }
+    },
+    "generation_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uid", "from_date", "to_date", "published_at", "source_status", "analyses", "canonical"],
+      "properties": {
+        "uid": { "$ref": "generation.schema.json#/$defs/uid" },
+        "from_date": { "oneOf": [{ "type": "null" }, { "$ref": "generation.schema.json#/$defs/iso_date" }] },
+        "to_date": { "oneOf": [{ "type": "null" }, { "$ref": "generation.schema.json#/$defs/iso_date" }] },
+        "published_at": { "type": ["string", "null"] },
+        "source_status": {
+          "type": "string",
+          "enum": ["AVAILABLE", "SOURCE_UNAVAILABLE", "SOURCE_CHANGED", "ORDERING_UNKNOWN"]
+        },
+        "analyses": {
+          "description": "Every stored analysis of this generation (one file each under generations/<uid>/).",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["release_tag", "gtfs_jp_profile", "validation_status"],
+            "properties": {
+              "release_tag": { "$ref": "generation.schema.json#/properties/analyzer/properties/release_tag" },
+              "gtfs_jp_profile": { "$ref": "generation.schema.json#/properties/analyzer/properties/gtfs_jp_profile" },
+              "validation_status": { "$ref": "generation.schema.json#/properties/validation_status" }
+            }
+          }
+        },
+        "canonical": {
+          "description": "Analysis used by diffs and the web; null until one exists.",
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/analysis_key" }]
+        }
+      }
+    }
+  }
+}

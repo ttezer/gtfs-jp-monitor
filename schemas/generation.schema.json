@@ -1,0 +1,304 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ttezer/gtfs-jp-monitor/schemas/generation.schema.json",
+  "title": "gtfs-jp-monitor-generation/1",
+  "description": "Language-neutral GTFS Analyzer summary of one feed generation (data-model §5). Contains no run time, rid or human-readable message.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "feed",
+    "generation",
+    "analyzer",
+    "validation_status",
+    "fatal",
+    "partial",
+    "publishable",
+    "coverage_complete",
+    "is_gtfs_jp",
+    "scores",
+    "metrics",
+    "file_row_counts",
+    "summary",
+    "rules"
+  ],
+  "properties": {
+    "schema": { "const": "gtfs-jp-monitor-generation/1" },
+    "feed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["org_id", "feed_id", "name"],
+      "properties": {
+        "org_id": { "$ref": "#/$defs/path_id" },
+        "feed_id": { "$ref": "#/$defs/path_id" },
+        "name": { "type": "string", "description": "Original feed name from gtfs-data.jp; never translated." }
+      }
+    },
+    "generation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uid", "sha256", "published_at", "from_date", "to_date", "license"],
+      "properties": {
+        "uid": { "$ref": "#/$defs/uid" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "published_at": { "type": ["string", "null"], "description": "Source value, kept verbatim (microseconds and +09:00 offset); null when the API gives none. Not used for ordering." },
+        "from_date": { "$ref": "#/$defs/iso_date" },
+        "to_date": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/iso_date" }], "description": "null when the API gives none; never guessed." },
+        "license": { "type": "string", "description": "Raw license value published for the feed." }
+      }
+    },
+    "analyzer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "release_tag",
+        "binary_sha256",
+        "platform",
+        "gtfs_jp_profile",
+        "validate_date",
+        "validate_date_source"
+      ],
+      "properties": {
+        "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+        "release_tag": { "type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$" },
+        "binary_sha256": { "$ref": "#/$defs/sha256" },
+        "platform": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["os", "arch"],
+          "properties": {
+            "os": { "type": "string", "enum": ["linux", "macos", "windows"] },
+            "arch": { "type": "string", "enum": ["x86_64", "aarch64"] }
+          }
+        },
+        "gtfs_jp_profile": {
+          "type": "string",
+          "enum": ["auto", "v3", "v4"],
+          "description": "Requested profile (--gtfs-jp-profile). Part of the analysis identity."
+        },
+        "validate_date": { "$ref": "#/$defs/iso_date" },
+        "validate_date_source": { "const": "from_date" }
+      }
+    },
+    "validation_status": { "type": "string", "enum": ["COMPLETE", "PARTIAL", "FATAL"] },
+    "fatal": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code"],
+          "properties": {
+            "code": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$", "description": "Analyzer fatal code or Monitor code (TIMEOUT, DOWNLOAD_FAILED, INVALID_ZIP ...)." }
+          }
+        }
+      ]
+    },
+    "partial": {
+      "description": "Reduced-coverage details for PARTIAL results. Free-text structural errors are not stored; only their count.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["root_structural_error_count", "unavailable_files", "skipped_stages", "skipped_checks"],
+          "properties": {
+            "root_structural_error_count": { "type": "integer", "minimum": 0 },
+            "unavailable_files": { "$ref": "#/$defs/sorted_unique_strings" },
+            "skipped_stages": { "$ref": "#/$defs/sorted_unique_strings" },
+            "skipped_checks": { "$ref": "#/$defs/sorted_unique_strings" }
+          }
+        }
+      ]
+    },
+    "publishable": { "type": ["boolean", "null"], "description": "reports.r1.publishable" },
+    "coverage_complete": { "type": ["boolean", "null"], "description": "reports.r1.coverage_complete" },
+    "is_gtfs_jp": { "type": ["boolean", "null"], "description": "metrics.is_gtfs_jp (detected, not requested)" },
+    "scores": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["publish", "overall", "spec", "interop", "quality", "analytics"],
+          "properties": {
+            "publish": { "$ref": "#/$defs/score" },
+            "overall": { "$ref": "#/$defs/score" },
+            "spec": { "$ref": "#/$defs/score" },
+            "interop": { "$ref": "#/$defs/score" },
+            "quality": { "$ref": "#/$defs/score" },
+            "analytics": { "$ref": "#/$defs/score" }
+          }
+        }
+      ]
+    },
+    "metrics": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "routes",
+            "stops",
+            "trips",
+            "shapes",
+            "active_service_days",
+            "avg_daily_trips",
+            "service_range",
+            "feed_validity"
+          ],
+          "properties": {
+            "routes": { "$ref": "#/$defs/count" },
+            "stops": { "$ref": "#/$defs/count" },
+            "trips": { "$ref": "#/$defs/count" },
+            "shapes": { "$ref": "#/$defs/count" },
+            "active_service_days": { "$ref": "#/$defs/count" },
+            "avg_daily_trips": { "$ref": "#/$defs/one_decimal" },
+            "service_range": { "$ref": "#/$defs/nullable_range" },
+            "feed_validity": { "$ref": "#/$defs/nullable_range" }
+          }
+        }
+      ]
+    },
+    "file_row_counts": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "propertyNames": { "pattern": "^[^/\\\\]+\\.txt$" },
+          "additionalProperties": { "$ref": "#/$defs/count" }
+        }
+      ]
+    },
+    "summary": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["by_severity", "by_class"],
+          "properties": {
+            "by_severity": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"],
+              "properties": {
+                "CRITICAL": { "$ref": "#/$defs/count" },
+                "HIGH": { "$ref": "#/$defs/count" },
+                "MEDIUM": { "$ref": "#/$defs/count" },
+                "LOW": { "$ref": "#/$defs/count" },
+                "INFO": { "$ref": "#/$defs/count" }
+              }
+            },
+            "by_class": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["SPEC", "INTEROP", "QUALITY", "ANALYTICS"],
+              "properties": {
+                "SPEC": { "$ref": "#/$defs/count" },
+                "INTEROP": { "$ref": "#/$defs/count" },
+                "QUALITY": { "$ref": "#/$defs/count" },
+                "ANALYTICS": { "$ref": "#/$defs/count" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "rules": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/rule_id" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["count", "severity", "class"],
+            "properties": {
+              "count": { "type": "integer", "minimum": 1 },
+              "severity": { "$ref": "#/$defs/severity" },
+              "class": { "$ref": "#/$defs/rule_class" }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "validation_status": { "const": "FATAL" } } },
+      "then": {
+        "properties": {
+          "fatal": { "type": "object" },
+          "partial": { "type": "null" },
+          "publishable": { "type": "null" },
+          "coverage_complete": { "type": "null" },
+          "is_gtfs_jp": { "type": "null" },
+          "scores": { "type": "null" },
+          "metrics": { "type": "null" },
+          "file_row_counts": { "type": "null" },
+          "summary": { "type": "null" },
+          "rules": { "type": "null" }
+        }
+      },
+      "else": {
+        "properties": {
+          "fatal": { "type": "null" },
+          "publishable": { "type": "boolean" },
+          "coverage_complete": { "type": "boolean" },
+          "is_gtfs_jp": { "type": "boolean" },
+          "scores": { "type": "object" },
+          "metrics": { "type": "object" },
+          "file_row_counts": { "type": "object" },
+          "summary": { "type": "object" },
+          "rules": { "type": "object" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "validation_status": { "const": "PARTIAL" } } },
+      "then": { "properties": { "partial": { "type": "object" } } }
+    },
+    {
+      "if": { "properties": { "validation_status": { "const": "COMPLETE" } } },
+      "then": { "properties": { "partial": { "type": "null" } } }
+    }
+  ],
+  "$defs": {
+    "path_id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$" },
+    "uid": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "iso_date": { "type": "string", "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$" },
+    "rule_id": { "type": "string", "pattern": "^[A-Z]{2,4}_[0-9]{3}[a-z]?$" },
+    "severity": { "type": "string", "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"] },
+    "rule_class": { "type": "string", "enum": ["SPEC", "INTEROP", "QUALITY", "ANALYTICS"] },
+    "count": { "type": "integer", "minimum": 0 },
+    "one_decimal": {
+      "type": "number",
+      "description": "Rounded to one decimal place (data-model §5.1); enforced by the builder, not expressible exactly in JSON Schema."
+    },
+    "score": { "type": "number", "minimum": 0, "maximum": 100 },
+    "nullable_range": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["start", "end"],
+          "properties": {
+            "start": { "$ref": "#/$defs/iso_date" },
+            "end": { "$ref": "#/$defs/iso_date" }
+          }
+        }
+      ]
+    },
+    "sorted_unique_strings": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    }
+  }
+}

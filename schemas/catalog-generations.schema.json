@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ttezer/gtfs-jp-monitor/schemas/catalog-generations.schema.json",
+  "title": "gtfs-jp-monitor-catalog-generations/1",
+  "description": "catalog/generations/<org_id>/<feed_id>.json: every generation seen for one feed, in data-model §2 order (unorderable ones last, by uid). One file per feed keeps rewrites small. rid_observed is the latest observation and may shift; it is kept here and in run records only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "generations"],
+  "properties": {
+    "schema": { "const": "gtfs-jp-monitor-catalog-generations/1" },
+    "generations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["org_id", "feed_id", "uid", "rid_observed", "gtfs_url", "from_date", "to_date", "published_at", "memo", "present"],
+        "properties": {
+          "org_id": { "$ref": "generation.schema.json#/$defs/path_id" },
+          "feed_id": { "$ref": "generation.schema.json#/$defs/path_id" },
+          "uid": { "$ref": "generation.schema.json#/$defs/uid" },
+          "rid_observed": { "type": ["string", "null"], "pattern": "^(current|prev_[0-9]+|next_[0-9]+)$", "description": "null when the generation is no longer returned by the API." },
+          "gtfs_url": { "type": "string", "pattern": "^https://api\\.gtfs-data\\.jp/" },
+          "from_date": { "type": ["string", "null"] },
+          "to_date": { "type": ["string", "null"] },
+          "published_at": { "type": ["string", "null"] },
+          "memo": { "type": "string", "description": "Source text, used as a version label; not translated." },
+          "present": { "type": "boolean", "description": "False when the API stopped returning this uid (SOURCE_UNAVAILABLE candidate); the record is kept." }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ttezer/gtfs-jp-monitor/schemas/diff.schema.json",
+  "title": "gtfs-jp-monitor-diff/1",
+  "description": "Validation diff between two COMPLETE generations analysed with the same analyzer binary, profile and platform (data-model §9). The builder also enforces old_uid != new_uid and one-decimal deltas.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "feed",
+    "old_uid",
+    "new_uid",
+    "analyzer",
+    "skipped_uids",
+    "publishable",
+    "scores",
+    "metrics",
+    "files",
+    "ranges",
+    "rules"
+  ],
+  "properties": {
+    "schema": { "const": "gtfs-jp-monitor-diff/1" },
+    "feed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["org_id", "feed_id"],
+      "properties": {
+        "org_id": { "$ref": "generation.schema.json#/$defs/path_id" },
+        "feed_id": { "$ref": "generation.schema.json#/$defs/path_id" }
+      }
+    },
+    "old_uid": { "$ref": "generation.schema.json#/$defs/uid" },
+    "new_uid": { "$ref": "generation.schema.json#/$defs/uid" },
+    "analyzer": {
+      "description": "Shared analysis identity of both sides.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "release_tag", "binary_sha256", "platform", "gtfs_jp_profile"],
+      "properties": {
+        "version": { "$ref": "generation.schema.json#/properties/analyzer/properties/version" },
+        "release_tag": { "$ref": "generation.schema.json#/properties/analyzer/properties/release_tag" },
+        "binary_sha256": { "$ref": "generation.schema.json#/$defs/sha256" },
+        "platform": { "$ref": "generation.schema.json#/properties/analyzer/properties/platform" },
+        "gtfs_jp_profile": { "$ref": "generation.schema.json#/properties/analyzer/properties/gtfs_jp_profile" }
+      }
+    },
+    "skipped_uids": {
+      "description": "Generations between old and new (in data-model §2 order) that are not COMPLETE, oldest first.",
+      "type": "array",
+      "items": { "$ref": "generation.schema.json#/$defs/uid" },
+      "uniqueItems": true
+    },
+    "publishable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["before", "after"],
+      "properties": {
+        "before": { "type": "boolean" },
+        "after": { "type": "boolean" }
+      }
+    },
+    "scores": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["publish", "overall", "spec", "interop", "quality", "analytics"],
+      "properties": {
+        "publish": { "$ref": "#/$defs/score_delta" },
+        "overall": { "$ref": "#/$defs/score_delta" },
+        "spec": { "$ref": "#/$defs/score_delta" },
+        "interop": { "$ref": "#/$defs/score_delta" },
+        "quality": { "$ref": "#/$defs/score_delta" },
+        "analytics": { "$ref": "#/$defs/score_delta" }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["routes", "stops", "trips", "shapes", "active_service_days", "avg_daily_trips"],
+      "properties": {
+        "routes": { "$ref": "#/$defs/count_delta" },
+        "stops": { "$ref": "#/$defs/count_delta" },
+        "trips": { "$ref": "#/$defs/count_delta" },
+        "shapes": { "$ref": "#/$defs/count_delta" },
+        "active_service_days": { "$ref": "#/$defs/count_delta" },
+        "avg_daily_trips": { "$ref": "#/$defs/number_delta" }
+      }
+    },
+    "files": {
+      "description": "Row counts per file over the union of both sides; a missing file is null on that side.",
+      "type": "object",
+      "propertyNames": { "pattern": "^[^/\\\\]+\\.txt$" },
+      "additionalProperties": { "$ref": "#/$defs/file_delta" }
+    },
+    "ranges": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["service_range", "feed_validity"],
+      "properties": {
+        "service_range": { "$ref": "#/$defs/range_change" },
+        "feed_validity": { "$ref": "#/$defs/range_change" }
+      }
+    },
+    "rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fixed", "new", "increased", "decreased", "same"],
+      "properties": {
+        "fixed": { "$ref": "#/$defs/rule_changes", "description": "before > 0, after = 0" },
+        "new": { "$ref": "#/$defs/rule_changes", "description": "before = 0, after > 0" },
+        "increased": { "$ref": "#/$defs/rule_changes", "description": "0 < before < after" },
+        "decreased": { "$ref": "#/$defs/rule_changes", "description": "0 < after < before" },
+        "same": { "$ref": "#/$defs/rule_changes", "description": "before = after > 0" }
+      }
+    }
+  },
+  "$defs": {
+    "score_delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["before", "after", "delta"],
+      "properties": {
+        "before": { "$ref": "generation.schema.json#/$defs/score" },
+        "after": { "$ref": "generation.schema.json#/$defs/score" },
+        "delta": { "type": "number", "minimum": -100, "maximum": 100 }
+      }
+    },
+    "count_delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["before", "after", "delta"],
+      "properties": {
+        "before": { "type": "integer", "minimum": 0 },
+        "after": { "type": "integer", "minimum": 0 },
+        "delta": { "type": "integer" }
+      }
+    },
+    "number_delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["before", "after", "delta"],
+      "properties": {
+        "before": { "type": "number", "minimum": 0 },
+        "after": { "type": "number", "minimum": 0 },
+        "delta": { "type": "number" }
+      }
+    },
+    "file_delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["before", "after", "delta"],
+      "properties": {
+        "before": { "type": ["integer", "null"], "minimum": 0 },
+        "after": { "type": ["integer", "null"], "minimum": 0 },
+        "delta": { "type": "integer", "description": "Missing side counts as 0." }
+      }
+    },
+    "range_change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["before", "after"],
+      "properties": {
+        "before": { "$ref": "generation.schema.json#/$defs/nullable_range" },
+        "after": { "$ref": "generation.schema.json#/$defs/nullable_range" }
+      }
+    },
+    "rule_changes": {
+      "type": "object",
+      "propertyNames": { "$ref": "generation.schema.json#/$defs/rule_id" },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["before", "after"],
+        "properties": {
+          "before": { "type": "integer", "minimum": 0 },
+          "after": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  }
+}
