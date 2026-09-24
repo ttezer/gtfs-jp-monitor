@@ -4,6 +4,7 @@
     "accept_confidence": 0.5,
     "line_max_component": 4,
     "line_min_overlap": 0.6,
+    "pattern_min_similarity": 0.4,
     "stop_moved_min_m": 20,
     "stop_name_min_similarity": 0.6,
     "stop_name_radius_m": 500,
@@ -24,7 +25,9 @@
       "バス停"
     ],
     "stop_near_radius_m": 150,
-    "stop_same_id_max_m": 300
+    "stop_same_id_max_m": 300,
+    "trip_max_cost": 0.8,
+    "trip_max_shift_min": 45
   },
   "max_rows_per_file": 5000000,
   "max_uncompressed_bytes": 2147483648,
