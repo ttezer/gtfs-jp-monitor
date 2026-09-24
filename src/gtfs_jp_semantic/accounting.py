@@ -45,6 +45,8 @@ class Evidence:
     # trip_ids paired exactly with themselves: same places and times, so core stop_times changes
     # can only be a renumbered stop_sequence
     same_trips: set[str] = field(default_factory=set)
+    # route_id (either side) -> report line key; a trip moving between routes of one line is renumbering
+    route_line: dict[str, str] = field(default_factory=dict)
     compared_trips: set[str] = field(default_factory=set)  # trip_ids that ran on a compared day (either side)
     # stop_id -> id of the matched place, per side; equal values mean the stop was only renumbered.
     old_stop_place: dict[str, str] = field(default_factory=dict)
@@ -111,6 +113,10 @@ def _row_file_bucket(change: dict, ev: Evidence) -> tuple[str, str | None]:
         return "explained", "attributes"
     if trip_id in ev.changed_trips:
         return "explained", None
+    if name == "trips.txt" and kind == "field_changed" and column == "route_id" and trip_id in ev.same_trips:
+        line = ev.route_line.get(change.get("old"))
+        if line is not None and line == ev.route_line.get(change.get("new")):
+            return "explained", None  # same trip, renumbered route of the same line
     if name == "stop_times.txt" and trip_id in ev.same_trips:
         return "explained", None  # same places and times: stop_sequence was renumbered
     return "unclassified", None

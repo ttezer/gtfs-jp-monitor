@@ -213,6 +213,8 @@ class AccountingTest(unittest.TestCase):
             {"id": "c0000013", "file": "stop_times.txt", "kind": "row_removed", "key": ["T5", "9"], "old": {}},
             {"id": "c0000014", "file": "trips.txt", "kind": "column_removed", "column": "direction_id"},
             {"id": "c0000015", "file": "stop_times.txt", "kind": "row_removed", "key": ["T6", "9"], "old": {}},
+            {"id": "c0000016", "file": "trips.txt", "kind": "field_changed", "key": ["T5"], "column": "route_id", "old": "10", "new": "1"},
+            {"id": "c0000017", "file": "trips.txt", "kind": "field_changed", "key": ["T5"], "column": "route_id", "old": "10", "new": "2"},
         ]}
         raw["changes"] += [
             {"id": "c0000007", "file": "stop_times.txt", "kind": "field_changed", "key": ["T2", "1"], "column": "stop_id",
@@ -220,11 +222,12 @@ class AccountingTest(unittest.TestCase):
             {"id": "c0000008", "file": "stop_times.txt", "kind": "field_changed", "key": ["T2", "2"], "column": "stop_id",
              "old": "i-2", "new": "3"},
         ]
-        acc = classify(raw, Evidence(changed_trips={"T1"}, compared_trips={"T1", "T2", "T5", "T6"}, same_trips={"T5"},
+        acc = classify(raw, Evidence(changed_trips={"T1"}, compared_trips={"T1", "T2", "T5", "T6"}, same_trips={"T5"}, route_line={"10": "L1", "1": "L1", "2": "L2"},
                                      old_stop_place={"i-1": "P1", "i-2": "P2"}, new_stop_place={"1": "P1", "3": "P3"}))
         # c7 renumbered stop, c8 another place; c13 renumbered stop_sequence of an unchanged trip;
         # c14 a core column; c15 a compared trip that is neither changed nor the same
-        self.assertEqual(sorted(acc.unclassified), ["c0000002", "c0000008", "c0000014", "c0000015"])
+        # c16 route renumbered within one line; c17 moved to another line
+        self.assertEqual(sorted(acc.unclassified), ["c0000002", "c0000008", "c0000014", "c0000015", "c0000017"])
         self.assertEqual(acc.outside, ["c0000004"])
         self.assertEqual(acc.other, {"fares": ["c0000003"], "other_files": ["c0000006"], "formatting": ["c0000009", "c0000010"],
                                      "attributes": ["c0000001", "c0000011", "c0000012"]})

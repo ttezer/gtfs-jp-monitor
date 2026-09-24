@@ -163,6 +163,7 @@ places every raw difference in one bucket.
   | `trips.txt` / `stop_times.txt` row of a compared trip that changed, or only changed id | explained |
   | `stop_times.txt` stop_id change where old and new stop belong to the same matched place | explained (renumbering) |
   | `stop_times.txt` row of a trip paired exactly with itself (same places and times) | explained (stop_sequence renumbered) |
+  | `trips.txt` route_id change of such a trip between two routes of the same line | explained (route renumbered) |
   | a non-core field of stops, routes, trips or stop times (headsign, pickup / drop-off, timepoint, shape link, codes, ...), a stop coordinate change below `stop_moved_min_m`, or a non-core column added / removed | explained, listed under Other changes as attributes, grouped by line and old → new value |
   | a trips or stop times row of a trip that ran on no compared day | outside comparison |
   | `frequencies.txt`; a core column or file added / removed; any other core-field change nothing explains | unclassified |
