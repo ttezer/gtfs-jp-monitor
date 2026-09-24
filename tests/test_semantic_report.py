@@ -5,7 +5,7 @@ from pathlib import Path
 
 from gtfs_jp_monitor.canonical import dumps
 from gtfs_jp_semantic.accounting import Evidence, classify
-from gtfs_jp_semantic.report import _rows_for, build_report
+from gtfs_jp_semantic.report import _attribute_details, _rows_for, build_report
 from gtfs_jp_semantic.report_check import check_report
 
 from .schema_support import HAVE_JSONSCHEMA, errors, validator
@@ -179,18 +179,40 @@ class RowsTest(unittest.TestCase):
         self.assertEqual(mapping[tuple("ABCA")], [0, 1, 2, 3])
 
 
+class AttributeDetailsTest(unittest.TestCase):
+    def test_grouped_by_line_and_value(self):
+        changes = [
+            {"id": f"c{i:07d}", "file": "stop_times.txt", "kind": "field_changed", "key": [tid, str(i)], "column": "stop_headsign", "old": "駅", "new": "駅前"}
+            for i, tid in enumerate(["T1", "T1", "T2"], 1)
+        ] + [
+            {"id": "c0000004", "file": "stops.txt", "kind": "field_changed", "key": ["S1"], "column": "stop_lat", "old": "40.1", "new": "40.10001"},
+            {"id": "c0000005", "file": "trips.txt", "kind": "column_added", "column": "shape_id"},
+        ]
+        items, truncated = _attribute_details(changes, [c["id"] for c in changes], 10, {("trip", "T1"): "1", ("trip", "T2"): "1"})
+        self.assertEqual(truncated, 0)
+        self.assertEqual([(d["kind"], d["key"], d["column"], d["old"], d["new"], d["counts"]) for d in items], [
+            ("attribute_changed", ["1"], "stop_headsign", "駅", "駅前", {"rows": 3}),
+            ("coordinates_adjusted", None, "stop_lat", None, None, {"rows": 1}),  # ties: by file name
+            ("column_added", None, "shape_id", None, None, {"rows": 1}),
+        ])
+
+
 class AccountingTest(unittest.TestCase):
     def test_buckets(self):
         raw = {"changes": [
             {"id": "c0000001", "file": "trips.txt", "kind": "column_removed", "column": "bikes_allowed"},
             {"id": "c0000002", "file": "frequencies.txt", "kind": "row_added", "key": ["T1", "06:00:00"]},
             {"id": "c0000003", "file": "fare_rules.txt", "kind": "row_removed", "key": None, "old": {}},
-            {"id": "c0000004", "file": "stop_times.txt", "kind": "field_changed", "key": ["T9", "1"]},
-            {"id": "c0000005", "file": "stop_times.txt", "kind": "field_changed", "key": ["T1", "1"]},
+            {"id": "c0000004", "file": "stop_times.txt", "kind": "field_changed", "key": ["T9", "1"], "column": "arrival_time"},
+            {"id": "c0000005", "file": "stop_times.txt", "kind": "field_changed", "key": ["T1", "1"], "column": "arrival_time"},
             {"id": "c0000006", "file": "routes_jp.txt", "kind": "file_added", "rows": 3},
             {"id": "c0000009", "file": "stops.txt", "kind": "field_changed", "key": ["S9"], "column": "stop_lon", "old": "140.5208490", "new": "140.520849"},
             {"id": "c0000010", "file": "stop_times.txt", "kind": "field_changed", "key": ["T9", "1"], "column": "arrival_time", "old": "7:30:00", "new": "07:30:00"},
             {"id": "c0000011", "file": "stops.txt", "kind": "field_changed", "key": ["S9"], "column": "stop_lat", "old": "40.1", "new": "40.10001"},
+            {"id": "c0000012", "file": "stop_times.txt", "kind": "field_changed", "key": ["T5", "3"], "column": "stop_headsign", "old": "駅", "new": "駅前"},
+            {"id": "c0000013", "file": "stop_times.txt", "kind": "row_removed", "key": ["T5", "9"], "old": {}},
+            {"id": "c0000014", "file": "trips.txt", "kind": "column_removed", "column": "direction_id"},
+            {"id": "c0000015", "file": "stop_times.txt", "kind": "row_removed", "key": ["T6", "9"], "old": {}},
         ]}
         raw["changes"] += [
             {"id": "c0000007", "file": "stop_times.txt", "kind": "field_changed", "key": ["T2", "1"], "column": "stop_id",
@@ -198,11 +220,14 @@ class AccountingTest(unittest.TestCase):
             {"id": "c0000008", "file": "stop_times.txt", "kind": "field_changed", "key": ["T2", "2"], "column": "stop_id",
              "old": "i-2", "new": "3"},
         ]
-        acc = classify(raw, Evidence(changed_trips={"T1"}, compared_trips={"T1", "T2"},
+        acc = classify(raw, Evidence(changed_trips={"T1"}, compared_trips={"T1", "T2", "T5", "T6"}, same_trips={"T5"},
                                      old_stop_place={"i-1": "P1", "i-2": "P2"}, new_stop_place={"1": "P1", "3": "P3"}))
-        self.assertEqual(sorted(acc.unclassified), ["c0000001", "c0000002", "c0000008", "c0000011"])  # c7 renumbered, c8 another place
+        # c7 renumbered stop, c8 another place; c13 renumbered stop_sequence of an unchanged trip;
+        # c14 a core column; c15 a compared trip that is neither changed nor the same
+        self.assertEqual(sorted(acc.unclassified), ["c0000002", "c0000008", "c0000014", "c0000015"])
         self.assertEqual(acc.outside, ["c0000004"])
-        self.assertEqual(acc.other, {"fares": ["c0000003"], "other_files": ["c0000006"], "formatting": ["c0000009", "c0000010"]})
+        self.assertEqual(acc.other, {"fares": ["c0000003"], "other_files": ["c0000006"], "formatting": ["c0000009", "c0000010"],
+                                     "attributes": ["c0000001", "c0000011", "c0000012"]})
 
 
 if __name__ == "__main__":

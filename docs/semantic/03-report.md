@@ -162,8 +162,14 @@ places every raw difference in one bucket.
   | `routes.txt` row of a line that is not unchanged, or a renumbered route of an unchanged line | explained |
   | `trips.txt` / `stop_times.txt` row of a compared trip that changed, or only changed id | explained |
   | `stop_times.txt` stop_id change where old and new stop belong to the same matched place | explained (renumbering) |
-  | the same for a trip that ran on no compared day | outside comparison |
-  | `frequencies.txt`; file or column changes of stops, routes, trips, stop times; anything else | unclassified |
+  | `stop_times.txt` row of a trip paired exactly with itself (same places and times) | explained (stop_sequence renumbered) |
+  | a non-core field of stops, routes, trips or stop times (headsign, pickup / drop-off, timepoint, shape link, codes, ...), a stop coordinate change below `stop_moved_min_m`, or a non-core column added / removed | explained, listed under Other changes as attributes, grouped by line and old → new value |
+  | a trips or stop times row of a trip that ran on no compared day | outside comparison |
+  | `frequencies.txt`; a core column or file added / removed; any other core-field change nothing explains | unclassified |
+
+  Core fields are the ones the place, line and trip layers read: stop id, name, coordinates,
+  parent and location type; route id and names; trip id, route, service and direction; stop
+  times' trip, sequence, stop and times.
 
 ## Report schema
 

@@ -183,6 +183,33 @@ def _details(changes: list[dict], ids: list[str], limit: int) -> tuple[list[dict
     return items[:limit], max(0, len(items) - limit)
 
 
+def _attribute_details(changes: list[dict], ids: list[str], limit: int, line_of: dict[tuple[str, str], str]) -> tuple[list[dict], int]:
+    """Attribute changes grouped by file, column, line and old -> new value, most frequent first.
+
+    line_of maps ("trip", trip_id) and ("route", route_id) to a report line key. Coordinate
+    changes below the moved-stop threshold are one group per column.
+    """
+    wanted = set(ids)
+    groups: collections.Counter = collections.Counter()
+    for c in changes:
+        if c["id"] not in wanted:
+            continue
+        name, kind, column = c["file"], c["kind"], c.get("column")
+        if kind != "field_changed":
+            groups[(name, kind, column, None, None, None)] += 1
+            continue
+        ref = (c.get("key") or [None])[0]
+        label = line_of.get(("trip", ref)) if name in ("trips.txt", "stop_times.txt") else line_of.get(("route", ref)) if name == "routes.txt" else None
+        if name == "stops.txt" and column in ("stop_lat", "stop_lon"):
+            groups[(name, "coordinates_adjusted", column, None, None, None)] += 1
+        else:
+            groups[(name, "attribute_changed", column, label, c.get("old"), c.get("new"))] += 1
+    items = [{"id": None, "file": name, "kind": kind, "key": [label] if label else None, "column": column,
+              "old": old, "new": new, "counts": {"rows": n}}
+             for (name, kind, column, label, old, new), n in sorted(groups.items(), key=lambda x: (-x[1], tuple(str(v) for v in x[0])))]
+    return items[:limit], max(0, len(items) - limit)
+
+
 STRUCTURAL = frozenset({"file_added", "file_removed", "column_added", "column_removed", "file_changed_opaque", "rows_bulk"})
 _BUCKET_RANK = {"classified": 0, "outside_comparison": 1, "unclassified": 2}
 
@@ -358,6 +385,8 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
                         combo_changed = True
                     if p.kind != "exact" or ta.trip_id != tb.trip_id:
                         ev.changed_trips.update(t.trip_id for t in (ta, tb) if t is not None)
+                    else:
+                        ev.same_trips.add(ta.trip_id)
                 if combo_changed:
                     changed = True
                     old_tt, new_tt = _timetable(a, places), _timetable(b, places)
@@ -441,6 +470,11 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
 
     ev.old_stop_place = {sid: to_new[pid] for sid, pid in place_of_stop(op).items() if pid in to_new}
     ev.new_stop_place = place_of_stop(np_)
+    line_of: dict[tuple[str, str], str] = {}
+    for (gkey, _, _), (a, b, _) in combos.items():
+        line_of.update({("trip", t.trip_id): gkey for t in a + b})
+    for g in groups:
+        line_of.update({("route", r): g.key for l in g.old + g.new for r in l.route_ids})
     acc = classify(raw, ev)
     file_table, file_totals = _file_table(raw, acc)
     unclassified_details, unclassified_truncated = _details(raw["changes"], acc.unclassified, config.report["other_details_max"])
@@ -499,7 +533,9 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
         "lines": line_docs,
         "moves": moves,
         "other": [{"topic": topic, "counts": _counts(raw["changes"], ids), "evidence": ids,
-                   **dict(zip(("details", "truncated"), _details(raw["changes"], ids, config.report["other_details_max"])))}
+                   **dict(zip(("details", "truncated"),
+                              _attribute_details(raw["changes"], ids, config.report["other_details_max"], line_of) if topic == "attributes"
+                              else _details(raw["changes"], ids, config.report["other_details_max"])))}
                   for topic, ids in sorted(acc.other.items())],
         "accounting": {"files": file_table, "unclassified": acc.unclassified,
                        "unclassified_details": unclassified_details, "unclassified_truncated": unclassified_truncated},

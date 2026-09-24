@@ -373,7 +373,7 @@
         "additionalProperties": false,
         "required": ["topic", "counts", "evidence", "details", "truncated"],
         "properties": {
-          "topic": { "enum": ["fares", "calendar_exceptions", "agency", "office", "translations", "feed_info", "shapes", "transfers", "other_files", "formatting"] },
+          "topic": { "enum": ["fares", "calendar_exceptions", "agency", "office", "translations", "feed_info", "shapes", "transfers", "other_files", "formatting", "attributes"] },
           "counts": { "type": "object", "additionalProperties": { "$ref": "#/$defs/count" } },
           "evidence": { "$ref": "#/$defs/evidence" },
           "details": { "type": "array", "items": { "$ref": "#/$defs/detail" }, "description": "Row-level items, at most report.other_details_max; shapes are summarised per shape_id." },
