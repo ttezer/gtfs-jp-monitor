@@ -147,6 +147,10 @@ pinned analyzer installation, catalog sync, incremental analysis, semantic chang
 (§11), and one commit to the data repository when something changed. A single concurrency
 group guarantees one writer at a time.
 
+After the data commit the job rebuilds the public web site from the data repository
+(`export-web`, report bundles gzip-compressed) and a second job deploys it to GitHub Pages;
+only that job has `pages: write` and `id-token: write`.
+
 ## §11 Semantic change reports
 
 - One report per pair of neighbouring publications as the web page shows them: analysed for

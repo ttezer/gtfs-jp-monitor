@@ -169,6 +169,7 @@ def _cmd_export_web(args: argparse.Namespace) -> int:
         template = Path(args.template).read_text(encoding="utf-8")
         if template.count("/*__EXPORT__*/") != 1:
             raise SystemExit("template must contain exactly one /*__EXPORT__*/ placeholder")
+        Path(args.html).parent.mkdir(parents=True, exist_ok=True)
         Path(args.html).write_text(template.replace("/*__EXPORT__*/", payload), encoding="utf-8")
         from gtfs_jp_semantic.rawdiff import gzip_bytes
 

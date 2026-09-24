@@ -1,4 +1,4 @@
-# Catalog sync + incremental analysis in one workflow (data-model §10).
+# Catalog sync + incremental analysis + semantic reports + GitHub Pages site (data-model §10).
 #
 # Required configuration (not set yet):
 #   secrets.DATA_REPO_TOKEN   fine-grained token, contents: write on ttezer/gtfs-jp-data only
@@ -120,3 +120,27 @@ jobs:
             git pull -q --rebase
             git push -q
           fi
+
+      # The public site is rebuilt from the data repository after every run.
+      - name: Build web site
+        run: |
+          release=$(python -c 'import json; print(json.load(open("analyzer.lock.json"))["release_tag"])')
+          python -m gtfs_jp_monitor export-web --data-dir data --release-tag "$release" --profile "$GTFS_JP_PROFILE" \
+            --analyzer "$RUNNER_TEMP/analyzer/gtfs-analyzer" --html _site/index.html --bundle-format gz
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
+
+  pages:
+    needs: monitor
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
