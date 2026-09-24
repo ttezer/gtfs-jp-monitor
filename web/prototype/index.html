@@ -43,7 +43,7 @@
 }
 * { box-sizing: border-box; }
 body { background: var(--ground); color: var(--ink); font-family: var(--font); font-size: 14px; line-height: 1.5; }
-.wrap { max-width: 1440px; margin: 0 auto; padding-inline: 16px; padding-block: 16px 40px; }
+.wrap { margin: 0 auto; padding-inline: 24px; padding-block: 16px 40px; }
 .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 button, select, input { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -72,7 +72,7 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); border-bottom-colo
 .toggle { display: flex; gap: 8px; align-items: center; padding-bottom: 7px; cursor: pointer; color: var(--muted); }
 .count { margin-left: auto; padding-bottom: 7px; color: var(--muted); }
 
-.layout { margin-top: 14px; display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 16px; align-items: start; }
+.layout { margin-top: 14px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(460px, 34%); gap: 20px; align-items: start; }
 .layout > * { min-width: 0; }
 @media (max-width: 1100px) { .layout { grid-template-columns: minmax(0, 1fr); } }
 .scroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--hair); border-radius: var(--r); }
@@ -283,7 +283,7 @@ const T = {
     nextChip: (n, d) => `Sonraki: ${d}${n > 1 ? ` (+${n - 1})` : ""} · karşılaştır`, clickNext: "Güncel ile yaklaşan yayını karşılaştır", jpFiles: "JP dosyaları", formatDiff: (a, b) => `Biçim farkı: eski yayındaki JP dosyaları [${a}], yenideki [${b}]. Kural farklarının bir kısmı hizmet değişikliğinden değil biçim değişikliğinden kaynaklanabilir.`, mergedChip: n => `×${n} yayın`,
     fatal: "ANALİZ YOK", lastPub: "Son yayın",
     pickOld: "Eski", pickNew: "Yeni", backwards: "Eski taraf yeniden sonra seçildi; fark geriye doğru gösteriliyor.",
-    sameSide: "İki taraf aynı yayın; farklı iki yayın seçin.",
+    singlePub: "Bu feed'in karşılaştırılabilecek tek yayını var; aşağıda bu yayının kendi durumu gösteriliyor.", snap1: "Skorlar", snap2: "Yapı", snap3: "Kural ihlalleri", snapCount: "Sayı", snapNoRules: "Kural ihlali yok.", snapSemantic: "Semantic değişiklik raporu iki yayın gerektirir. Bu feed'in yeni bir yayını çıktığında ilk rapor otomatik üretilir.",
     s1: "Skor değişimi", s2: "Yapı değişimi", s3: "Kural farkı", s4: "Semantic değişiklikler",
     semanticTodo: "Semantic motorun ilk sürümü hazır olduğunda burada durak, hat, sefer ve ilk/son sefer değişiklikleri listelenecek.",
     publish: "Publish", overall: "Overall", spec: "Spec", interop: "Interop", quality: "Quality", analytics: "Analytics",
@@ -316,7 +316,7 @@ const T = {
     nextChip: (n, d) => `Next: ${d}${n > 1 ? ` (+${n - 1})` : ""} · compare`, clickNext: "Compare the current publication with the upcoming one", jpFiles: "JP files", formatDiff: (a, b) => `Format difference: JP files in the old publication [${a}], in the new one [${b}]. Some rule differences may come from the format change rather than from service changes.`, mergedChip: n => `×${n} publications`,
     fatal: "NOT ANALYSED", lastPub: "Latest publication",
     pickOld: "Old", pickNew: "New", backwards: "The old side is newer; the difference is shown backwards.",
-    sameSide: "Both sides are the same publication; pick two different ones.",
+    singlePub: "This feed has only one comparable publication; its own state is shown below.", snap1: "Scores", snap2: "Structure", snap3: "Rule violations", snapCount: "Count", snapNoRules: "No rule violations.", snapSemantic: "A semantic change report needs two publications. The first report is built automatically when this feed publishes again.",
     s1: "Score change", s2: "Structure change", s3: "Rule delta", s4: "Semantic changes",
     semanticTodo: "Once the first version of the semantic engine is ready, stop, route, trip and first/last departure changes will be listed here.",
     publish: "Publish", overall: "Overall", spec: "Spec", interop: "Interop", quality: "Quality", analytics: "Analytics",
@@ -349,7 +349,7 @@ const T = {
     nextChip: (n, d) => `次回: ${d}${n > 1 ? `（+${n - 1}）` : ""}・比較`, clickNext: "現行と次回の公開を比較", jpFiles: "JPファイル", formatDiff: (a, b) => `形式の違い：旧公開のJPファイル［${a}］、新公開［${b}］。ルール差分の一部はサービス変更ではなく形式の変更による可能性があります。`, mergedChip: n => `×${n}回公開`,
     fatal: "解析なし", lastPub: "最新の公開",
     pickOld: "旧", pickNew: "新", backwards: "旧側の方が新しいため、差分を逆方向に表示しています。",
-    sameSide: "両側が同じ公開です。異なる2つを選んでください。",
+    singlePub: "このフィードで比較できる公開は1つだけです。以下はその公開自体の状態です。", snap1: "スコア", snap2: "構成", snap3: "ルール違反", snapCount: "件数", snapNoRules: "ルール違反はありません。", snapSemantic: "セマンティック変更レポートには2つの公開が必要です。このフィードが次に公開されたとき、最初のレポートが自動で作成されます。",
     s1: "スコアの変化", s2: "構成の変化", s3: "ルール差分", s4: "意味的な変更",
     semanticTodo: "セマンティックエンジンの初版が完成すると、停留所・路線・便・始発/終発の変更がここに表示されます。",
     publish: "Publish", overall: "Overall", spec: "Spec", interop: "Interop", quality: "Quality", analytics: "Analytics",
@@ -389,7 +389,7 @@ const R = {
     ls: { added: "Eklendi", discontinued: "Kaldırıldı", renamed: "Adı değişti", merged: "Birleşti", split: "Bölündü", restructured: "Yeniden düzenlendi", changed: "Değişti", unchanged: "Değişmedi" },
     ps: { added: "Eklendi", removed: "Kaldırıldı", renamed: "Adı değişti", moved: "Taşındı", renamed_moved: "Adı değişti · taşındı", unchanged: "Değişmedi" },
     ek: { extended: "Uzatıldı", shortened: "Kısaltıldı", inserted: "Durak eklendi", removed: "Durak çıkarıldı", detour_added: "Sapma eklendi", detour_removed: "Sapma kaldırıldı", reordered: "Sırası değişti" },
-    topic: { fares: "Ücretler", calendar_exceptions: "Takvim istisnaları", agency: "İşletici", office: "Şube", translations: "Çeviriler", feed_info: "Feed bilgisi", shapes: "Güzergâh şekilleri", transfers: "Aktarmalar", other_files: "Diğer dosyalar", formatting: "Yalnız biçim değişti (değer aynı)" },
+    topic: { fares: "Ücretler", calendar_exceptions: "Takvim istisnaları", agency: "İşletici", office: "Şube", translations: "Çeviriler", feed_info: "Feed bilgisi", shapes: "Güzergâh şekilleri", transfers: "Aktarmalar", other_files: "Diğer dosyalar", formatting: "Yalnız biçim değişti (değer aynı)", attributes: "Öznitelik değişiklikleri (yön tabelası, binme/inme kuralı, kodlar, küçük koordinat düzeltmeleri)" },
     ck: { added: "eklenen satır", removed: "kaldırılan satır", changed_fields: "değişen alan" },
     title: "Değişiklik raporu", old: "Eski yayın", new: "Yeni yayın", comparison: "Karşılaştırma",
     compared: "Karşılaştırılan gün", activeDays: "Aktif gün", periods: "Dönemler", special: "Özel günler",
@@ -430,7 +430,7 @@ const R = {
     movesNote: (n, lines) => `${n} sefer bu hat ile şu hat(lar) arasında taşındı: ${lines}. Aynı koridorun güzergâh varyantları olabilir; ayrıntı sefer değişiklikleri tablosunda.`,
     editTrips: n => `${n} seferde`, editDominant: "baskın güzergâh karşılaştırması",
     movesCard: n => `Başka hatta veya yöne geçen sefer: ${n}`,
-    dk: { row_added: "Satır eklendi", row_removed: "Satır kaldırıldı", field_changed: "Alan değişti", shape_changed: "Şekil değişti", file_added: "Dosya eklendi", file_removed: "Dosya kaldırıldı", column_added: "Sütun eklendi", column_removed: "Sütun kaldırıldı", rows_bulk: "Toplu değişiklik", file_changed_opaque: "Okunamayan dosya değişti" },
+    dk: { attribute_changed: "Alan değişti", coordinates_adjusted: "Koordinat düzeltildi (taşındı eşiğinin altında)", row_added: "Satır eklendi", row_removed: "Satır kaldırıldı", field_changed: "Alan değişti", shape_changed: "Şekil değişti", file_added: "Dosya eklendi", file_removed: "Dosya kaldırıldı", column_added: "Sütun eklendi", column_removed: "Sütun kaldırıldı", rows_bulk: "Toplu değişiklik", file_changed_opaque: "Okunamayan dosya değişti" },
     detailCols: ["Değişiklik", "Dosya", "Anahtar", "Alan", "Eski", "Yeni"],
     truncated: n => `+${n} kayıt daha (tamamı ham fark dosyasında).`, showDetails: n => `Ayrıntılar (${n})`,
     fileCols: ["Dosya", "Eski satır", "Yeni satır", "Net", "Eklenen", "Kaldırılan", "Değişen satır", "Açıklandı", "Karşılaştırma dışı", "Sınıflandırılmamış"],
@@ -443,7 +443,7 @@ const R = {
     ls: { added: "Added", discontinued: "Discontinued", renamed: "Renamed", merged: "Merged", split: "Split", restructured: "Restructured", changed: "Changed", unchanged: "Unchanged" },
     ps: { added: "Added", removed: "Removed", renamed: "Renamed", moved: "Moved", renamed_moved: "Renamed · moved", unchanged: "Unchanged" },
     ek: { extended: "Extended", shortened: "Shortened", inserted: "Stop inserted", removed: "Stop removed", detour_added: "Detour added", detour_removed: "Detour removed", reordered: "Moved in order" },
-    topic: { fares: "Fares", calendar_exceptions: "Calendar exceptions", agency: "Agency", office: "Office", translations: "Translations", feed_info: "Feed info", shapes: "Shapes", transfers: "Transfers", other_files: "Other files", formatting: "Formatting only (same value)" },
+    topic: { fares: "Fares", calendar_exceptions: "Calendar exceptions", agency: "Agency", office: "Office", translations: "Translations", feed_info: "Feed info", shapes: "Shapes", transfers: "Transfers", other_files: "Other files", formatting: "Formatting only (same value)", attributes: "Attribute changes (headsigns, pickup/drop-off rules, codes, small coordinate fixes)" },
     ck: { added: "rows added", removed: "rows removed", changed_fields: "fields changed" },
     title: "Change report", old: "Old publication", new: "New publication", comparison: "Comparison",
     compared: "Compared day", activeDays: "Active days", periods: "Periods", special: "Special days",
@@ -484,7 +484,7 @@ const R = {
     movesNote: (n, lines) => `${n} trips moved between this line and: ${lines}. These may be route variants of one corridor; see the trip changes table.`,
     editTrips: n => `on ${n} trips`, editDominant: "dominant pattern comparison",
     movesCard: n => `Trips moved to another line or direction: ${n}`,
-    dk: { row_added: "Row added", row_removed: "Row removed", field_changed: "Field changed", shape_changed: "Shape changed", file_added: "File added", file_removed: "File removed", column_added: "Column added", column_removed: "Column removed", rows_bulk: "Bulk change", file_changed_opaque: "Unreadable file changed" },
+    dk: { attribute_changed: "Field changed", coordinates_adjusted: "Coordinates adjusted (below the moved threshold)", row_added: "Row added", row_removed: "Row removed", field_changed: "Field changed", shape_changed: "Shape changed", file_added: "File added", file_removed: "File removed", column_added: "Column added", column_removed: "Column removed", rows_bulk: "Bulk change", file_changed_opaque: "Unreadable file changed" },
     detailCols: ["Change", "File", "Key", "Field", "Old", "New"],
     truncated: n => `+${n} more (all in the raw difference file).`, showDetails: n => `Details (${n})`,
     fileCols: ["File", "Old rows", "New rows", "Net", "Added", "Removed", "Changed rows", "Explained", "Outside comparison", "Unclassified"],
@@ -497,7 +497,7 @@ const R = {
     ls: { added: "新設", discontinued: "廃止", renamed: "改称", merged: "統合", split: "分割", restructured: "再編", changed: "変更", unchanged: "変更なし" },
     ps: { added: "新設", removed: "廃止", renamed: "改称", moved: "移設", renamed_moved: "改称・移設", unchanged: "変更なし" },
     ek: { extended: "延長", shortened: "短縮", inserted: "停留所追加", removed: "停留所削除", detour_added: "経由追加", detour_removed: "経由廃止", reordered: "順序変更" },
-    topic: { fares: "運賃", calendar_exceptions: "運行日の例外", agency: "事業者", office: "営業所", translations: "翻訳", feed_info: "フィード情報", shapes: "経路形状", transfers: "乗継", other_files: "その他のファイル", formatting: "表記のみの変更（値は同じ）" },
+    topic: { fares: "運賃", calendar_exceptions: "運行日の例外", agency: "事業者", office: "営業所", translations: "翻訳", feed_info: "フィード情報", shapes: "経路形状", transfers: "乗継", other_files: "その他のファイル", formatting: "表記のみの変更（値は同じ）", attributes: "属性の変更（行先表示、乗降の扱い、コード、座標の微修正）" },
     ck: { added: "行追加", removed: "行削除", changed_fields: "項目変更" },
     title: "変更レポート", old: "旧公開", new: "新公開", comparison: "比較",
     compared: "比較日", activeDays: "運行日数", periods: "期間", special: "特別な日",
@@ -538,7 +538,7 @@ const R = {
     movesNote: (n, lines) => `${n}便がこの路線と次の路線の間で移行：${lines}。同じ系統群の経路違いの可能性があります。詳細は便の変更表を参照。`,
     editTrips: n => `${n}便`, editDominant: "主要経路の比較",
     movesCard: n => `他の路線・方向へ移行した便：${n}`,
-    dk: { row_added: "行追加", row_removed: "行削除", field_changed: "項目変更", shape_changed: "形状変更", file_added: "ファイル追加", file_removed: "ファイル削除", column_added: "列追加", column_removed: "列削除", rows_bulk: "一括変更", file_changed_opaque: "読めないファイルの変更" },
+    dk: { attribute_changed: "項目変更", coordinates_adjusted: "座標の微修正（移設の閾値未満）", row_added: "行追加", row_removed: "行削除", field_changed: "項目変更", shape_changed: "形状変更", file_added: "ファイル追加", file_removed: "ファイル削除", column_added: "列追加", column_removed: "列削除", rows_bulk: "一括変更", file_changed_opaque: "読めないファイルの変更" },
     detailCols: ["変更", "ファイル", "キー", "項目", "旧", "新"],
     truncated: n => `ほか${n}件（すべて差分ファイルに記録）。`, showDetails: n => `詳細（${n}）`,
     fileCols: ["ファイル", "旧行数", "新行数", "増減", "追加", "削除", "変更行", "説明済み", "比較対象外", "未分類"],
@@ -953,7 +953,7 @@ function renderReport() {
   const val = v => v == null ? "—" : typeof v === "string" ? (v === "" ? "∅" : v) : Object.entries(v).filter(([, x]) => x !== "").map(([k, x]) => `${k}=${x}`).join(", ");
   const detailRow = d => d.kind === "shape_changed"
     ? `<tr><td>${esc(rt("dk")[d.kind])}</td><td class="num">${esc(d.file)}</td><td class="dval">${esc((d.key || []).join(" · "))}</td><td></td><td colspan="2" class="dval">${esc(Object.entries(d.counts || {}).map(([k, v]) => `${v} ${rt("ck")[k] || k}`).join(" · "))}</td></tr>`
-    : `<tr><td>${esc(rt("dk")[d.kind] || d.kind)}</td><td class="num">${esc(d.file)}</td><td class="dval">${esc((d.key || []).join(" · "))}</td><td class="dval">${esc(d.column || "")}</td><td class="dval">${d.kind === "field_changed" ? `<s>${esc(val(d.old))}</s>` : esc(val(d.old))}</td><td class="dval">${d.kind === "field_changed" ? `<b>${esc(val(d.new))}</b>` : esc(val(d.new))}</td></tr>`;
+    : `<tr><td>${esc(rt("dk")[d.kind] || d.kind)}${d.counts && d.counts.rows ? ` <span class="hint">×${d.counts.rows}</span>` : ""}</td><td class="num">${esc(d.file)}</td><td class="dval">${esc((d.key || []).join(" · "))}</td><td class="dval">${esc(d.column || "")}</td><td class="dval">${d.kind === "field_changed" ? `<s>${esc(val(d.old))}</s>` : esc(val(d.old))}</td><td class="dval">${d.kind === "field_changed" ? `<b>${esc(val(d.new))}</b>` : esc(val(d.new))}</td></tr>`;
   const otherRows = rep.other.map(o => `<details class="other"><summary><b>${esc(rt("topic")[o.topic] || o.topic)}</b> · ${esc(Object.entries(o.counts).map(([k, v]) => `${v} ${rt("ck")[k] || k}`).join(" · "))}</summary>
       <div class="scroll" style="border:0"><table class="mini">${thl(rt("detailCols"))}<tbody>${o.details.map(detailRow).join("")}</tbody></table></div>${o.truncated ? `<p class="hint">${esc(rt("truncated", o.truncated))}</p>` : ""}</details>`).join("");
   const fileRows = Object.entries(rep.accounting.files).map(([name, x]) => {
@@ -1229,13 +1229,18 @@ function renderPanel() {
     const before = usable.filter(([, i]) => i < state.newIdx);
     state.oldIdx = before.length ? before[before.length - 1][1] : state.newIdx;
   }
+  // Both sides are never the same publication while another one can be compared.
+  if (state.oldIdx === state.newIdx && usable.length > 1) {
+    const later = usable.find(([, i]) => i > state.newIdx), earlier = usable.filter(([, i]) => i < state.newIdx).pop();
+    if (later) state.newIdx = later[1]; else if (earlier) state.oldIdx = earlier[1];
+  }
   const cur = gs[ci].rep;
-  const options = sel => gs.map((gr, i) => `<option value="${i}" ${i === sel ? "selected" : ""} ${gr.rep.scores ? "" : "disabled"}>${esc(genLabel(gr))}</option>`).join("");
+  const options = (sel, other) => gs.map((gr, i) => `<option value="${i}" ${i === sel ? "selected" : ""} ${gr.rep.scores && i !== other ? "" : "disabled"}>${esc(genLabel(gr))}</option>`).join("");
   let lo = state.oldIdx, hi = state.newIdx;
   const backwards = lo > hi;
   const a = gs[lo].rep, b = gs[hi].rep;
   let body;
-  if (lo === hi) body = `<p class="hint">${esc(t("sameSide"))}</p>`;
+  if (lo === hi) body = snapshot(b);
   else {
     const d = diff(a, b);
     const seriesOf = s => gs.map(gr => gr.rep.scores ? gr.rep.scores[s] : null);
@@ -1276,18 +1281,36 @@ function renderPanel() {
       <div class="meta"><span>${esc(t("lastPub"))}: <span class="num">${esc((f.generations[f.generations.length - 1].published_at || "").slice(0, 16).replace("T", " "))}</span> JST</span></div>
       ${cur.scores ? `<span class="state ${cur.publishable ? "ok" : "no"}">${cur.publishable ? "●" : "○"} ${esc(cur.publishable ? t("ready") : t("notReady"))}</span>` : ""}
     </div>
-    <div><h3>${esc(t("compare"))}</h3><p class="hint">${esc(t("compareHint"))}</p></div>
+    ${usable.length > 1 ? `<div><h3>${esc(t("compare"))}</h3><p class="hint">${esc(t("compareHint"))}</p></div>
     <div class="pick">
-      <div class="field"><label for="old-pick">${esc(t("pickOld"))}</label><select id="old-pick">${options(state.oldIdx)}</select></div>
+      <div class="field"><label for="old-pick">${esc(t("pickOld"))}</label><select id="old-pick">${options(state.oldIdx, state.newIdx)}</select></div>
       <span class="to">→</span>
-      <div class="field"><label for="new-pick">${esc(t("pickNew"))}</label><select id="new-pick">${options(state.newIdx)}</select></div>
-    </div>${body}`;
-  $("old-pick").addEventListener("change", e => { state.oldIdx = +e.target.value; renderPanel(); renderReport(); });
-  $("new-pick").addEventListener("change", e => { state.newIdx = +e.target.value; renderPanel(); renderReport(); });
+      <div class="field"><label for="new-pick">${esc(t("pickNew"))}</label><select id="new-pick">${options(state.newIdx, state.oldIdx)}</select></div>
+    </div>` : ""}${body}`;
+  if (usable.length > 1) {
+    $("old-pick").addEventListener("change", e => { state.oldIdx = +e.target.value; renderPanel(); renderReport(); });
+    $("new-pick").addEventListener("change", e => { state.newIdx = +e.target.value; renderPanel(); renderReport(); });
+  }
   const openBtn = $("open-report");
   if (openBtn) openBtn.addEventListener("click", () => { state.tab = "reports"; renderStatic(); renderReport(); window.scrollTo(0, 0); });
   const btn = $("toggle-same");
   if (btn) btn.addEventListener("click", () => { state.showSame = !state.showSame; renderPanel(); });
+}
+
+// The only comparable publication of a feed: its own scores, structure and rule counts.
+function snapshot(g) {
+  if (!g.scores) return `<p class="hint">${esc(t("singlePub"))}</p>`;
+  const cards = SCORES.map(s => `<div class="card"><div class="k">${esc(t(s))}</div><div class="v"><span class="badge ${scoreClass(g.scores[s])}">${fmt1(g.scores[s])}</span></div></div>`).join("");
+  const metrics = g.metrics ? METRICS.map(([m, label]) => `<tr><td>${esc(t(label))}</td><td class="r">${m === "avg_daily_trips" ? fmt1(g.metrics[m]) : (g.metrics[m] ?? 0).toLocaleString()}</td></tr>`).join("") : "";
+  const titles = DATA.rule_titles[state.lang] || {};
+  const order = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, INFO: 4 };
+  const rules = Object.entries(g.rules || {}).filter(([, r]) => r[0] > 0).sort((x, y) => (order[x[1][1]] ?? 9) - (order[y[1][1]] ?? 9) || y[1][0] - x[1][0] || x[0].localeCompare(y[0]))
+    .map(([id, r]) => `<tr><td class="num">${esc(id)}<br><span class="sev sev-${esc(r[1])}">${esc(r[1])}</span></td><td>${esc(titles[id] || "")}</td><td class="r">${r[0].toLocaleString()}</td></tr>`).join("");
+  return `<p class="hint">${esc(t("singlePub"))}</p>
+    <div><h3>1. ${esc(t("snap1"))}</h3><div class="cards">${cards}</div></div>
+    <div><h3>2. ${esc(t("snap2"))}</h3><table class="mini"><tbody>${metrics}</tbody></table></div>
+    <div><h3>3. ${esc(t("snap3"))}</h3>${rules ? `<div class="scroll" style="border:0"><table class="mini"><thead><tr><th>${esc(t("rule"))}</th><th>${esc(t("title"))}</th><th class="r">${esc(t("snapCount"))}</th></tr></thead><tbody>${rules}</tbody></table></div>` : `<p class="hint">${esc(t("snapNoRules"))}</p>`}</div>
+    <div><h3>4. ${esc(t("s4"))}</h3><div class="empty">${esc(t("snapSemantic"))}</div></div>`;
 }
 
 function ruleRow(r, titles) {
