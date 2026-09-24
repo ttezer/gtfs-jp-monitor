@@ -207,7 +207,7 @@ const PREFS = [["北海道","Hokkaido"],["青森県","Aomori"],["岩手県","Iwa
 const T = {
   tr: {
     tagline: "Feed kalitesi, yayına hazırlık ve değişiklik geçmişi",
-    notice: "<b>Pilot verisi.</b> 3 feed, 89 yayın; yerel geliştirme derlemesiyle (macOS) üretildi. Üretim sonucu değildir, skorlar yalnız sayfa düzenini sınamak içindir.",
+    notice: (f, g, rel, prof) => `<b>Önizleme.</b> ${f} feed, ${g} yayın; GTFS Analyzer ${rel} (${prof} profili). Şimdilik her feed'in son 4 yayını analiz edildi; daha eski yayınlar her gün arka planda ekleniyor. Semantic değişiklikler henüz yok.`,
     overview: "Genel Bakış", history: "Feed Geçmişi", reports: "Diff Raporları", gtfsjp: "GTFS-JP",
     search: "Feed ara", prefecture: "İl", readiness: "Yayın durumu", sort: "Sırala", all: "Tümü",
     ready: "Yayınlanmaya hazır", notReady: "Hazır değil", merge: "Eşdeğer yayınları birleştir",
@@ -233,12 +233,13 @@ const T = {
     gtfsjpText: p => `<p>Analizler GTFS Analyzer ile <b>${p}</b> profiliyle yapıldı. Profil seçilebilir (auto, v3, v4); farklı profille yapılan analizler ayrı tutulur ve birbiriyle karşılaştırılmaz.</p><p>Doğrulama tarihi her yayının geçerlilik başlangıcıdır (from_date); böylece her yayın hizmete girdiği gündeki hâliyle değerlendirilir.</p>`,
     footer: "Veri kaynağı: gtfs-data.jp ve ilgili işletmeciler. Feed ve durak adları kaynaktaki hâliyle gösterilir. Skor rengi eşikleri geçicidir (≥95 / ≥85).",
     mergeNote: "Birleştirilmiş yayınlar \"×N yayın\" ile gösterilir: analiz özeti (skorlar, metrikler, kural ve dosya satır sayıları) bir öncekiyle birebir aynı olan yayınlar tek sütunda toplanır. ZIP dosyaları farklı olabilir; hiçbir yayın silinmez, tamamı Feed Geçmişi sekmesinde listelenir.",
+    dataUpdated: "±0 skor · veri güncellendi", validity: "Geçerlilik",
     compare: "Karşılaştır", compareHint: "Tablodaki eski bir yayına tıklayınca o yayın Güncel ile, Güncel'e tıklayınca bir öncekiyle, bir Δ hücresine tıklayınca iki komşu yayın karşılaştırılır. Aşağıdan herhangi iki yayını da seçebilirsiniz.", clickGen: "Bu yayını Güncel ile karşılaştır", clickCurrent: "Güncel'i bir önceki yayınla karşılaştır", clickDelta: "Bu iki yayını karşılaştır",
     license: "Lisans", org: "Kurum"
   },
   en: {
     tagline: "Feed quality, publication readiness and change history",
-    notice: "<b>Pilot data.</b> 3 feeds, 89 publications, produced with a local development build (macOS). Not production results; scores are only here to test the layout.",
+    notice: (f, g, rel, prof) => `<b>Preview.</b> ${f} feeds, ${g} publications; GTFS Analyzer ${rel} (${prof} profile). For now the latest 4 publications of each feed are analysed; older ones are added daily in the background. Semantic changes are not available yet.`,
     overview: "Overview", history: "Feed history", reports: "Diff reports", gtfsjp: "GTFS-JP",
     search: "Search feeds", prefecture: "Prefecture", readiness: "Readiness", sort: "Sort", all: "All",
     ready: "Ready to publish", notReady: "Not ready", merge: "Merge equivalent publications",
@@ -264,12 +265,13 @@ const T = {
     gtfsjpText: p => `<p>Analyses were made with GTFS Analyzer using the <b>${p}</b> profile. The profile is selectable (auto, v3, v4); analyses with different profiles are kept apart and never compared.</p><p>Each publication is validated as of its first valid day (from_date), so it is judged as it was when it entered service.</p>`,
     footer: "Data: gtfs-data.jp and the transit operators. Feed and stop names are shown as published. Score colour thresholds are provisional (≥95 / ≥85).",
     mergeNote: "Merged publications are marked \"×N publications\": publications whose analysis summary (scores, metrics, rule and file row counts) is identical to the previous one share a column. Their ZIP files may differ; none is removed, and all are listed under Feed history.",
+    dataUpdated: "±0 score · data updated", validity: "Validity",
     compare: "Compare", compareHint: "Click an older publication in the table to compare it with the current one, click Current to compare it with the one before, or click a Δ cell to compare two neighbours. You can also pick any two below.", clickGen: "Compare this publication with the current one", clickCurrent: "Compare the current publication with the previous one", clickDelta: "Compare these two publications",
     license: "License", org: "Organisation"
   },
   ja: {
     tagline: "フィードの品質・公開準備・変更履歴",
-    notice: "<b>パイロットデータ。</b>3フィード・89公開分を、ローカルの開発ビルド（macOS）で生成しました。本番の結果ではなく、スコアはレイアウト確認用です。",
+    notice: (f, g, rel, prof) => `<b>プレビュー。</b>${f}フィード・${g}公開分、GTFS Analyzer ${rel}（${prof}プロファイル）。現在は各フィードの最新4公開のみ解析済みで、それ以前の公開は毎日バックグラウンドで追加されます。意味的な変更はまだありません。`,
     overview: "概要", history: "フィード履歴", reports: "差分レポート", gtfsjp: "GTFS-JP",
     search: "フィード検索", prefecture: "都道府県", readiness: "公開状態", sort: "並び替え", all: "すべて",
     ready: "公開準備完了", notReady: "未準備", merge: "同一内容の公開をまとめる",
@@ -295,6 +297,7 @@ const T = {
     gtfsjpText: p => `<p>解析はGTFS Analyzerの<b>${p}</b>プロファイルで行いました。プロファイルは選択可能（auto・v3・v4）で、異なるプロファイルの結果は別に保持し、比較しません。</p><p>各公開は有効期間の開始日（from_date）時点で検証されます。</p>`,
     footer: "データ：gtfs-data.jpおよび各事業者。フィード名・停留所名は公開時のまま表示します。スコアの色の閾値は暫定です（≥95 / ≥85）。",
     mergeNote: "まとめた公開は「×N回公開」と表示します：解析の要約（スコア・指標・ルール件数・ファイル行数）が直前と完全に同じ公開を1列にまとめています。ZIPファイル自体は異なる場合があり、どの公開も削除せず、すべてフィード履歴に一覧表示します。",
+    dataUpdated: "±0 スコア・データ更新", validity: "有効期間",
     compare: "比較", compareHint: "表の過去の公開をクリックすると現行と、現行をクリックするとその1つ前と、Δセルをクリックすると隣り合う2つを比較します。下で任意の2つを選ぶこともできます。", clickGen: "この公開を現行と比較", clickCurrent: "現行を1つ前の公開と比較", clickDelta: "この2つの公開を比較",
     license: "ライセンス", org: "事業者"
   }
@@ -402,7 +405,12 @@ function deltaCell(a, b, ia, ib, sel) {
   const o = d.scores.overall;
   const cls = o > 0 ? "up" : o < 0 ? "down" : "flat";
   const arrow = o > 0 ? "▲" : o < 0 ? "▼" : "";
-  if (!lines.length && o === 0) return `<td ${attrs.replace('dcell', 'dcell flat')}>${esc(t("noChange"))}</td>`;
+  if (!lines.length && o === 0) {
+    // Same scores, counts and rules: say "no change" only for truly equivalent publications.
+    if (b.rep.equivalent_to_previous && b.members[0] === b.rep) return `<td ${attrs.replace('dcell', 'dcell flat')}>${esc(t("noChange"))}</td>`;
+    const extended = a.rep.to_date !== b.rep.to_date ? `<br>${esc(t("validity"))}: ${esc(a.rep.to_date || "…")} → ${esc(b.rep.to_date || "…")}` : "";
+    return `<td ${attrs.replace('dcell', 'dcell flat')}>${esc(t("dataUpdated"))}${extended}</td>`;
+  }
   return `<td ${attrs}><span class="arrow ${cls}">${arrow} ${o !== 0 ? signed(o, 1) : ""}</span><br>${lines.map(esc).join("<br>")}</td>`;
 }
 
@@ -576,7 +584,8 @@ function renderHistory() {
 function renderStatic() {
   document.documentElement.lang = state.lang;
   $("tagline").textContent = t("tagline");
-  $("notice").innerHTML = `<span>${t("notice")}</span>`;
+  const [rel, prof] = (DATA.analysis_key || "").split("__");
+  $("notice").innerHTML = `<span>${t("notice", DATA.feeds.length, DATA.feeds.reduce((n, f) => n + f.generations.length, 0), esc(rel || ""), esc(prof || ""))}</span>`;
   document.querySelectorAll("[data-t]").forEach(el => { el.textContent = t(el.dataset.t); });
   document.querySelectorAll("nav.tabs button").forEach(b => { b.textContent = t(b.dataset.tab); b.setAttribute("aria-selected", String(b.dataset.tab === state.tab)); });
   document.querySelectorAll(".langs button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.lang === state.lang)));
