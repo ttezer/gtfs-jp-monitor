@@ -233,7 +233,7 @@ const T = {
     gtfsjpText: p => `<p>Analizler GTFS Analyzer ile <b>${p}</b> profiliyle yapıldı. Profil seçilebilir (auto, v3, v4); farklı profille yapılan analizler ayrı tutulur ve birbiriyle karşılaştırılmaz.</p><p>Doğrulama tarihi her yayının geçerlilik başlangıcıdır (from_date); böylece her yayın hizmete girdiği gündeki hâliyle değerlendirilir.</p>`,
     footer: "Veri kaynağı: gtfs-data.jp ve ilgili işletmeciler. Feed ve durak adları kaynaktaki hâliyle gösterilir. Skor rengi eşikleri geçicidir (≥95 / ≥85).",
     mergeNote: "Birleştirilmiş yayınlar \"×N yayın\" ile gösterilir: analiz özeti (skorlar, metrikler, kural ve dosya satır sayıları) bir öncekiyle birebir aynı olan yayınlar tek sütunda toplanır. ZIP dosyaları farklı olabilir; hiçbir yayın silinmez, tamamı Feed Geçmişi sekmesinde listelenir.",
-    compare: "Karşılaştır", compareHint: "Tablodaki bir Δ hücresine tıklayarak iki komşu yayını, bir yayın hücresine tıklayarak onu bir öncekiyle karşılaştırın; ya da aşağıdan herhangi iki yayını seçin.", clickGen: "Bu yayını bir öncekiyle karşılaştır", clickDelta: "Bu iki yayını karşılaştır",
+    compare: "Karşılaştır", compareHint: "Tablodaki eski bir yayına tıklayınca o yayın Güncel ile, Güncel'e tıklayınca bir öncekiyle, bir Δ hücresine tıklayınca iki komşu yayın karşılaştırılır. Aşağıdan herhangi iki yayını da seçebilirsiniz.", clickGen: "Bu yayını Güncel ile karşılaştır", clickCurrent: "Güncel'i bir önceki yayınla karşılaştır", clickDelta: "Bu iki yayını karşılaştır",
     license: "Lisans", org: "Kurum"
   },
   en: {
@@ -264,7 +264,7 @@ const T = {
     gtfsjpText: p => `<p>Analyses were made with GTFS Analyzer using the <b>${p}</b> profile. The profile is selectable (auto, v3, v4); analyses with different profiles are kept apart and never compared.</p><p>Each publication is validated as of its first valid day (from_date), so it is judged as it was when it entered service.</p>`,
     footer: "Data: gtfs-data.jp and the transit operators. Feed and stop names are shown as published. Score colour thresholds are provisional (≥95 / ≥85).",
     mergeNote: "Merged publications are marked \"×N publications\": publications whose analysis summary (scores, metrics, rule and file row counts) is identical to the previous one share a column. Their ZIP files may differ; none is removed, and all are listed under Feed history.",
-    compare: "Compare", compareHint: "Click a Δ cell in the table to compare two neighbouring publications, click a publication to compare it with the one before, or pick any two below.", clickGen: "Compare this publication with the previous one", clickDelta: "Compare these two publications",
+    compare: "Compare", compareHint: "Click an older publication in the table to compare it with the current one, click Current to compare it with the one before, or click a Δ cell to compare two neighbours. You can also pick any two below.", clickGen: "Compare this publication with the current one", clickCurrent: "Compare the current publication with the previous one", clickDelta: "Compare these two publications",
     license: "License", org: "Organisation"
   },
   ja: {
@@ -295,7 +295,7 @@ const T = {
     gtfsjpText: p => `<p>解析はGTFS Analyzerの<b>${p}</b>プロファイルで行いました。プロファイルは選択可能（auto・v3・v4）で、異なるプロファイルの結果は別に保持し、比較しません。</p><p>各公開は有効期間の開始日（from_date）時点で検証されます。</p>`,
     footer: "データ：gtfs-data.jpおよび各事業者。フィード名・停留所名は公開時のまま表示します。スコアの色の閾値は暫定です（≥95 / ≥85）。",
     mergeNote: "まとめた公開は「×N回公開」と表示します：解析の要約（スコア・指標・ルール件数・ファイル行数）が直前と完全に同じ公開を1列にまとめています。ZIPファイル自体は異なる場合があり、どの公開も削除せず、すべてフィード履歴に一覧表示します。",
-    compare: "比較", compareHint: "表のΔセルをクリックすると隣り合う2つの公開を、公開セルをクリックするとその前の公開と比較します。下で任意の2つを選ぶこともできます。", clickGen: "この公開を1つ前と比較", clickDelta: "この2つの公開を比較",
+    compare: "比較", compareHint: "表の過去の公開をクリックすると現行と、現行をクリックするとその1つ前と、Δセルをクリックすると隣り合う2つを比較します。下で任意の2つを選ぶこともできます。", clickGen: "この公開を現行と比較", clickCurrent: "現行を1つ前の公開と比較", clickDelta: "この2つの公開を比較",
     license: "ライセンス", org: "事業者"
   }
 };
@@ -376,13 +376,13 @@ function spark(values, marks = []) {
     <polyline points="${line}" fill="none" stroke="var(--spark)" stroke-width="1.4" vector-effect="non-scaling-stroke"/>${dots}</svg>`;
 }
 
-function genCell(gr, idx, sel) {
+function genCell(gr, idx, sel, isCurrent) {
   const g = gr.rep;
   const attrs = `class="pickable${sel ? " sel" : ""}" data-new="${idx}"`;
   const date = `<div class="gdate num">${esc(g.from_date)}</div>`;
   const merged = gr.members.length > 1 ? `<span class="merged" title="${esc(t("mergeNote"))}">${esc(t("mergedChip", gr.members.length))}</span>` : "";
   if (!g.scores) return `<td><div class="gcell"><span class="fatal">${esc(t("fatal"))}</span>${date}</div></td>`;
-  return `<td ${attrs} title="${esc(t("clickGen"))}"><div class="gcell"><div class="pair">
+  return `<td ${attrs} title="${esc(t(isCurrent ? "clickCurrent" : "clickGen"))}"><div class="gcell"><div class="pair">
       <span>Publish</span><span class="badge ${scoreClass(g.scores.publish)}">${fmt1(g.scores.publish)}</span>
       <span>Overall</span><span class="badge ${scoreClass(g.scores.overall)}">${fmt1(g.scores.overall)}</span>
     </div>${date}${merged}</div></td>`;
@@ -440,7 +440,7 @@ function renderGrid() {
         cells.push(older >= 0 ? deltaCell(gs[older], gs[newer], older, newer, sel) : `<td></td>`);
       }
       const sel = isSel && (state.oldIdx === i || state.newIdx === i);
-      cells.push(i >= 0 ? genCell(gs[i], i, sel) : `<td></td>`);
+      cells.push(i >= 0 ? genCell(gs[i], i, sel, i === ci) : `<td></td>`);
     });
     return `<tr class="feed" tabindex="0" data-key="${esc(key(f))}" aria-selected="${isSel}">
       <td><div class="fcell"><div class="fname">${esc(f.name)}</div>
@@ -457,9 +457,15 @@ function renderGrid() {
       const gsNew = +cell.dataset.new;
       const f = DATA.feeds.find(x => key(x) === tr.dataset.key);
       const gs = groups(f);
-      let old = cell.dataset.old != null ? +cell.dataset.old : -1;
-      if (old < 0) for (let i = gsNew - 1; i >= 0; i--) if (gs[i].rep.scores) { old = i; break; }
-      state.selected = tr.dataset.key; state.newIdx = gsNew; state.oldIdx = old >= 0 ? old : gsNew; state.showSame = false;
+      const ci = currentIndex(gs);
+      let oldIdx, newIdx;
+      if (cell.dataset.old != null) { oldIdx = +cell.dataset.old; newIdx = gsNew; }  // Δ cell: the two neighbours
+      else if (gsNew !== ci) { oldIdx = gsNew; newIdx = ci; }                       // older publication vs current
+      else {                                                                        // current vs the one before
+        newIdx = ci; oldIdx = ci;
+        for (let i = ci - 1; i >= 0; i--) if (gs[i].rep.scores) { oldIdx = i; break; }
+      }
+      state.selected = tr.dataset.key; state.newIdx = newIdx; state.oldIdx = oldIdx; state.showSame = false;
       renderGrid(); renderPanel(); renderHistory();
     });
     tr.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
