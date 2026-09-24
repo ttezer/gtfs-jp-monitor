@@ -2,6 +2,7 @@
   "bulk_threshold": 100000,
   "matching": {
     "accept_confidence": 0.5,
+    "first_last_min_shift": 10,
     "line_max_component": 4,
     "line_min_overlap": 0.6,
     "pattern_min_similarity": 0.4,

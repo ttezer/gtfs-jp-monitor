@@ -114,6 +114,32 @@ Everything stored is language-neutral: codes, numbers, dates, and names as publi
 line and feed names are never translated). Section titles, labels and explanations come from the
 viewer's TR / EN / JA catalogue.
 
+## Builder
+
+`gtfs_jp_semantic.report.build_report` assembles the report; `gtfs_jp_semantic.accounting`
+places every raw difference in one bucket.
+
+- **Line entries.** One entry per line match (Part 2 §4). Its key is the new line key, or the
+  joined keys of a merge target / split result (`A+B`), or the old key when discontinued; a
+  collision gets a `~2` suffix. The lines of a merge or split are one entry, so `related` stays
+  empty until entries are split per line.
+- **Changed.** A line matched by name is `changed` when a trip pair in any compared direction and
+  day type is not exact, or its dominant pattern changed; otherwise `unchanged` and its trips,
+  first/last and timetables are omitted.
+- **Timetable rows.** The distinct place sequences of one side, most frequent first, merged into
+  one row order; a loop visiting a place twice gets two rows.
+- **Accounting.**
+
+  | Raw difference | Bucket |
+  |---|---|
+  | `calendar.txt` | explained (service days) |
+  | fares, calendar exceptions, agency, office, translations, feed info, shapes, transfers, other files | explained, listed under Other changes |
+  | `stops.txt` row of a place that is not unchanged, or whose id changed | explained |
+  | `routes.txt` row of a line that is not unchanged, or a renumbered route of an unchanged line | explained |
+  | `trips.txt` / `stop_times.txt` row of a compared trip that changed, or only changed id | explained |
+  | the same for a trip that ran on no compared day | outside comparison |
+  | `frequencies.txt`; file or column changes of stops, routes, trips, stop times; anything else | unclassified |
+
 ## Report schema
 
 `schemas/semantic-report.schema.json` (`gtfs-jp-semantic-report/1`) is binding; an example is in
