@@ -102,6 +102,28 @@ def _cmd_rawdiff(args: argparse.Namespace) -> int:
     return 0
 
 
+DEFAULT_TEMPLATE = Path(__file__).resolve().parents[2] / "web" / "prototype" / "index.html"
+
+
+def _cmd_export_web(args: argparse.Namespace) -> int:
+    from .webexport import build_export
+
+    key = f"{args.release_tag}__{args.profile}"
+    export = build_export(Path(args.data_dir), key, Path(args.analyzer) if args.analyzer else None)
+    if args.json:
+        from .canonical import write_json
+        write_json(Path(args.json), export)
+    if args.html:
+        payload = json.dumps(export, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+        template = Path(args.template).read_text(encoding="utf-8")
+        if template.count("/*__EXPORT__*/") != 1:
+            raise SystemExit("template must contain exactly one /*__EXPORT__*/ placeholder")
+        Path(args.html).write_text(template.replace("/*__EXPORT__*/", payload), encoding="utf-8")
+    print(json.dumps({"feeds": len(export["feeds"]),
+                      "generations": sum(len(f["generations"]) for f in export["feeds"])}, indent=2))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="gtfs_jp_monitor")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -139,6 +161,16 @@ def main(argv: list[str] | None = None) -> int:
     raw.add_argument("--new", required=True)
     raw.add_argument("-o", "--output", required=True, help="output .json.gz (gtfs-jp-semantic-rawdiff/1)")
     raw.set_defaults(func=_cmd_rawdiff)
+
+    web = sub.add_parser("export-web", help="export data for the web page (prototype)")
+    web.add_argument("--data-dir", required=True)
+    web.add_argument("--release-tag", required=True, help="analysis release, e.g. v0.14.0")
+    web.add_argument("--profile", default="auto", choices=PROFILES)
+    web.add_argument("--analyzer", help="gtfs-analyzer binary, used only to read rule titles (tr/en/ja)")
+    web.add_argument("--json", help="write the export JSON here")
+    web.add_argument("--html", help="write a self-contained page here")
+    web.add_argument("--template", default=str(DEFAULT_TEMPLATE))
+    web.set_defaults(func=_cmd_export_web)
 
     args = parser.parse_args(argv)
     if getattr(args, "min_interval", 1.0) < 0.5:

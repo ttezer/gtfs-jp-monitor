@@ -1,0 +1,575 @@
+<meta charset="utf-8">
+<title>GTFS-JP Monitor</title>
+<meta name="description" content="Feed quality, publication readiness and change history for gtfs-data.jp feeds">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+:root {
+  --ground: #f3f6f5;
+  --surface: #ffffff;
+  --surface-2: #eef3f1;
+  --ink: #16201c;
+  --muted: #5b6a64;
+  --faint: #8a9892;
+  --hair: #dbe3e0;
+  --accent: #0f5c6e;
+  --accent-soft: #dcecef;
+  --good: #1f7a45;
+  --good-soft: #e0f2e7;
+  --warn: #9a6512;
+  --warn-soft: #fbefd9;
+  --bad: #b3372a;
+  --bad-soft: #f9e2de;
+  --spark: #0f5c6e;
+  --font: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #0f1513; --surface: #161f1c; --surface-2: #1c2723; --ink: #e5ede9; --muted: #9aa8a2;
+    --faint: #6f7d77; --hair: #2a3632; --accent: #5bb6c9; --accent-soft: #173a42; --good: #5cc98a;
+    --good-soft: #163324; --warn: #e2ad55; --warn-soft: #3a2c14; --bad: #ef7f71; --bad-soft: #3d1c18; --spark: #5bb6c9;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #0f1513; --surface: #161f1c; --surface-2: #1c2723; --ink: #e5ede9; --muted: #9aa8a2;
+  --faint: #6f7d77; --hair: #2a3632; --accent: #5bb6c9; --accent-soft: #173a42; --good: #5cc98a;
+  --good-soft: #163324; --warn: #e2ad55; --warn-soft: #3a2c14; --bad: #ef7f71; --bad-soft: #3d1c18; --spark: #5bb6c9;
+}
+* { box-sizing: border-box; }
+body { background: var(--ground); color: var(--ink); font-family: var(--font); font-size: 14px; line-height: 1.5; }
+.wrap { max-width: 1440px; margin: 0 auto; padding-inline: 16px; padding-block: 16px 40px; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20px; justify-content: space-between; }
+.brand { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.brand h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.01em; }
+.brand p { margin: 0; color: var(--muted); }
+.langs { display: flex; gap: 2px; background: var(--surface-2); border-radius: 999px; padding: 3px; }
+.langs button { border: 0; background: transparent; padding: 4px 12px; border-radius: 999px; cursor: pointer; color: var(--muted); }
+.langs button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgb(0 0 0 / .08); }
+
+.notice { margin-top: 12px; display: flex; gap: 10px; align-items: flex-start; background: var(--warn-soft); color: var(--ink);
+  border-radius: var(--r); padding: 10px 14px; font-size: 13px; }
+.notice b { color: var(--warn); }
+
+nav.tabs { margin-top: 18px; display: flex; gap: 4px; border-bottom: 1px solid var(--hair); overflow-x: auto; }
+nav.tabs button { border: 0; background: none; padding: 10px 14px; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; white-space: nowrap; }
+nav.tabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; }
+
+.filters { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: end; }
+.field { display: grid; gap: 3px; }
+.field label { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+.field input, .field select { background: var(--surface); border: 1px solid var(--hair); border-radius: 6px; padding: 7px 10px; min-width: 0; }
+.field.grow { flex: 1 1 220px; }
+.toggle { display: flex; gap: 8px; align-items: center; padding-bottom: 7px; cursor: pointer; color: var(--muted); }
+.count { margin-left: auto; padding-bottom: 7px; color: var(--muted); }
+
+.layout { margin-top: 14px; display: grid; grid-template-columns: minmax(0, 1fr) 440px; gap: 16px; align-items: start; }
+@media (max-width: 1100px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+.scroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--hair); border-radius: var(--r); }
+
+table.grid { border-collapse: collapse; width: 100%; min-width: 860px; }
+table.grid th { text-align: left; font-weight: 500; font-size: 12px; color: var(--muted); padding: 10px 10px; border-bottom: 1px solid var(--hair); white-space: nowrap; }
+table.grid th.gen { text-align: center; }
+table.grid td { padding: 10px; border-bottom: 1px solid var(--hair); vertical-align: middle; }
+table.grid tr.feed { cursor: pointer; }
+table.grid tr.feed:hover td { background: var(--surface-2); }
+table.grid tr.feed[aria-selected="true"] td { background: var(--accent-soft); }
+table.grid tr.feed[aria-selected="true"] td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.fname { font-weight: 700; font-size: 15px; }
+.fsub { color: var(--muted); font-size: 12px; }
+.fcell { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+
+.gcell { display: grid; gap: 3px; justify-items: center; min-width: 108px; }
+.gdate { font-size: 11px; color: var(--faint); }
+.pair { display: grid; grid-template-columns: auto auto; gap: 2px 8px; align-items: center; font-size: 12px; color: var(--muted); }
+.badge { font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 600; font-size: 13px; padding: 1px 7px; border-radius: 5px; text-align: center; min-width: 44px; }
+.b-good { background: var(--good-soft); color: var(--good); }
+.b-warn { background: var(--warn-soft); color: var(--warn); }
+.b-bad { background: var(--bad-soft); color: var(--bad); }
+.b-none { background: var(--surface-2); color: var(--faint); }
+.fatal { font-size: 11px; color: var(--bad); font-weight: 700; }
+.merged { font-size: 10px; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 0 6px; }
+
+.dcell { font-size: 12px; line-height: 1.35; min-width: 104px; }
+.dcell .arrow { font-family: var(--mono); font-weight: 600; }
+.up { color: var(--good); } .down { color: var(--bad); } .flat { color: var(--faint); }
+.chip { display: inline-block; font-size: 11px; border-radius: 999px; padding: 0 7px; background: var(--surface-2); color: var(--muted); }
+.chip.next { background: var(--accent-soft); color: var(--accent); }
+
+aside.panel { background: var(--surface); border: 1px solid var(--hair); border-radius: var(--r); padding: 16px; display: grid; gap: 16px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); }
+@media (max-width: 1100px) { aside.panel { position: static; } }
+.ph { display: grid; gap: 4px; }
+.ph h2 { margin: 0; font-size: 20px; }
+.ph .meta { color: var(--muted); font-size: 12px; display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.state { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; font-weight: 700; border-radius: 999px; padding: 2px 10px; width: fit-content; }
+.state.ok { background: var(--good-soft); color: var(--good); }
+.state.no { background: var(--bad-soft); color: var(--bad); }
+.pick { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: end; }
+.pick .field select { width: 100%; }
+.pick .to { padding-bottom: 8px; color: var(--faint); }
+.hint { font-size: 12px; color: var(--muted); }
+h3 { margin: 0 0 8px; font-size: 14px; display: flex; gap: 8px; align-items: baseline; }
+h3 small { font-weight: 400; color: var(--faint); font-size: 12px; }
+
+.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 480px) { .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.card { border: 1px solid var(--hair); border-radius: 6px; padding: 8px 10px; display: grid; gap: 2px; }
+.card .k { font-size: 12px; color: var(--muted); }
+.card .v { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 0 6px; }
+.card .v span:first-child { font-family: var(--mono); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.card .d { font-family: var(--mono); font-size: 12px; font-weight: 600; }
+svg.spark { width: 100%; height: 26px; display: block; }
+
+table.mini { border-collapse: collapse; width: 100%; font-size: 12px; }
+table.mini th { text-align: left; font-weight: 500; color: var(--faint); padding: 5px 6px; border-bottom: 1px solid var(--hair); }
+table.mini td { padding: 5px 6px; border-bottom: 1px solid var(--hair); vertical-align: top; }
+table.mini td.r, table.mini th.r { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.sev { font-size: 10px; font-weight: 700; letter-spacing: .04em; border-radius: 4px; padding: 0 5px; }
+.sev-CRITICAL, .sev-HIGH { background: var(--bad-soft); color: var(--bad); }
+.sev-MEDIUM { background: var(--warn-soft); color: var(--warn); }
+.sev-LOW, .sev-INFO { background: var(--surface-2); color: var(--muted); }
+.bucket td { background: var(--surface-2); font-weight: 700; color: var(--muted); font-size: 11px; letter-spacing: .04em; }
+.empty { border: 1px dashed var(--hair); border-radius: 6px; padding: 12px; color: var(--muted); font-size: 13px; }
+.linkbtn { border: 0; background: none; color: var(--accent); cursor: pointer; padding: 0; font-size: 12px; }
+.section { background: var(--surface); border: 1px solid var(--hair); border-radius: var(--r); padding: 16px; margin-top: 14px; }
+.section p { max-width: 70ch; margin: 0 0 8px; }
+footer { margin-top: 24px; color: var(--faint); font-size: 12px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>GTFS-JP Monitor</h1>
+      <p id="tagline"></p>
+    </div>
+    <div class="langs" role="group" aria-label="Language">
+      <button type="button" data-lang="tr">TR</button>
+      <button type="button" data-lang="en">EN</button>
+      <button type="button" data-lang="ja">JA</button>
+    </div>
+  </header>
+  <div class="notice" id="notice"></div>
+
+  <nav class="tabs" role="tablist">
+    <button type="button" role="tab" data-tab="overview"></button>
+    <button type="button" role="tab" data-tab="history"></button>
+    <button type="button" role="tab" data-tab="reports"></button>
+    <button type="button" role="tab" data-tab="gtfsjp"></button>
+  </nav>
+
+  <section id="tab-overview">
+    <div class="filters">
+      <div class="field grow"><label for="q" data-t="search"></label><input id="q" type="search" autocomplete="off"></div>
+      <div class="field"><label for="pref" data-t="prefecture"></label><select id="pref"></select></div>
+      <div class="field"><label for="pub" data-t="readiness"></label><select id="pub"></select></div>
+      <div class="field"><label for="sort" data-t="sort"></label><select id="sort"></select></div>
+      <label class="toggle"><input id="merge" type="checkbox" checked> <span data-t="merge"></span></label>
+      <div class="count" id="count"></div>
+    </div>
+    <div class="layout">
+      <div class="scroll"><table class="grid" id="grid"></table></div>
+      <aside class="panel" id="panel" aria-live="polite"></aside>
+    </div>
+  </section>
+
+  <section id="tab-history" hidden>
+    <div class="section" id="history"></div>
+  </section>
+  <section id="tab-reports" hidden><div class="section" id="reports"></div></section>
+  <section id="tab-gtfsjp" hidden><div class="section" id="gtfsjp"></div></section>
+
+  <footer id="footer"></footer>
+</div>
+
+<script id="export-data" type="application/json">/*__EXPORT__*/</script>
+<script>
+(() => {
+"use strict";
+const DATA = JSON.parse(document.getElementById("export-data").textContent);
+
+const PREFS = [["北海道","Hokkaido"],["青森県","Aomori"],["岩手県","Iwate"],["宮城県","Miyagi"],["秋田県","Akita"],["山形県","Yamagata"],["福島県","Fukushima"],["茨城県","Ibaraki"],["栃木県","Tochigi"],["群馬県","Gunma"],["埼玉県","Saitama"],["千葉県","Chiba"],["東京都","Tokyo"],["神奈川県","Kanagawa"],["新潟県","Niigata"],["富山県","Toyama"],["石川県","Ishikawa"],["福井県","Fukui"],["山梨県","Yamanashi"],["長野県","Nagano"],["岐阜県","Gifu"],["静岡県","Shizuoka"],["愛知県","Aichi"],["三重県","Mie"],["滋賀県","Shiga"],["京都府","Kyoto"],["大阪府","Osaka"],["兵庫県","Hyogo"],["奈良県","Nara"],["和歌山県","Wakayama"],["鳥取県","Tottori"],["島根県","Shimane"],["岡山県","Okayama"],["広島県","Hiroshima"],["山口県","Yamaguchi"],["徳島県","Tokushima"],["香川県","Kagawa"],["愛媛県","Ehime"],["高知県","Kochi"],["福岡県","Fukuoka"],["佐賀県","Saga"],["長崎県","Nagasaki"],["熊本県","Kumamoto"],["大分県","Oita"],["宮崎県","Miyazaki"],["鹿児島県","Kagoshima"],["沖縄県","Okinawa"]];
+
+const T = {
+  tr: {
+    tagline: "Feed kalitesi, yayına hazırlık ve değişiklik geçmişi",
+    notice: "<b>Pilot verisi.</b> 3 feed, 89 yayın; yerel geliştirme derlemesiyle (macOS) üretildi. Üretim sonucu değildir, skorlar yalnız sayfa düzenini sınamak içindir.",
+    overview: "Genel Bakış", history: "Feed Geçmişi", reports: "Diff Raporları", gtfsjp: "GTFS-JP",
+    search: "Feed ara", prefecture: "İl", readiness: "Yayın durumu", sort: "Sırala", all: "Tümü",
+    ready: "Yayınlanmaya hazır", notReady: "Hazır değil", merge: "Eşdeğer yayınları birleştir",
+    sortRecent: "Son yayın (yeniden eskiye)", sortName: "Ad", sortLow: "Overall (düşükten)", sortHigh: "Overall (yüksekten)",
+    feeds: n => `Toplam ${n} feed`, feed: "Feed",
+    prev: n => `${n} önceki`, current: "Güncel", delta: "Δ",
+    noChange: "±0 değişiklik yok", routes: "hat", stops: "durak", trips: "sefer",
+    fixed: n => `${n} kural düzeldi`, newRules: n => `${n} yeni kural`,
+    nextChip: n => `+${n} ileri tarihli`, mergedChip: n => `×${n} yayın`,
+    fatal: "ANALİZ YOK", lastPub: "Son yayın",
+    pickOld: "Eski", pickNew: "Yeni", backwards: "Eski taraf yeniden sonra seçildi; fark geriye doğru gösteriliyor.",
+    sameSide: "İki taraf aynı yayın; farklı iki yayın seçin.",
+    s1: "Skor değişimi", s2: "Yapı değişimi", s3: "Kural farkı", s4: "Semantic değişiklikler",
+    semanticTodo: "Semantic motorun ilk sürümü hazır olduğunda burada durak, hat, sefer ve ilk/son sefer değişiklikleri listelenecek.",
+    publish: "Publish", overall: "Overall", spec: "Spec", interop: "Interop", quality: "Quality", analytics: "Analytics",
+    mRoutes: "Hat", mStops: "Durak", mTrips: "Sefer", mShapes: "Güzergâh şekli", mDays: "Aktif hizmet günü", mAvg: "Günlük ort. sefer",
+    before: "Önce", after: "Sonra", rule: "Kural", title: "Açıklama",
+    bNew: "YENİ", bIncreased: "ARTTI", bDecreased: "AZALDI", bFixed: "DÜZELDİ",
+    showSame: n => `Değişmeyen ${n} kuralı göster`, hideSame: "Değişmeyenleri gizle", noRuleChange: "Kural sayılarında değişiklik yok.",
+    histIntro: "Seçili feed'in tüm yayınları, eskiden yeniye. Birleştirme açıkken içeriği aynı ardışık yayınlar tek satırda gösterilir.",
+    period: "Geçerlilik", published: "Yayın", memo: "Not", status: "Durum", rid: "API konumu",
+    reportsText: "<p>Bu sekme her ardışık yayın çifti için semantic değişiklik raporunu gösterecek: hangi hat eklendi ya da kalktı, hangi durak taşındı ya da adı değişti, gün tipine göre sefer sayısı ve ilk/son sefer saatleri nasıl değişti, ve tüm ham farkların ne kadarının açıklanabildiği.</p><p>Semantic motorun yalnız ilk katmanı (ham fark) hazır; rapor içeriği ve depolama biçimi henüz kararlaştırılıyor.</p>",
+    gtfsjpText: p => `<p>Analizler GTFS Analyzer ile <b>${p}</b> profiliyle yapıldı. Profil seçilebilir (auto, v3, v4); farklı profille yapılan analizler ayrı tutulur ve birbiriyle karşılaştırılmaz.</p><p>Doğrulama tarihi her yayının geçerlilik başlangıcıdır (from_date); böylece her yayın hizmete girdiği gündeki hâliyle değerlendirilir.</p>`,
+    footer: "Veri kaynağı: gtfs-data.jp ve ilgili işletmeciler. Feed ve durak adları kaynaktaki hâliyle gösterilir. Skor rengi eşikleri geçicidir (≥95 / ≥85).",
+    license: "Lisans", org: "Kurum"
+  },
+  en: {
+    tagline: "Feed quality, publication readiness and change history",
+    notice: "<b>Pilot data.</b> 3 feeds, 89 publications, produced with a local development build (macOS). Not production results; scores are only here to test the layout.",
+    overview: "Overview", history: "Feed history", reports: "Diff reports", gtfsjp: "GTFS-JP",
+    search: "Search feeds", prefecture: "Prefecture", readiness: "Readiness", sort: "Sort", all: "All",
+    ready: "Ready to publish", notReady: "Not ready", merge: "Merge equivalent publications",
+    sortRecent: "Latest publication", sortName: "Name", sortLow: "Overall (lowest)", sortHigh: "Overall (highest)",
+    feeds: n => `${n} feeds`, feed: "Feed",
+    prev: n => `${n} back`, current: "Current", delta: "Δ",
+    noChange: "±0 no change", routes: "routes", stops: "stops", trips: "trips",
+    fixed: n => `${n} rules fixed`, newRules: n => `${n} new rules`,
+    nextChip: n => `+${n} upcoming`, mergedChip: n => `×${n} publications`,
+    fatal: "NOT ANALYSED", lastPub: "Latest publication",
+    pickOld: "Old", pickNew: "New", backwards: "The old side is newer; the difference is shown backwards.",
+    sameSide: "Both sides are the same publication; pick two different ones.",
+    s1: "Score change", s2: "Structure change", s3: "Rule delta", s4: "Semantic changes",
+    semanticTodo: "Once the first version of the semantic engine is ready, stop, route, trip and first/last departure changes will be listed here.",
+    publish: "Publish", overall: "Overall", spec: "Spec", interop: "Interop", quality: "Quality", analytics: "Analytics",
+    mRoutes: "Routes", mStops: "Stops", mTrips: "Trips", mShapes: "Shapes", mDays: "Active service days", mAvg: "Avg. daily trips",
+    before: "Before", after: "After", rule: "Rule", title: "Description",
+    bNew: "NEW", bIncreased: "INCREASED", bDecreased: "DECREASED", bFixed: "FIXED",
+    showSame: n => `Show ${n} unchanged rules`, hideSame: "Hide unchanged", noRuleChange: "No change in rule counts.",
+    histIntro: "All publications of the selected feed, oldest first. With merging on, consecutive publications with identical content share one row.",
+    period: "Validity", published: "Published", memo: "Note", status: "Status", rid: "API position",
+    reportsText: "<p>This tab will show the semantic change report of each consecutive pair: routes added or discontinued, stops moved or renamed, trips per day type, first and last departures, and how much of the raw difference is explained.</p><p>Only the first layer of the semantic engine (raw diff) is ready; report content and storage are still being decided.</p>",
+    gtfsjpText: p => `<p>Analyses were made with GTFS Analyzer using the <b>${p}</b> profile. The profile is selectable (auto, v3, v4); analyses with different profiles are kept apart and never compared.</p><p>Each publication is validated as of its first valid day (from_date), so it is judged as it was when it entered service.</p>`,
+    footer: "Data: gtfs-data.jp and the transit operators. Feed and stop names are shown as published. Score colour thresholds are provisional (≥95 / ≥85).",
+    license: "License", org: "Organisation"
+  },
+  ja: {
+    tagline: "フィードの品質・公開準備・変更履歴",
+    notice: "<b>パイロットデータ。</b>3フィード・89公開分を、ローカルの開発ビルド（macOS）で生成しました。本番の結果ではなく、スコアはレイアウト確認用です。",
+    overview: "概要", history: "フィード履歴", reports: "差分レポート", gtfsjp: "GTFS-JP",
+    search: "フィード検索", prefecture: "都道府県", readiness: "公開状態", sort: "並び替え", all: "すべて",
+    ready: "公開準備完了", notReady: "未準備", merge: "同一内容の公開をまとめる",
+    sortRecent: "最新の公開順", sortName: "名前", sortLow: "Overall（低い順）", sortHigh: "Overall（高い順）",
+    feeds: n => `全${n}フィード`, feed: "フィード",
+    prev: n => `${n}つ前`, current: "現行", delta: "Δ",
+    noChange: "±0 変更なし", routes: "路線", stops: "停留所", trips: "便",
+    fixed: n => `${n}件のルール解消`, newRules: n => `${n}件の新規ルール`,
+    nextChip: n => `+${n} 将来分`, mergedChip: n => `×${n}回公開`,
+    fatal: "解析なし", lastPub: "最新の公開",
+    pickOld: "旧", pickNew: "新", backwards: "旧側の方が新しいため、差分を逆方向に表示しています。",
+    sameSide: "両側が同じ公開です。異なる2つを選んでください。",
+    s1: "スコアの変化", s2: "構成の変化", s3: "ルール差分", s4: "意味的な変更",
+    semanticTodo: "セマンティックエンジンの初版が完成すると、停留所・路線・便・始発/終発の変更がここに表示されます。",
+    publish: "Publish", overall: "Overall", spec: "Spec", interop: "Interop", quality: "Quality", analytics: "Analytics",
+    mRoutes: "路線", mStops: "停留所", mTrips: "便", mShapes: "形状", mDays: "運行日数", mAvg: "1日平均便数",
+    before: "前", after: "後", rule: "ルール", title: "説明",
+    bNew: "新規", bIncreased: "増加", bDecreased: "減少", bFixed: "解消",
+    showSame: n => `変化のない${n}件を表示`, hideSame: "変化のないものを隠す", noRuleChange: "ルール件数に変化はありません。",
+    histIntro: "選択したフィードの全公開（古い順）。まとめる設定では、内容が同一の連続した公開を1行で表示します。",
+    period: "有効期間", published: "公開", memo: "メモ", status: "状態", rid: "APIの位置",
+    reportsText: "<p>このタブでは、連続する各公開ペアの意味的な変更レポートを表示します：路線の新設・廃止、停留所の移設・改称、曜日区分ごとの便数、始発・終発、そして生の差分のうち説明できた割合。</p><p>現在はセマンティックエンジンの第1層（生の差分）のみ完成しており、レポート内容と保存方法は検討中です。</p>",
+    gtfsjpText: p => `<p>解析はGTFS Analyzerの<b>${p}</b>プロファイルで行いました。プロファイルは選択可能（auto・v3・v4）で、異なるプロファイルの結果は別に保持し、比較しません。</p><p>各公開は有効期間の開始日（from_date）時点で検証されます。</p>`,
+    footer: "データ：gtfs-data.jpおよび各事業者。フィード名・停留所名は公開時のまま表示します。スコアの色の閾値は暫定です（≥95 / ≥85）。",
+    license: "ライセンス", org: "事業者"
+  }
+};
+
+const SCORES = ["publish", "overall", "spec", "interop", "quality", "analytics"];
+const METRICS = [["routes", "mRoutes"], ["stops", "mStops"], ["trips", "mTrips"], ["shapes", "mShapes"], ["active_service_days", "mDays"], ["avg_daily_trips", "mAvg"]];
+
+const state = { lang: "tr", tab: "overview", selected: null, merge: true, oldIdx: null, newIdx: null, showSame: false };
+try {
+  const saved = localStorage.getItem("gjm-lang");
+  if (saved && T[saved]) state.lang = saved;
+} catch (e) { /* storage unavailable */ }
+
+const t = (key, ...args) => { const v = T[state.lang][key]; return typeof v === "function" ? v(...args) : v; };
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const $ = id => document.getElementById(id);
+const key = f => `${f.org_id}/${f.feed_id}`;
+const prefName = id => (id >= 1 && id <= 47) ? (state.lang === "ja" ? PREFS[id - 1][0] : PREFS[id - 1][1]) : "—";
+
+// One-decimal arithmetic matching the pipeline (exact difference, halves away from zero).
+const round1 = x => { const s = Math.sign(x), a = Math.abs(x); return s * Math.round(a * 10 + 1e-9) / 10; };
+const delta1 = (b, a) => round1((Math.round(a * 10) - Math.round(b * 10)) / 10);
+const fmt1 = x => x.toFixed(1);
+const signed = (x, digits) => (x > 0 ? "+" : x < 0 ? "−" : "±") + (digits ? Math.abs(x).toFixed(digits) : Math.abs(x).toLocaleString());
+
+function scoreClass(v) { return v == null ? "b-none" : v >= 95 ? "b-good" : v >= 85 ? "b-warn" : "b-bad"; }
+function contentKey(g) { return JSON.stringify([g.scores, g.metrics, g.rules]); }
+
+// Groups of generations: each COMPLETE/PARTIAL generation, or a run of identical ones when merging.
+function groups(feed) {
+  const out = [];
+  for (const g of feed.generations) {
+    const last = out[out.length - 1];
+    if (state.merge && last && g.scores && last.rep.scores && contentKey(g) === contentKey(last.rep)) {
+      last.members.push(g); last.rep = g; continue;
+    }
+    out.push({ rep: g, members: [g] });
+  }
+  return out;
+}
+function currentIndex(gs) {
+  let idx = -1;
+  gs.forEach((gr, i) => { if (gr.members.some(m => m.rid === "current")) idx = i; });
+  if (idx >= 0) return idx;
+  for (let i = gs.length - 1; i >= 0; i--) if (!gs[i].members.every(m => m.rid && m.rid.startsWith("next_"))) return i;
+  return gs.length - 1;
+}
+const upcoming = gs => gs.filter(gr => gr.members.every(m => m.rid && m.rid.startsWith("next_"))).length;
+
+function diff(a, b) {
+  const rules = { new: [], increased: [], decreased: [], fixed: [], same: [] };
+  const ids = new Set([...Object.keys(a.rules || {}), ...Object.keys(b.rules || {})]);
+  [...ids].sort().forEach(id => {
+    const x = (a.rules[id] || [0])[0], y = (b.rules[id] || [0])[0];
+    const sev = (b.rules[id] || a.rules[id])[1];
+    const bucket = x > 0 && y === 0 ? "fixed" : x === 0 && y > 0 ? "new" : y > x ? "increased" : y < x ? "decreased" : "same";
+    rules[bucket].push({ id, before: x, after: y, sev });
+  });
+  const scores = a.scores && b.scores ? Object.fromEntries(SCORES.map(s => [s, delta1(a.scores[s], b.scores[s])])) : null;
+  const metrics = a.metrics && b.metrics ? Object.fromEntries(METRICS.map(([m]) => [m, m === "avg_daily_trips" ? delta1(a.metrics[m], b.metrics[m]) : b.metrics[m] - a.metrics[m]])) : null;
+  return { scores, metrics, rules };
+}
+
+function spark(values, marks = []) {
+  const pts = values.map((v, i) => [i, v]).filter(p => p[1] != null);
+  if (pts.length < 2) return `<svg class="spark" viewBox="0 0 100 26" aria-hidden="true"></svg>`;
+  const ys = pts.map(p => p[1]);
+  let lo = Math.min(...ys), hi = Math.max(...ys);
+  if (hi - lo < 2) { lo -= 1; hi += 1; }
+  const n = values.length - 1 || 1;
+  const X = i => 2 + (i / n) * 96, Y = v => 23 - ((v - lo) / (hi - lo)) * 20;
+  const line = pts.map(([i, v]) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(" ");
+  const area = `2,24 ${line} ${X(pts[pts.length - 1][0]).toFixed(1)},24`;
+  const dots = marks.filter(i => values[i] != null).map(i => `<circle cx="${X(i).toFixed(1)}" cy="${Y(values[i]).toFixed(1)}" r="2.2" fill="var(--spark)"/>`).join("");
+  return `<svg class="spark" viewBox="0 0 100 26" preserveAspectRatio="none" aria-hidden="true">
+    <polygon points="${area}" fill="var(--accent-soft)" stroke="none"/>
+    <polyline points="${line}" fill="none" stroke="var(--spark)" stroke-width="1.4" vector-effect="non-scaling-stroke"/>${dots}</svg>`;
+}
+
+function genCell(gr) {
+  const g = gr.rep;
+  const date = `<div class="gdate num">${esc(g.from_date)}</div>`;
+  const merged = gr.members.length > 1 ? `<span class="merged">${esc(t("mergedChip", gr.members.length))}</span>` : "";
+  if (!g.scores) return `<td><div class="gcell"><span class="fatal">${esc(t("fatal"))}</span>${date}</div></td>`;
+  return `<td><div class="gcell"><div class="pair">
+      <span>Publish</span><span class="badge ${scoreClass(g.scores.publish)}">${fmt1(g.scores.publish)}</span>
+      <span>Overall</span><span class="badge ${scoreClass(g.scores.overall)}">${fmt1(g.scores.overall)}</span>
+    </div>${date}${merged}</div></td>`;
+}
+
+function deltaCell(a, b) {
+  if (!a || !b) return `<td></td>`;
+  if (!a.rep.scores || !b.rep.scores) return `<td class="dcell flat">—</td>`;
+  const d = diff(a.rep, b.rep);
+  const lines = [];
+  const parts = [["routes", "routes"], ["stops", "stops"], ["trips", "trips"]]
+    .filter(([m]) => d.metrics[m] !== 0).map(([m, label]) => `${signed(d.metrics[m])} ${t(label)}`);
+  if (parts.length) lines.push(parts.join(" · "));
+  if (d.rules.fixed.length) lines.push(t("fixed", d.rules.fixed.length));
+  if (d.rules.new.length) lines.push(t("newRules", d.rules.new.length));
+  const o = d.scores.overall;
+  const cls = o > 0 ? "up" : o < 0 ? "down" : "flat";
+  const arrow = o > 0 ? "▲" : o < 0 ? "▼" : "";
+  if (!lines.length && o === 0) return `<td class="dcell flat">${esc(t("noChange"))}</td>`;
+  return `<td class="dcell"><span class="arrow ${cls}">${arrow} ${o !== 0 ? signed(o, 1) : ""}</span><br>${lines.map(esc).join("<br>")}</td>`;
+}
+
+function visibleFeeds() {
+  const q = $("q").value.trim().toLowerCase();
+  const pref = $("pref").value, pub = $("pub").value, sort = $("sort").value;
+  let list = DATA.feeds.map(f => { const gs = groups(f); const ci = currentIndex(gs); return { f, gs, ci, cur: gs[ci].rep }; });
+  list = list.filter(({ f }) => !q || [f.name, f.feed_id, f.org_id, f.organization_name].some(s => (s || "").toLowerCase().includes(q)));
+  if (pref) list = list.filter(({ f }) => String(f.pref_id) === pref);
+  if (pub) list = list.filter(({ cur }) => String(!!cur.publishable) === pub);
+  const lastPub = x => x.f.generations[x.f.generations.length - 1].published_at || "";
+  const ov = x => x.cur.scores ? x.cur.scores.overall : -1;
+  const sorters = { recent: (a, b) => lastPub(b).localeCompare(lastPub(a)), name: (a, b) => a.f.name.localeCompare(b.f.name, "ja"),
+    low: (a, b) => ov(a) - ov(b), high: (a, b) => ov(b) - ov(a) };
+  return list.sort(sorters[sort] || sorters.recent);
+}
+
+function renderGrid() {
+  const list = visibleFeeds();
+  $("count").textContent = t("feeds", list.length);
+  if (!state.selected || !list.some(x => key(x.f) === state.selected)) state.selected = list[0] ? key(list[0].f) : null;
+  const head = `<thead><tr><th>${esc(t("feed"))}</th>
+    <th class="gen">${esc(t("prev", 3))}</th><th>${t("delta")}</th><th class="gen">${esc(t("prev", 2))}</th><th>${t("delta")}</th>
+    <th class="gen">${esc(t("prev", 1))}</th><th>${t("delta")}</th><th class="gen">${esc(t("current"))}</th></tr></thead>`;
+  const rows = list.map(({ f, gs, ci }) => {
+    const cols = [ci - 3, ci - 2, ci - 1, ci].map(i => (i >= 0 ? gs[i] : null));
+    const series = gs.map(gr => gr.rep.scores ? gr.rep.scores.overall : null);
+    const up = upcoming(gs);
+    const cells = [];
+    cols.forEach((gr, i) => {
+      if (i > 0) cells.push(deltaCell(cols[i - 1], gr));
+      cells.push(gr ? genCell(gr) : `<td></td>`);
+    });
+    return `<tr class="feed" tabindex="0" data-key="${esc(key(f))}" aria-selected="${key(f) === state.selected}">
+      <td><div class="fcell"><div><div class="fname">${esc(f.name)}</div>
+        <div class="fsub">${esc(f.organization_name)} · ${esc(prefName(f.pref_id))}</div>
+        ${up ? `<span class="chip next">${esc(t("nextChip", up))}</span>` : ""}</div>
+        <div style="width:90px">${spark(series.slice(-24))}</div></div></td>${cells.join("")}</tr>`;
+  }).join("");
+  $("grid").innerHTML = head + `<tbody>${rows}</tbody>`;
+  $("grid").querySelectorAll("tr.feed").forEach(tr => {
+    const pick = () => { state.selected = tr.dataset.key; state.oldIdx = state.newIdx = null; state.showSame = false; renderGrid(); renderPanel(); renderHistory(); };
+    tr.addEventListener("click", pick);
+    tr.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
+  });
+}
+
+function genLabel(gr) {
+  const g = gr.rep;
+  const range = `${g.from_date} – ${g.to_date || "…"}`;
+  const pub = (g.published_at || "").slice(0, 10);
+  const memo = (g.memo || "").replace(/\s+/g, " ").slice(0, 28);
+  const n = gr.members.length > 1 ? ` ${t("mergedChip", gr.members.length)}` : "";
+  return `${range} · ${pub}${memo ? " · " + memo : ""}${n}`;
+}
+
+function renderPanel() {
+  const panel = $("panel");
+  const f = DATA.feeds.find(x => key(x) === state.selected);
+  if (!f) { panel.innerHTML = ""; return; }
+  const gs = groups(f);
+  const ci = currentIndex(gs);
+  const usable = gs.map((gr, i) => [gr, i]).filter(([gr]) => gr.rep.scores);
+  if (state.newIdx == null || state.newIdx >= gs.length) state.newIdx = gs[ci].rep.scores ? ci : (usable.length ? usable[usable.length - 1][1] : ci);
+  if (state.oldIdx == null || state.oldIdx >= gs.length) {
+    const before = usable.filter(([, i]) => i < state.newIdx);
+    state.oldIdx = before.length ? before[before.length - 1][1] : state.newIdx;
+  }
+  const cur = gs[ci].rep;
+  const options = sel => gs.map((gr, i) => `<option value="${i}" ${i === sel ? "selected" : ""} ${gr.rep.scores ? "" : "disabled"}>${esc(genLabel(gr))}</option>`).join("");
+  let lo = state.oldIdx, hi = state.newIdx;
+  const backwards = lo > hi;
+  const a = gs[lo].rep, b = gs[hi].rep;
+  let body;
+  if (lo === hi) body = `<p class="hint">${esc(t("sameSide"))}</p>`;
+  else {
+    const d = diff(a, b);
+    const seriesOf = s => gs.map(gr => gr.rep.scores ? gr.rep.scores[s] : null);
+    const cards = SCORES.map(s => {
+      const dv = d.scores[s];
+      const cls = dv > 0 ? "up" : dv < 0 ? "down" : "flat";
+      return `<div class="card"><div class="k">${esc(t(s))}</div>
+        <div class="v"><span>${fmt1(a.scores[s])} → ${fmt1(b.scores[s])}</span><span class="d ${cls}">${dv > 0 ? "▲" : dv < 0 ? "▼" : ""}${signed(dv, 1)}</span></div>
+        ${spark(seriesOf(s), [lo, hi])}</div>`;
+    }).join("");
+    const metricRows = METRICS.map(([m, label]) => {
+      const dv = d.metrics[m];
+      const digits = m === "avg_daily_trips" ? 1 : 0;
+      const show = v => digits ? fmt1(v) : v.toLocaleString();
+      return `<tr><td>${esc(t(label))}</td><td class="r">${show(a.metrics[m])}</td><td class="r">${show(b.metrics[m])}</td>
+        <td class="r ${dv > 0 ? "up" : dv < 0 ? "down" : "flat"}">${signed(dv, digits)}</td></tr>`;
+    }).join("");
+    const titles = DATA.rule_titles[state.lang] || {};
+    const bucketRows = [["new", "bNew"], ["increased", "bIncreased"], ["decreased", "bDecreased"], ["fixed", "bFixed"]]
+      .filter(([k]) => d.rules[k].length).map(([k, label]) => `<tr class="bucket"><td colspan="5">${esc(t(label))} · ${d.rules[k].length}</td></tr>` +
+        d.rules[k].map(r => ruleRow(r, titles)).join("")).join("");
+    const same = d.rules.same;
+    const sameRows = state.showSame && same.length ? same.map(r => ruleRow(r, titles)).join("") : "";
+    const ruleTable = bucketRows || sameRows ? `<div class="scroll" style="border:0"><table class="mini"><thead><tr><th>${esc(t("rule"))}</th><th>${esc(t("title"))}</th>
+        <th class="r">${esc(t("before"))}</th><th class="r">${esc(t("after"))}</th><th class="r">Δ</th></tr></thead><tbody>${bucketRows}${sameRows}</tbody></table></div>`
+      : `<p class="hint">${esc(t("noRuleChange"))}</p>`;
+    const sameBtn = same.length ? `<button type="button" class="linkbtn" id="toggle-same">${esc(state.showSame ? t("hideSame") : t("showSame", same.length))}</button>` : "";
+    body = `${backwards ? `<p class="hint">${esc(t("backwards"))}</p>` : ""}
+      <div><h3>1. ${esc(t("s1"))}</h3><div class="cards">${cards}</div></div>
+      <div><h3>2. ${esc(t("s2"))}</h3><table class="mini"><thead><tr><th></th><th class="r">${esc(t("before"))}</th><th class="r">${esc(t("after"))}</th><th class="r">Δ</th></tr></thead><tbody>${metricRows}</tbody></table></div>
+      <div><h3>3. ${esc(t("s3"))}</h3>${ruleTable}${sameBtn}</div>
+      <div><h3>4. ${esc(t("s4"))}</h3><div class="empty">${esc(t("semanticTodo"))}</div></div>`;
+  }
+  panel.innerHTML = `<div class="ph"><h2>${esc(f.name)}</h2>
+      <div class="meta"><span>${esc(f.organization_name)}</span><span>${esc(prefName(f.pref_id))}</span><span>${esc(t("license"))}: ${esc(f.license)}</span></div>
+      <div class="meta"><span>${esc(t("lastPub"))}: <span class="num">${esc((f.generations[f.generations.length - 1].published_at || "").slice(0, 16).replace("T", " "))}</span> JST</span></div>
+      ${cur.scores ? `<span class="state ${cur.publishable ? "ok" : "no"}">${cur.publishable ? "●" : "○"} ${esc(cur.publishable ? t("ready") : t("notReady"))}</span>` : ""}
+    </div>
+    <div class="pick">
+      <div class="field"><label for="old-pick">${esc(t("pickOld"))}</label><select id="old-pick">${options(state.oldIdx)}</select></div>
+      <span class="to">→</span>
+      <div class="field"><label for="new-pick">${esc(t("pickNew"))}</label><select id="new-pick">${options(state.newIdx)}</select></div>
+    </div>${body}`;
+  $("old-pick").addEventListener("change", e => { state.oldIdx = +e.target.value; renderPanel(); });
+  $("new-pick").addEventListener("change", e => { state.newIdx = +e.target.value; renderPanel(); });
+  const btn = $("toggle-same");
+  if (btn) btn.addEventListener("click", () => { state.showSame = !state.showSame; renderPanel(); });
+}
+
+function ruleRow(r, titles) {
+  const dv = r.after - r.before;
+  return `<tr><td class="num">${esc(r.id)}<br><span class="sev sev-${esc(r.sev)}">${esc(r.sev)}</span></td><td>${esc(titles[r.id] || "")}</td>
+    <td class="r">${r.before}</td><td class="r">${r.after}</td><td class="r ${dv < 0 ? "up" : dv > 0 ? "down" : "flat"}">${signed(dv)}</td></tr>`;
+}
+
+function renderHistory() {
+  const f = DATA.feeds.find(x => key(x) === state.selected);
+  if (!f) { $("history").innerHTML = ""; return; }
+  const gs = groups(f);
+  const rows = gs.slice().reverse().map(gr => {
+    const g = gr.rep, first = gr.members[0];
+    const rids = [...new Set(gr.members.map(m => m.rid).filter(Boolean))].join(", ");
+    const pubs = gr.members.length > 1 ? `${(first.published_at || "").slice(0, 10)} … ${(g.published_at || "").slice(0, 10)}` : (g.published_at || "").slice(0, 10);
+    return `<tr><td class="num">${esc(g.from_date)} – ${esc(g.to_date || "…")}</td><td class="num">${esc(pubs)}${gr.members.length > 1 ? ` <span class="merged">${esc(t("mergedChip", gr.members.length))}</span>` : ""}</td>
+      <td>${esc(g.status)}</td><td class="r">${g.scores ? fmt1(g.scores.publish) : "—"}</td><td class="r">${g.scores ? fmt1(g.scores.overall) : "—"}</td>
+      <td class="num">${esc(rids)}</td><td>${esc((g.memo || "").replace(/\s+/g, " ").slice(0, 80))}</td></tr>`;
+  }).join("");
+  $("history").innerHTML = `<h3>${esc(f.name)} <small>${esc(f.org_id)}/${esc(f.feed_id)}</small></h3><p class="hint">${esc(t("histIntro"))}</p>
+    <div class="scroll" style="border:0"><table class="mini"><thead><tr><th>${esc(t("period"))}</th><th>${esc(t("published"))}</th><th>${esc(t("status"))}</th>
+    <th class="r">Publish</th><th class="r">Overall</th><th>${esc(t("rid"))}</th><th>${esc(t("memo"))}</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function renderStatic() {
+  document.documentElement.lang = state.lang;
+  $("tagline").textContent = t("tagline");
+  $("notice").innerHTML = `<span>${t("notice")}</span>`;
+  document.querySelectorAll("[data-t]").forEach(el => { el.textContent = t(el.dataset.t); });
+  document.querySelectorAll("nav.tabs button").forEach(b => { b.textContent = t(b.dataset.tab); b.setAttribute("aria-selected", String(b.dataset.tab === state.tab)); });
+  document.querySelectorAll(".langs button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.lang === state.lang)));
+  ["overview", "history", "reports", "gtfsjp"].forEach(id => { $("tab-" + id).hidden = id !== state.tab; });
+  const prefSel = $("pref"), pv = prefSel.value;
+  const prefs = [...new Set(DATA.feeds.map(f => f.pref_id).filter(Boolean))].sort((a, b) => a - b);
+  prefSel.innerHTML = `<option value="">${esc(t("all"))}</option>` + prefs.map(p => `<option value="${p}">${esc(prefName(p))}</option>`).join("");
+  prefSel.value = pv;
+  const pubSel = $("pub"), bv = pubSel.value;
+  pubSel.innerHTML = `<option value="">${esc(t("all"))}</option><option value="true">${esc(t("ready"))}</option><option value="false">${esc(t("notReady"))}</option>`;
+  pubSel.value = bv;
+  const sortSel = $("sort"), sv = sortSel.value || "recent";
+  sortSel.innerHTML = [["recent", "sortRecent"], ["name", "sortName"], ["low", "sortLow"], ["high", "sortHigh"]].map(([v, k]) => `<option value="${v}">${esc(t(k))}</option>`).join("");
+  sortSel.value = sv;
+  const profile = (DATA.analysis_key || "").split("__")[1] || "auto";
+  $("reports").innerHTML = t("reportsText");
+  $("gtfsjp").innerHTML = t("gtfsjpText", esc(profile));
+  $("footer").textContent = t("footer");
+}
+
+function renderAll() { renderStatic(); renderGrid(); renderPanel(); renderHistory(); }
+
+document.querySelectorAll(".langs button").forEach(b => b.addEventListener("click", () => {
+  state.lang = b.dataset.lang;
+  try { localStorage.setItem("gjm-lang", state.lang); } catch (e) { /* ignore */ }
+  renderAll();
+}));
+document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => { state.tab = b.dataset.tab; renderStatic(); }));
+["q", "pref", "pub", "sort"].forEach(id => $(id).addEventListener("input", () => { renderGrid(); renderPanel(); renderHistory(); }));
+$("merge").addEventListener("change", e => { state.merge = e.target.checked; state.oldIdx = state.newIdx = null; renderGrid(); renderPanel(); renderHistory(); });
+
+renderAll();
+})();
+</script>
