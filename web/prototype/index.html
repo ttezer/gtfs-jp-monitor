@@ -157,7 +157,7 @@ table.mini td.r, table.mini th.r { text-align: right; font-family: var(--mono); 
 .section p { max-width: 70ch; margin: 0 0 8px; }
 footer { margin-top: 24px; color: var(--faint); font-size: 12px; }
 .rp { display: grid; gap: 16px; }
-.rp > *, .rp .lb > *, .rp .lines > * { min-width: 0; }
+.rp > *, .rp .lb > *, .rp .lines > *, .rp details { min-width: 0; }
 .rp h2 { margin: 0; font-size: 20px; }
 .rp h3 { margin: 0 0 8px; }
 .rp .pubs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px; }
@@ -197,6 +197,17 @@ table.tt tr.only-new td.pl { color: var(--good); }
 table.tt tr.only-old td.pl { color: var(--bad); }
 .edits { margin: 0; padding-left: 18px; font-size: 13px; }
 .chips { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; font-family: var(--mono); font-size: 13px; }
+.pmap { position: relative; height: 380px; overflow: hidden; border: 1px solid var(--hair); border-radius: 6px; background: var(--surface-2); touch-action: none; cursor: grab; user-select: none; }
+.pmap .tiles img { position: absolute; width: 256px; height: 256px; pointer-events: none; }
+.pmap svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.pmap .mapctl { position: absolute; top: 8px; right: 8px; display: grid; gap: 4px; }
+.pmap .mapctl button { border: 1px solid var(--hair); background: var(--surface); border-radius: 5px; min-width: 30px; padding: 3px 8px; cursor: pointer; font-size: 13px; }
+.pmap .attr { position: absolute; right: 4px; bottom: 2px; font-size: 10px; background: rgb(255 255 255 / .75); color: #333; padding: 0 4px; border-radius: 3px; }
+.pmap .attr a { color: inherit; }
+#reports tr[data-place] { cursor: pointer; }
+#reports tr[data-place]:hover td { background: var(--surface-2); }
+details.other > summary { cursor: pointer; }
+.dval { font-family: var(--mono); font-size: 11px; word-break: break-all; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 
@@ -394,8 +405,7 @@ const R = {
     ttLegend: "Fark görünümü: yeşil sütun eklenen sefer, kırmızı kaldırılan sefer, sarı saati veya güzergâhı değişen sefer. Değişen hücrede yeni saat kalın, eski saat üstü çizili. Yalnız bir tarafta olan duraklar renkli yazılır.",
     ttUnchanged: "Diğer yön ve gün tiplerinde sefer saatleri değişmedi.",
     placeCols: ["Durum", "Eski ad", "Yeni ad", "Mesafe", "Hatlar"], unchangedPlaces: n => `Değişmeyen ${n} durak listelenmedi.`,
-    otherCols: ["Konu", "Değişiklik"], noOther: "Başka değişiklik yok.",
-    fileCols: ["Dosya", "Fark", "Açıklandı", "Karşılaştırma dışı", "Sınıflandırılmadı"],
+    noOther: "Başka değişiklik yok.",
     rawNote: "Farkların satır satır listesi rapor dosyasıyla birlikte saklanır; burada dosya başına sayılar gösterilir.",
     engine: (v, h) => `Semantic motor ${v} · tatil tablosu ${h}. Eşikler pilot ayarından önce geçicidir.`,
     notes: {
@@ -412,6 +422,19 @@ const R = {
     backward: "Seçim geriye doğru; rapor eskiden yeniye gösteriliyor.",
     pick: "Genel Bakış'ta bir feed seçip iki ardışık yayını karşılaştırın; o çiftin raporu burada açılır. Şu an raporu olan çiftler:",
     metres: m => `${m} m`, others: "Raporu olan diğer çiftler",
+    tripChanges: "Sefer değişiklikleri",
+    tcCols: ["Yön", "Gün tipi", "Değişiklik", "Eski kalkış", "Yeni kalkış", "Fark (dk)", "Eski varış", "Yeni varış", "Not"],
+    tk: { retimed: "Saati değişti", rerouted: "Güzergâhı değişti", retimed_rerouted: "Saati ve güzergâhı değişti", added: "Eklendi", removed: "Kaldırıldı", moved_out: "Başka hatta geçti", moved_in: "Başka hattan geldi", moved_dir: "Yönü yeniden tanımlandı" },
+    tcNote: "Kalkış: seferin ilk durağındaki saat; varış: son durağındaki saat. Değişmeyen seferler listelenmez.",
+    movesNote: (n, lines) => `${n} sefer bu hat ile şu hat(lar) arasında taşındı: ${lines}. Aynı koridorun güzergâh varyantları olabilir; ayrıntı sefer değişiklikleri tablosunda.`,
+    editTrips: n => `${n} seferde`, editDominant: "baskın güzergâh karşılaştırması",
+    movesCard: n => `Başka hatta veya yöne geçen sefer: ${n}`,
+    dk: { row_added: "Satır eklendi", row_removed: "Satır kaldırıldı", field_changed: "Alan değişti", shape_changed: "Şekil değişti", file_added: "Dosya eklendi", file_removed: "Dosya kaldırıldı", column_added: "Sütun eklendi", column_removed: "Sütun kaldırıldı", rows_bulk: "Toplu değişiklik", file_changed_opaque: "Okunamayan dosya değişti" },
+    detailCols: ["Değişiklik", "Dosya", "Anahtar", "Alan", "Eski", "Yeni"],
+    truncated: n => `+${n} kayıt daha (tamamı ham fark dosyasında).`, showDetails: n => `Ayrıntılar (${n})`,
+    fileCols: ["Dosya", "Eski satır", "Yeni satır", "Fark", "Açıklandı", "Karşılaştırma dışı", "Sınıflandırılmamış"],
+    farkTitle: (a, r, c) => `${a} eklenen satır, ${r} kaldırılan satır, ${c} değişen alan`,
+    map: "Harita", mapAll: "Tümünü göster", mapLegend: "Yeşil: eklenen · kırmızı: kaldırılan · turuncu: adı değişen · çizgi: taşınan durağın eski → yeni yeri · gri: raporda geçen diğer duraklar. Tablodaki satıra tıklayınca harita o durağa gider.", mapNoCoords: "Değişen durakların koordinatı yok.",
   },
   en: {
     dt: { weekday: "Weekday", saturday: "Saturday", sunday_holiday: "Sunday / holiday" },
@@ -435,8 +458,7 @@ const R = {
     ttLegend: "Difference view: green column = added trip, red = removed trip, yellow = retimed or rerouted trip. In a changed cell the new time is bold and the old time struck through. Stops served on one side only are coloured.",
     ttUnchanged: "Timetables of the other directions and day types did not change.",
     placeCols: ["Status", "Old name", "New name", "Distance", "Lines"], unchangedPlaces: n => `${n} unchanged stops are not listed.`,
-    otherCols: ["Topic", "Changes"], noOther: "No other changes.",
-    fileCols: ["File", "Differences", "Explained", "Outside comparison", "Unclassified"],
+    noOther: "No other changes.",
     rawNote: "The row-level list of differences is stored with the report; per-file counts are shown here.",
     engine: (v, h) => `Semantic engine ${v} · holiday table ${h}. Thresholds are provisional until pilot calibration.`,
     notes: {
@@ -453,6 +475,19 @@ const R = {
     backward: "The selection is backwards; the report is shown old to new.",
     pick: "Select a feed in Overview and compare two consecutive publications; the report of that pair opens here. Pairs with a report:",
     metres: m => `${m} m`, others: "Other pairs with a report",
+    tripChanges: "Trip changes",
+    tcCols: ["Direction", "Day type", "Change", "Old departure", "New departure", "Δ (min)", "Old arrival", "New arrival", "Note"],
+    tk: { retimed: "Retimed", rerouted: "Rerouted", retimed_rerouted: "Retimed and rerouted", added: "Added", removed: "Removed", moved_out: "Moved to another line", moved_in: "Moved from another line", moved_dir: "Direction redefined" },
+    tcNote: "Departure: time at the trip's first stop; arrival: at its last stop. Unchanged trips are not listed.",
+    movesNote: (n, lines) => `${n} trips moved between this line and: ${lines}. These may be route variants of one corridor; see the trip changes table.`,
+    editTrips: n => `on ${n} trips`, editDominant: "dominant pattern comparison",
+    movesCard: n => `Trips moved to another line or direction: ${n}`,
+    dk: { row_added: "Row added", row_removed: "Row removed", field_changed: "Field changed", shape_changed: "Shape changed", file_added: "File added", file_removed: "File removed", column_added: "Column added", column_removed: "Column removed", rows_bulk: "Bulk change", file_changed_opaque: "Unreadable file changed" },
+    detailCols: ["Change", "File", "Key", "Field", "Old", "New"],
+    truncated: n => `+${n} more (all in the raw difference file).`, showDetails: n => `Details (${n})`,
+    fileCols: ["File", "Old rows", "New rows", "Differences", "Explained", "Outside comparison", "Unclassified"],
+    farkTitle: (a, r, c) => `${a} rows added, ${r} rows removed, ${c} fields changed`,
+    map: "Map", mapAll: "Show all", mapLegend: "Green: added · red: removed · orange: renamed · line: old → new position of a moved stop · grey: other stops in the report. Click a table row to move the map to that stop.", mapNoCoords: "The changed stops have no coordinates.",
   },
   ja: {
     dt: { weekday: "平日", saturday: "土曜", sunday_holiday: "日曜・祝日" },
@@ -476,8 +511,7 @@ const R = {
     ttLegend: "差分表示：緑の列は新設便、赤は廃止便、黄は時刻または経路が変わった便。変更セルは新時刻を太字、旧時刻を取り消し線で表示。片側のみの停留所は色付きです。",
     ttUnchanged: "他の方向・曜日区分の時刻表は変更ありません。",
     placeCols: ["状態", "旧名称", "新名称", "距離", "路線"], unchangedPlaces: n => `変更のない停留所 ${n} は省略。`,
-    otherCols: ["項目", "変更"], noOther: "その他の変更はありません。",
-    fileCols: ["ファイル", "差分", "説明済み", "比較対象外", "未分類"],
+    noOther: "その他の変更はありません。",
     rawNote: "差分の行単位の一覧はレポートと一緒に保存されます。ここではファイルごとの件数を表示します。",
     engine: (v, h) => `セマンティックエンジン ${v}・祝日表 ${h}。閾値は試行調整前の暫定値です。`,
     notes: {
@@ -494,6 +528,19 @@ const R = {
     backward: "選択が逆順です。レポートは旧→新で表示します。",
     pick: "概要タブでフィードを選び、連続する2つの公開を比較すると、そのレポートがここに表示されます。レポートのあるペア：",
     metres: m => `${m} m`, others: "レポートのある他のペア",
+    tripChanges: "便の変更",
+    tcCols: ["方向", "曜日区分", "変更", "旧発車", "新発車", "差（分）", "旧到着", "新到着", "備考"],
+    tk: { retimed: "時刻変更", rerouted: "経路変更", retimed_rerouted: "時刻・経路変更", added: "新設", removed: "廃止", moved_out: "他路線へ移行", moved_in: "他路線から移行", moved_dir: "方向の再定義" },
+    tcNote: "発車：始発停留所の時刻、到着：終着停留所の時刻。変更のない便は表示しません。",
+    movesNote: (n, lines) => `${n}便がこの路線と次の路線の間で移行：${lines}。同じ系統群の経路違いの可能性があります。詳細は便の変更表を参照。`,
+    editTrips: n => `${n}便`, editDominant: "主要経路の比較",
+    movesCard: n => `他の路線・方向へ移行した便：${n}`,
+    dk: { row_added: "行追加", row_removed: "行削除", field_changed: "項目変更", shape_changed: "形状変更", file_added: "ファイル追加", file_removed: "ファイル削除", column_added: "列追加", column_removed: "列削除", rows_bulk: "一括変更", file_changed_opaque: "読めないファイルの変更" },
+    detailCols: ["変更", "ファイル", "キー", "項目", "旧", "新"],
+    truncated: n => `ほか${n}件（すべて差分ファイルに記録）。`, showDetails: n => `詳細（${n}）`,
+    fileCols: ["ファイル", "旧行数", "新行数", "差分", "説明済み", "比較対象外", "未分類"],
+    farkTitle: (a, r, c) => `行追加${a}・行削除${r}・項目変更${c}`,
+    map: "地図", mapAll: "全体表示", mapLegend: "緑：新設・赤：廃止・橙：改称・線：移設した停留所の旧→新位置・灰：レポート内のその他の停留所。表の行をクリックするとその停留所へ移動します。", mapNoCoords: "変更された停留所に座標がありません。",
   },
 };
 const rt = (k, ...a) => { const v = R[state.lang][k]; return typeof v === "function" ? v(...a) : v; };
@@ -601,20 +648,78 @@ function lineNames(line) {
   return o && n && o !== n ? `${o} → ${n}` : n || o;
 }
 
+const lastTime = times => { for (let i = times.length - 1; i >= 0; i--) if (times[i] != null) return times[i]; return null; };
+const stops = (side, trip) => side.places.map((p, i) => [p, trip.times[i]]).filter(x => x[1] != null);
+function tableOf(rep, lineKey, dir, dt) {
+  const l = rep.lines.find(x => x.key === lineKey);
+  return l && l.timetables.find(t => t.direction === dir && t.day_type === dt);
+}
+function lineLabel(rep, k) { const l = rep.lines.find(x => x.key === k); return l ? lineNames(l) : k; }
+function editText(rep, e) {
+  const names = e.places.map(i => pname(rep, i));
+  const where = names.length > 3 ? `${names[0]} … ${names[names.length - 1]} (${names.length})` : names.join(" → ");
+  return `${rt("ek")[e.kind]}: ${where}`;
+}
+
+// Every trip that changed in this line, one row each (the difference view as a list).
+function tripChanges(rep, line) {
+  const rows = [];
+  for (const t of line.timetables) {
+    const O = t.old, N = t.new;
+    for (const [o, n] of t.pairs) {
+      const a = o == null ? null : O.trips[o], b = n == null ? null : N.trips[n];
+      let kind, oldTrip = a, newTrip = b, note = "", sortDir = t.direction;
+      if (a && b) {
+        const x = stops(O, a), y = stops(N, b);
+        if (JSON.stringify(x) === JSON.stringify(y)) continue;
+        const samePlaces = JSON.stringify(x.map(s => s[0])) === JSON.stringify(y.map(s => s[0]));
+        const shared = new Map(y.map(s => [s[0], s[1]]));
+        const sameTimes = x.every(s => !shared.has(s[0]) || shared.get(s[0]) === s[1]);
+        kind = samePlaces ? "retimed" : sameTimes ? "rerouted" : "retimed_rerouted";
+      } else {
+        const side = a ? "old" : "new", idx = a ? o : n;
+        const m = rep.moves.find(m => m.day_type === t.day_type && m[side].line === line.key && m[side].direction === t.direction && m[side].trip === idx);
+        if (m) {
+          const other = a ? "new" : "old";
+          const ot = tableOf(rep, m[other].line, m[other].direction, t.day_type);
+          const trip = ot && ot[other] && ot[other].trips[m[other].trip];
+          if (m.old.line === m.new.line && a == null) continue;  // shown once, from the old side
+          if (a) newTrip = trip; else oldTrip = trip;
+          const edits = m.edits.map(e => editText(rep, e)).join("; ");
+          if (m.old.line === m.new.line) { kind = m.kind === "exact" ? "moved_dir" : m.kind; note = edits; }
+          else { kind = a ? "moved_out" : "moved_in"; note = `${a ? "→" : "←"} ${lineLabel(rep, m[other].line)}${edits ? "; " + edits : ""}`; }
+        } else kind = a ? "removed" : "added";
+      }
+      const f0 = oldTrip ? firstTime(oldTrip.times) : null, f1 = newTrip ? firstTime(newTrip.times) : null;
+      rows.push({ dir: sortDir, dt: t.day_type, kind, f0, f1, l0: oldTrip ? lastTime(oldTrip.times) : null, l1: newTrip ? lastTime(newTrip.times) : null, note });
+    }
+  }
+  rows.sort((p, q) => p.dir.localeCompare(q.dir) || DAYS.indexOf(p.dt) - DAYS.indexOf(q.dt) || ((p.f0 ?? p.f1) - (q.f0 ?? q.f1)));
+  return rows;
+}
+
 function lineBlock(rep, line) {
   const open = state.openLines.has(line.key);
-  const tot = DAYS.filter(d => line.trips[d]).map(d => {
-    const bands = Object.values(line.trips[d]);
-    const b = bands.reduce((s, x) => s + x.before, 0), a = bands.reduce((s, x) => s + x.after, 0);
-    return `${rt("dt")[d]} ${b}→${a}`;
-  }).join(" · ");
+  const perDay = {};
+  line.trips.forEach(x => Object.values(x.bands).forEach(c => { const d = perDay[x.day_type] || (perDay[x.day_type] = [0, 0]); d[0] += c.before; d[1] += c.after; }));
+  const tot = DAYS.filter(d => perDay[d]).map(d => `${rt("dt")[d]} ${perDay[d][0]}→${perDay[d][1]}`).join(" · ");
   let inner = "";
   if (open) {
-    const bands = [...new Set(DAYS.flatMap(d => Object.keys(line.trips[d] || {})))].sort();
+    const changes = tripChanges(rep, line);
+    const cls = { added: "up", removed: "down", moved_out: "down", moved_in: "up" };
+    const changeTable = changes.length ? `<div><h3>${esc(rt("tripChanges"))} <small>${changes.length}</small></h3><div class="scroll" style="border:0"><table class="mini">
+      <thead><tr>${rt("tcCols").map((c, i) => `<th${i >= 3 && i <= 7 ? ' class="r"' : ""}>${esc(c)}</th>`).join("")}</tr></thead><tbody>${changes.map(r => {
+        const d = r.f0 != null && r.f1 != null ? r.f1 - r.f0 : null;
+        return `<tr><td>${esc(dirLabel(rep, line, r.dir))}</td><td>${esc(rt("dt")[r.dt])}</td><td class="${cls[r.kind] || ""}">${esc(rt("tk")[r.kind])}</td>
+          <td class="r">${hm(r.f0)}</td><td class="r">${hm(r.f1)}</td><td class="r ${d > 0 ? "up" : d < 0 ? "down" : "flat"}">${d == null ? "" : signed(d)}</td>
+          <td class="r">${hm(r.l0)}</td><td class="r">${hm(r.l1)}</td><td>${esc(r.note)}</td></tr>`;
+      }).join("")}</tbody></table></div><p class="hint">${esc(rt("tcNote"))}</p></div>` : "";
+    const bands = [...new Set(line.trips.flatMap(x => Object.keys(x.bands)))].sort();
+    const hourRows = line.trips.slice().sort((p, q) => p.direction.localeCompare(q.direction) || DAYS.indexOf(p.day_type) - DAYS.indexOf(q.day_type));
     const hourTable = bands.length ? `<div><h3>${esc(rt("byHour"))}</h3><div class="scroll"><table class="tt"><thead><tr><th class="pl"></th>${bands.map(b => `<th>${esc(b.replace(/^0/, "").replace("-0", "-"))}</th>`).join("")}</tr></thead><tbody>${
-      DAYS.filter(d => line.trips[d]).map(d => `<tr><td class="pl">${esc(rt("dt")[d])}</td>${bands.map(b => {
-        const x = line.trips[d][b]; if (!x) return "<td></td>";
-        return x.before === x.after ? `<td>${x.after}</td>` : `<td class="chg"><b>${x.after}</b> <s>${x.before}</s></td>`;
+      hourRows.map(x => `<tr><td class="pl" title="${esc(dirLabel(rep, line, x.direction))}">${esc(dirLabel(rep, line, x.direction))} · ${esc(rt("dt")[x.day_type])}</td>${bands.map(b => {
+        const c = x.bands[b]; if (!c) return "<td></td>";
+        return c.before === c.after ? `<td>${c.after}</td>` : `<td class="chg"><b>${c.after}</b> <s>${c.before}</s></td>`;
       }).join("")}</tr>`).join("")}</tbody></table></div></div>` : "";
     const fl = line.first_last.length ? `<div><h3>${esc(rt("firstLast"))}</h3><table class="mini"><thead><tr><th>${esc(rt("dir"))}</th><th></th><th class="r">${esc(rt("first"))}</th><th class="r">${esc(rt("last"))}</th></tr></thead><tbody>${
       line.first_last.map(x => {
@@ -628,8 +733,10 @@ function lineBlock(rep, line) {
       const pl = rep.places[i], sid = (pl.new || pl.old).stop_id;
       return dup ? `${pname(rep, i)} (${sid})` : pname(rep, i);
     };
-    const pat = line.patterns.length ? `<div><h3>${esc(rt("patterns"))}</h3>${line.patterns.map(p => `<p class="hint">${esc(dirLabel(rep, line, p.direction))}</p><ul class="edits">${
-      p.edits.map(e => `<li>${esc(rt("ek")[e.kind])}: ${esc(e.places.map(i => editName(p, i)).join(" → "))}</li>`).join("")}</ul>`).join("")}</div>` : "";
+    const moves = rep.moves.filter(m => m.old.line !== m.new.line && (m.old.line === line.key || m.new.line === line.key));
+    const moveNote = moves.length ? `<p class="hint">${esc(rt("movesNote", moves.length, [...new Set(moves.map(m => lineLabel(rep, m.old.line === line.key ? m.new.line : m.old.line)))].join(", ")))}</p>` : "";
+    const pat = line.patterns.length || moves.length ? `<div><h3>${esc(rt("patterns"))}</h3>${line.patterns.map(p => `<p class="hint">${esc(dirLabel(rep, line, p.direction))}</p><ul class="edits">${
+      p.edits.map(e => `<li>${esc(rt("ek")[e.kind])}: ${esc(e.places.map(i => editName(p, i)).join(" → "))}${e.trips ? ` <span class="hint">· ${esc(rt("editTrips", e.trips))}</span>` : ` <span class="hint">· ${esc(rt("editDominant"))}</span>`}</li>`).join("")}</ul>`).join("")}${moveNote}</div>` : "";
     let tts = "";
     if (line.timetables.length) {
       const sel = state.tt[line.key] || { i: 0, view: "diff" };
@@ -639,7 +746,7 @@ function lineBlock(rep, line) {
       tts = `<div><h3>${esc(rt("timetables"))}</h3><div class="ttbar"><div class="seg">${choices}</div><div class="seg">${views}</div></div>
         ${sel.view === "diff" ? `<p class="hint">${esc(rt("ttLegend"))}</p>` : ""}${ttHtml(rep, tab, sel.view)}<p class="hint">${esc(rt("ttUnchanged"))}</p></div>`;
     }
-    inner = `<div class="lb">${hourTable}${fl}${pat}${tts}</div>`;
+    inner = `<div class="lb">${changeTable}${pat}${fl}${hourTable}${tts}</div>`;
   }
   return `<details class="line" data-key="${esc(line.key)}"${open ? " open" : ""}><summary>${stChip(line.status, rt("ls")[line.status])}<span class="ln">${esc(lineNames(line))}</span><span class="lt">${esc(tot)}</span></summary>${inner}</details>`;
 }
@@ -689,6 +796,78 @@ function openPair(pairKey) {
   renderAll();
 }
 
+// ---- Stop change map: static GSI tiles (地理院タイル) with an SVG overlay, no map library. ----
+const TILE = 256, GSI = (z, x, y) => `https://cyberjapandata.gsi.go.jp/xyz/pale/${z}/${x}/${y}.png`;
+const wx = (lon, z) => (lon + 180) / 360 * TILE * 2 ** z;
+const wy = (lat, z) => { const r = lat * Math.PI / 180; return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * TILE * 2 ** z; };
+const MAP_COLOR = { added: "var(--good)", removed: "var(--bad)", renamed: "var(--warn)", moved: "var(--warn)", renamed_moved: "var(--warn)", unchanged: "var(--faint)" };
+
+function mapPoints(rep) {
+  return rep.places.map((p, i) => ({ i, p, a: p.old && p.old.lat != null && p.old.lon != null ? p.old : null, b: p.new && p.new.lat != null && p.new.lon != null ? p.new : null }))
+    .filter(x => x.a || x.b);
+}
+function initMap(rep) {
+  const el = $("pmap");
+  if (!el) return;
+  const pts = mapPoints(rep), changed = pts.filter(x => x.p.status !== "unchanged");
+  if (!changed.length) { el.outerHTML = `<p class="hint">${esc(rt("mapNoCoords"))}</p>`; return; }
+  const view = { z: 16, lat: 0, lon: 0, focus: null };
+  const fit = () => {
+    const c = changed.flatMap(x => [x.a, x.b].filter(Boolean));
+    const lats = c.map(s => s.lat), lons = c.map(s => s.lon);
+    const W = el.clientWidth - 40, H = el.clientHeight - 40;
+    let z = 17;
+    while (z > 5 && (wx(Math.max(...lons), z) - wx(Math.min(...lons), z) > W || wy(Math.min(...lats), z) - wy(Math.max(...lats), z) > H)) z--;
+    Object.assign(view, { z, lat: (Math.max(...lats) + Math.min(...lats)) / 2, lon: (Math.max(...lons) + Math.min(...lons)) / 2, focus: null });
+  };
+  const draw = () => {
+    const W = el.clientWidth, H = el.clientHeight, z = view.z;
+    const cx = wx(view.lon, z), cy = wy(view.lat, z), x0 = cx - W / 2, y0 = cy - H / 2, n = 2 ** z;
+    let tiles = "";
+    for (let tx = Math.floor(x0 / TILE); tx <= Math.floor((x0 + W) / TILE); tx++)
+      for (let ty = Math.floor(y0 / TILE); ty <= Math.floor((y0 + H) / TILE); ty++)
+        if (ty >= 0 && ty < n) tiles += `<img alt="" draggable="false" src="${GSI(z, ((tx % n) + n) % n, ty)}" style="left:${Math.round(tx * TILE - x0)}px;top:${Math.round(ty * TILE - y0)}px" onerror="this.remove()">`;
+    const P = s => [wx(s.lon, z) - x0, wy(s.lat, z) - y0];
+    const dot = (s, x, r) => { const [px, py] = P(s); return `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${r}" fill="${MAP_COLOR[x.p.status]}" stroke="var(--surface)" stroke-width="1.5"><title>${esc(s.name)} (${esc(s.stop_id)}) · ${esc(rt("ps")[x.p.status])}</title></circle>`; };
+    let svg = pts.filter(x => x.p.status === "unchanged").map(x => dot(x.b || x.a, x, 3)).join("");
+    for (const x of changed) {
+      if (x.a && x.b && (x.p.status === "moved" || x.p.status === "renamed_moved")) {
+        const [ax, ay] = P(x.a), [bx, by] = P(x.b);
+        svg += `<line x1="${ax.toFixed(1)}" y1="${ay.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}" stroke="var(--warn)" stroke-width="2" stroke-dasharray="4 3"/>`;
+        svg += dot(x.a, { p: { status: "removed" } }, 4).replace(rt("ps").removed, rt("ps")[x.p.status]);
+      }
+      svg += dot(x.b || x.a, x, 6);
+      if (view.focus === x.i) { const [fx, fy] = P(x.b || x.a); svg += `<circle cx="${fx.toFixed(1)}" cy="${fy.toFixed(1)}" r="12" fill="none" stroke="var(--accent)" stroke-width="2.5"/>`; }
+    }
+    el.querySelector(".tiles").innerHTML = tiles;
+    el.querySelector("svg").innerHTML = svg;
+    el.querySelector("svg").setAttribute("viewBox", `0 0 ${W} ${H}`);
+  };
+  // Drag to pan.
+  let drag = null;
+  el.addEventListener("pointerdown", e => { if (e.target.closest(".mapctl")) return; drag = { x: e.clientX, y: e.clientY, cx: wx(view.lon, view.z), cy: wy(view.lat, view.z) }; el.setPointerCapture(e.pointerId); });
+  el.addEventListener("pointermove", e => {
+    if (!drag) return;
+    const n = TILE * 2 ** view.z, x = drag.cx - (e.clientX - drag.x), y = drag.cy - (e.clientY - drag.y);
+    view.lon = x / n * 360 - 180;
+    view.lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * y / n))) * 180 / Math.PI;
+    requestAnimationFrame(draw);
+  });
+  el.addEventListener("pointerup", () => { drag = null; });
+  el.querySelector("[data-z='+']").addEventListener("click", () => { view.z = Math.min(18, view.z + 1); draw(); });
+  el.querySelector("[data-z='-']").addEventListener("click", () => { view.z = Math.max(5, view.z - 1); draw(); });
+  el.querySelector("[data-z='all']").addEventListener("click", () => { fit(); draw(); });
+  document.querySelectorAll("#reports tr[data-place]").forEach(tr => tr.addEventListener("click", () => {
+    const x = pts.find(q => q.i === +tr.dataset.place);
+    if (!x) return;
+    const s = x.b || x.a;
+    Object.assign(view, { z: 17, lat: s.lat, lon: s.lon, focus: x.i });
+    draw();
+    el.scrollIntoView({ block: "nearest" });
+  }));
+  fit(); draw();
+}
+
 function renderReport() {
   const box = $("reports");
   const { report: rep, backwards } = selectedReport();
@@ -717,11 +896,17 @@ function renderReport() {
   const tripCard = DAYS.filter(d => s.trips_by_day_type[d]).map(d => { const x = s.trips_by_day_type[d]; const dv = x.after - x.before; return `${esc(rt("dt")[d])}: <span class="num">${x.before} → ${x.after}</span> <span class="${dv > 0 ? "up" : dv < 0 ? "down" : "flat"} num">${signed(dv)}</span>`; }).join("<br>");
   const q = s.quality ? ["publish", "overall"].map(k => `${esc(t(k))}: <span class="num">${fmt1(s.quality[k].before)} → ${fmt1(s.quality[k].after)}</span>`).join("<br>") : "—";
   const changed = rep.lines.filter(l => l.status !== "unchanged"), same = rep.lines.filter(l => l.status === "unchanged");
-  const placeRows = rep.places.filter(p => p.status !== "unchanged").map(p => `<tr><td>${stChip(p.status, rt("ps")[p.status])}</td><td>${esc(p.old ? p.old.name : "—")}</td><td>${esc(p.new ? p.new.name : "—")}</td><td class="r">${p.moved_m != null ? esc(rt("metres", p.moved_m)) : ""}</td><td>${esc(p.lines.map(k => { const l = rep.lines.find(x => x.key === k); return l ? lineNames(l) : k; }).join(", "))}</td></tr>`).join("");
-  const nUnchangedPlaces = rep.places.length - rep.places.filter(p => p.status !== "unchanged").length;
-  const otherRows = rep.other.map(o => `<tr><td>${esc(rt("topic")[o.topic] || o.topic)}</td><td>${esc(Object.entries(o.counts).map(([k, v]) => `${v} ${rt("ck")[k] || k}`).join(" · "))}</td></tr>`).join("");
-  const fileRows = Object.entries(rep.accounting.files).map(([name, x]) => `<tr><td class="num">${esc(name)}</td><td class="r">${x.changes}</td><td class="r">${x.classified}</td><td class="r">${x.outside_comparison}</td><td class="r ${x.unclassified ? "down" : ""}">${x.unclassified}</td></tr>`).join("");
   const th = cols => `<thead><tr>${cols.map((x, i) => `<th${i ? ' class="r"' : ""}>${esc(x)}</th>`).join("")}</tr></thead>`;
+  const thl = cols => `<thead><tr>${cols.map(x => `<th>${esc(x)}</th>`).join("")}</tr></thead>`;
+  const placeRows = rep.places.map((p, i) => [p, i]).filter(([p]) => p.status !== "unchanged").map(([p, i]) => `<tr data-place="${i}"><td>${stChip(p.status, rt("ps")[p.status])}</td><td>${esc(p.old ? p.old.name : "—")}</td><td>${esc(p.new ? p.new.name : "—")}</td><td class="r">${p.moved_m != null ? esc(rt("metres", p.moved_m)) : ""}</td><td>${esc(p.lines.map(k => { const l = rep.lines.find(x => x.key === k); return l ? lineNames(l) : k; }).join(", "))}</td></tr>`).join("");
+  const nUnchangedPlaces = rep.places.length - rep.places.filter(p => p.status !== "unchanged").length;
+  const val = v => v == null ? "—" : typeof v === "string" ? (v === "" ? "∅" : v) : Object.entries(v).filter(([, x]) => x !== "").map(([k, x]) => `${k}=${x}`).join(", ");
+  const detailRow = d => d.kind === "shape_changed"
+    ? `<tr><td>${esc(rt("dk")[d.kind])}</td><td class="num">${esc(d.file)}</td><td class="dval">${esc((d.key || []).join(" · "))}</td><td></td><td colspan="2" class="dval">${esc(Object.entries(d.counts || {}).map(([k, v]) => `${v} ${rt("ck")[k] || k}`).join(" · "))}</td></tr>`
+    : `<tr><td>${esc(rt("dk")[d.kind] || d.kind)}</td><td class="num">${esc(d.file)}</td><td class="dval">${esc((d.key || []).join(" · "))}</td><td class="dval">${esc(d.column || "")}</td><td class="dval">${d.kind === "field_changed" ? `<s>${esc(val(d.old))}</s>` : esc(val(d.old))}</td><td class="dval">${d.kind === "field_changed" ? `<b>${esc(val(d.new))}</b>` : esc(val(d.new))}</td></tr>`;
+  const otherRows = rep.other.map(o => `<details class="other"><summary><b>${esc(rt("topic")[o.topic] || o.topic)}</b> · ${esc(Object.entries(o.counts).map(([k, v]) => `${v} ${rt("ck")[k] || k}`).join(" · "))}</summary>
+      <div class="scroll" style="border:0"><table class="mini">${thl(rt("detailCols"))}<tbody>${o.details.map(detailRow).join("")}</tbody></table></div>${o.truncated ? `<p class="hint">${esc(rt("truncated", o.truncated))}</p>` : ""}</details>`).join("");
+  const fileRows = Object.entries(rep.accounting.files).map(([name, x]) => `<tr class="${x.changes ? "" : "flat"}"><td class="num">${esc(name)}</td><td class="r">${x.old_rows ?? "—"}</td><td class="r">${x.new_rows ?? "—"}</td><td class="r" title="${esc(rt("farkTitle", x.added, x.removed, x.changed_fields))}">${x.changes}</td><td class="r">${x.classified}</td><td class="r">${x.outside_comparison}</td><td class="r ${x.unclassified ? "down" : ""}">${x.unclassified}</td></tr>`).join("");
   box.innerHTML = `<div class="rp">
     <details><summary class="hint">${esc(rt("others"))}</summary>${reportList(false)}</details>
     <div><h2>${esc(rt("title"))} · ${esc(f ? f.name : h.feed.feed_id)}</h2><p class="hint">${esc(f ? f.organization_name : "")} · <span class="num">${esc(h.feed.org_id)}/${esc(h.feed.feed_id)}</span></p>
@@ -732,7 +917,7 @@ function renderReport() {
       <div class="legend"><span><i class="cov-e"></i>${esc(rt("cE"))}</span><span><i class="cov-o"></i>${esc(rt("cO"))}</span><span><i class="cov-u"></i>${esc(rt("cU"))}</span></div>
       <p class="hint">${esc(rt("coverage", c.explained, c.outside_comparison, c.unclassified, c.raw_total))}</p></div>
     <div><h3>1. ${esc(rt("sSummary"))}</h3><div class="cards">
-      <div class="card"><div class="k">${esc(rt("lines"))}</div><div class="chips">${lineCard}</div></div>
+      <div class="card"><div class="k">${esc(rt("lines"))}</div><div class="chips">${lineCard}</div>${s.trip_moves ? `<div class="hint">${esc(rt("movesCard", s.trip_moves))}</div>` : ""}</div>
       <div class="card"><div class="k">${esc(rt("places"))}</div><div class="chips">${placeCard}</div></div>
       <div class="card"><div class="k">${esc(rt("trips"))}</div><div>${tripCard}</div></div>
       <div class="card"><div class="k">${esc(rt("firstLast"))}</div><div class="hint">${esc(rt("firstLastN", s.first_last_changed))}</div></div>
@@ -744,12 +929,16 @@ function renderReport() {
       <p class="hint">${esc(rt("special"))} · ${esc(rt("old"))}: ${esc(specials("old"))}<br>${esc(rt("special"))} · ${esc(rt("new"))}: ${esc(specials("new"))}</p></div>
     <div><h3>3. ${esc(rt("sLines"))}</h3>${changed.length ? `<div class="lines" style="display:grid;gap:6px">${changed.map(l => lineBlock(rep, l)).join("")}</div>` : `<p class="hint">${esc(rt("noLineChange"))}</p>`}
       ${same.length ? `<p class="hint">${esc(rt("unchangedLines", same.length))}: ${esc(same.map(lineNames).join(", "))}</p>` : ""}</div>
-    <div><h3>4. ${esc(rt("sPlaces"))}</h3>${placeRows ? `<div class="scroll" style="border:0"><table class="mini">${th(rt("placeCols"))}<tbody>${placeRows}</tbody></table></div>` : ""}<p class="hint">${esc(rt("unchangedPlaces", nUnchangedPlaces))}</p></div>
-    <div><h3>5. ${esc(rt("sOther"))}</h3>${otherRows ? `<table class="mini">${th(rt("otherCols"))}<tbody>${otherRows}</tbody></table>` : `<p class="hint">${esc(rt("noOther"))}</p>`}</div>
+    <div><h3>4. ${esc(rt("sPlaces"))}</h3>${placeRows ? `<div class="pmap" id="pmap"><div class="tiles"></div><svg aria-label="${esc(rt("map"))}"></svg>
+        <div class="mapctl"><button type="button" data-z="+" aria-label="+">+</button><button type="button" data-z="-" aria-label="−">−</button><button type="button" data-z="all">${esc(rt("mapAll"))}</button></div>
+        <div class="attr"><a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル</a></div></div>
+      <p class="hint">${esc(rt("mapLegend"))}</p>` : ""}${placeRows ? `<div class="scroll" style="border:0"><table class="mini">${thl(rt("placeCols"))}<tbody>${placeRows}</tbody></table></div>` : ""}<p class="hint">${esc(rt("unchangedPlaces", nUnchangedPlaces))}</p></div>
+    <div><h3>5. ${esc(rt("sOther"))}</h3>${otherRows ? `<div style="display:grid;gap:8px">${otherRows}</div>` : `<p class="hint">${esc(rt("noOther"))}</p>`}</div>
     <div><h3>6. ${esc(rt("sAll"))}</h3><div class="scroll" style="border:0"><table class="mini">${th(rt("fileCols"))}<tbody>${fileRows}</tbody></table></div><p class="hint">${esc(rt("rawNote"))}</p></div>
     <p class="hint">${esc(rt("engine", h.engine.version, h.engine.holidays_version))}</p>
   </div>`;
   box.querySelectorAll("details.line").forEach(el => bindLine(rep, el));
+  initMap(rep);
   box.querySelectorAll("button[data-pick]").forEach(b => b.addEventListener("click", () => openPair(b.dataset.pick)));
 }
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
