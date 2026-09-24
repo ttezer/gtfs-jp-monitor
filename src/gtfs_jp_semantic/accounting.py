@@ -45,6 +45,8 @@ class Evidence:
     # trip_ids paired exactly with themselves: same places and times, so core stop_times changes
     # can only be a renumbered stop_sequence
     same_trips: set[str] = field(default_factory=set)
+    # trip_ids that ran on any date both publications cover; the per-date comparison accounts for them
+    date_trips: set[str] = field(default_factory=set)
     # route_id (either side) -> report line key; a trip moving between routes of one line is renumbering
     route_line: dict[str, str] = field(default_factory=dict)
     compared_trips: set[str] = field(default_factory=set)  # trip_ids that ran on a compared day (either side)
@@ -107,12 +109,14 @@ def _row_file_bucket(change: dict, ev: Evidence) -> tuple[str, str | None]:
         if target is not None and target == ev.new_stop_place.get(change["new"]):
             return "explained", None  # same place, new stop id
     trip_id = _row_value(change, "trip_id")
-    if trip_id not in ev.compared_trips:
+    if trip_id not in ev.compared_trips and trip_id not in ev.date_trips:
         return "outside", None
     if attribute:
         return "explained", "attributes"
     if trip_id in ev.changed_trips:
         return "explained", None
+    if trip_id not in ev.compared_trips:
+        return "explained", None  # ran on a shared date only: listed under date changes, or no change there
     if name == "trips.txt" and kind == "field_changed" and column == "route_id" and trip_id in ev.same_trips:
         line = ev.route_line.get(change.get("old"))
         if line is not None and line == ev.route_line.get(change.get("new")):

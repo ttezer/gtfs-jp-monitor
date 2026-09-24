@@ -43,6 +43,15 @@ Counts a planner can scan in seconds:
 Per day type: compared dates, number of active days in each publication's validity, and the
 periods of both publications (with their date ranges). Special days are listed with their dates.
 
+**Changes by date.** Every date both publications cover is also compared on its own, trip by
+trip (a trip is its line, place sequence and times). The change of a date is compared with the
+change of the typical day it follows: the typical day whose services it also runs, else the
+typical day of its day type. Only the remainder is listed, dates with the same remainder in one
+group; an added and a removed trip of one line departing within `trip_max_shift_min` of each
+other are shown as one retimed trip. This catches special trips, holiday timetables and
+short periods that the typical days never show. Trips that run on a shared date are accounted
+as explained: their difference is listed here, or there is none.
+
 ### 3. Changes by line
 
 One block per line that changed (unchanged lines are listed by name only):

@@ -36,6 +36,8 @@
   "max_uncompressed_bytes": 2147483648,
   "min_overlap_days": 14,
   "report": {
+    "date_change_trips_max": 30,
+    "date_changes_max": 100,
     "other_details_max": 200
   },
   "schema": "gtfs-jp-semantic-config/1",

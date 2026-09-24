@@ -466,6 +466,35 @@
   },
   "schema": "gtfs-jp-semantic-report/1",
   "service_days": {
+    "date_changes": [
+      {
+        "added": [
+          {
+            "departure": 1200,
+            "from": 0,
+            "line": "1",
+            "to": 4
+          }
+        ],
+        "added_count": 1,
+        "after": 41,
+        "before": 40,
+        "changed": [],
+        "changed_count": 0,
+        "date_count": 1,
+        "dates": [
+          {
+            "end": "2025-12-31",
+            "start": "2025-12-31"
+          }
+        ],
+        "day_types": [
+          "weekday"
+        ],
+        "removed": [],
+        "removed_count": 0
+      }
+    ],
     "day_types": {
       "saturday": {
         "active_days": {
@@ -510,6 +539,7 @@
     }
   },
   "summary": {
+    "date_changes": 1,
     "fares": {
       "changed": true,
       "classes_added": 0,

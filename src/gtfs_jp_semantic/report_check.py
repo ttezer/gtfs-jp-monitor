@@ -77,6 +77,16 @@ def check_report(doc: dict) -> list[str]:
                 if len(seen[side]) != sizes[side]:
                     problems.append(f"{where}: every {side} trip must appear in pairs exactly once")
 
+    for k, g in enumerate(doc.get("service_days", {}).get("date_changes", [])):
+        for item in g["added"] + g["removed"]:
+            place_ok(item["from"], f"date_changes[{k}]")
+            place_ok(item["to"], f"date_changes[{k}]")
+        for item in g["added"] + g["removed"] + g["changed"]:
+            if item["line"] not in key_set:
+                problems.append(f"date_changes[{k}]: unknown line {item['line']!r}")
+        for side in ("added", "removed", "changed"):
+            if len(g[side]) > g[f"{side}_count"]:
+                problems.append(f"date_changes[{k}]: more {side} trips than {side}_count")
     tables = {(line["key"], t["direction"], t["day_type"]): t for line in doc.get("lines", []) for t in line["timetables"]}
     used: set[tuple] = set()
     for k, move in enumerate(doc.get("moves", [])):

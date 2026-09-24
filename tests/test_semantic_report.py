@@ -151,8 +151,13 @@ class ReportTest(unittest.TestCase):
         self.assertEqual(cov["raw_total"], sum(f["changes"] for f in files.values()))
         self.assertLess(cov["raw_total"], len(self.raw["changes"]))  # rows, not fields: T1 has three changed times
         self.assertEqual(cov["unclassified"], 0)
-        self.assertGreater(cov["outside_comparison"], 0)  # X1 ran only on a special day
-        self.assertIn({"code": "OUTSIDE_COMPARISON_PRESENT"}, self.report["header"]["notes"])
+        self.assertEqual(cov["outside_comparison"], 0)  # X1 ran only on a special day, now compared by date
+        self.assertNotIn({"code": "OUTSIDE_COMPARISON_PRESENT"}, self.report["header"]["notes"])
+        # Only 2026-05-15 differs beyond the regular weekday change (shown in the line blocks): X1 is gone.
+        groups = self.report["service_days"]["date_changes"]
+        self.assertEqual([(g["dates"], g["added_count"], g["removed_count"], [r["departure"] for r in g["removed"]]) for g in groups],
+                         [([{"start": "2026-05-15", "end": "2026-05-15"}], 0, 1, [720])])
+        self.assertEqual(self.report["summary"]["date_changes"], 1)
         topics = {o["topic"] for o in self.report["other"]}
         self.assertEqual(topics, {"calendar_exceptions", "fares"})
         fares = next(o for o in self.report["other"] if o["topic"] == "fares")

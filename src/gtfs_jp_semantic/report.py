@@ -150,8 +150,122 @@ def _timetable(trips: list[Trip], places: _PlaceIndex) -> dict | None:
     return {"places": rows, "trips": table_trips}
 
 
+def _column_pairs(table, a: str, b: str) -> list[tuple[str, str]]:
+    if table is None or table.status != "ok" or a not in table.header or b not in table.header:
+        return []
+    i, j = table.header.index(a), table.header.index(b)
+    return [(r[i], r[j]) for r in table.rows]
+
+
 def _sort_trips(trips: list[Trip]) -> list[Trip]:
     return sorted(trips, key=lambda t: (t.first_departure if t.first_departure is not None else 10**6, t.trip_id))
+
+
+def _spans(dates: list[date]) -> list[dict]:
+    """Consecutive dates as {start, end} spans."""
+    spans: list[list[date]] = []
+    for d in sorted(dates):
+        if spans and (d - spans[-1][1]).days == 1:
+            spans[-1][1] = d
+        else:
+            spans.append([d, d])
+    return [{"start": a.isoformat(), "end": b.isoformat()} for a, b in spans]
+
+
+def _date_changes(old_cal, new_cal, typical: dict, trips_of, max_groups: int, max_trips: int,
+                  max_shift: int) -> tuple[list[dict], set[str], int]:
+    """Dates both publications cover whose change differs from the regular one (03-report.md §2).
+
+    A trip is its line, place sequence and times, so a changed middle time counts. For each
+    shared date, old -> new is compared with the change of the typical day it follows (see
+    base; typical: day type -> (old date, new date)), which the line blocks already show; only
+    the remainder is reported, dates with the same remainder forming one group. Returns groups,
+    the trip ids that ran on any shared date (either side), and the number of such dates.
+    trips_of(side, services) -> list[Trip] with line keys already mapped to report lines.
+    """
+    cache: dict = {}
+
+    def day(side: str, services: frozenset) -> tuple[collections.Counter, list[Trip]]:
+        if (side, services) not in cache:
+            trips = trips_of(side, services)
+            cache[(side, services)] = (collections.Counter((t.line, t.places, t.times) for t in trips), trips)
+        return cache[(side, services)]
+
+    def change(a: collections.Counter, b: collections.Counter) -> collections.Counter:
+        """Signed old -> new change: positive added, negative removed."""
+        c = collections.Counter(b)
+        c.subtract(a)
+        return collections.Counter({k: v for k, v in c.items() if v})
+
+    # The regular change of each typical day, with the services it runs on each side.
+    regular: dict[str, collections.Counter] = {}
+    bases: list[tuple[frozenset, frozenset, collections.Counter]] = []
+    for dt, (od, nd) in typical.items():
+        if od in old_cal.days and nd in new_cal.days:
+            regular[dt] = change(day("old", old_cal.days[od])[0], day("new", new_cal.days[nd])[0])
+            bases.append((old_cal.days[od], new_cal.days[nd], regular[dt]))
+        else:
+            regular[dt] = collections.Counter()
+
+    def base(d: date) -> collections.Counter:
+        """The typical day whose services this date also runs (a holiday on the weekday
+        timetable uses the weekday change); otherwise the typical day of its day type."""
+        fits = [b for b in bases if b[0] <= old_cal.days[d] and b[1] <= new_cal.days[d]]
+        if fits:
+            return max(fits, key=lambda b: (len(b[0]) + len(b[1]), sorted(b[0]), sorted(b[1])))[2]
+        return regular[new_cal.day_types[d]]
+
+    groups: dict[tuple, dict] = {}
+    seen: set[str] = set()
+    differing = 0
+    for d in sorted(set(old_cal.days) & set(new_cal.days)):
+        (a, ta), (b, tb) = day("old", old_cal.days[d]), day("new", new_cal.days[d])
+        seen.update(t.trip_id for t in ta + tb)
+        rest = change(a, b)
+        rest.subtract(base(d))
+        rest = collections.Counter({k: v for k, v in rest.items() if v})
+        if not rest:
+            continue
+        differing += 1
+        key = tuple(sorted(rest.items()))
+        g = groups.setdefault(key, {"dates": [], "day_types": set(), "before": sum(a.values()), "after": sum(b.values())})
+        g["dates"].append(d)
+        g["day_types"].add(new_cal.day_types[d])
+
+    def dep(times: tuple) -> int | None:
+        return next((x for x in times if x is not None), None)
+
+    out = []
+    for key, g in groups.items():
+        added = [(line, places, times) for (line, places, times), v in key if v > 0 for _ in range(v)]
+        removed = [(line, places, times) for (line, places, times), v in key if v < 0 for _ in range(-v)]
+        # An added and a removed trip of one line departing within max_shift of each other are one
+        # retimed or rerouted trip; nearest departures first.
+        pairs = sorted((abs(dep(a[2]) - dep(r[2])), i, j) for i, a in enumerate(added) for j, r in enumerate(removed)
+                       if a[0] == r[0] and dep(a[2]) is not None and dep(r[2]) is not None and abs(dep(a[2]) - dep(r[2])) <= max_shift)
+        used_a, used_r, changed = set(), set(), []
+        for _, i, j in pairs:
+            if i in used_a or j in used_r:
+                continue
+            used_a.add(i)
+            used_r.add(j)
+            changed.append({"line": added[i][0], "departure": _time(dep(added[i][2])), "old_departure": _time(dep(removed[j][2]))})
+        as_items = lambda xs, used: [{"line": line, "departure": _time(dep(times)), "from": places[0], "to": places[-1]}
+                                     for k, (line, places, times) in enumerate(xs) if k not in used]
+        added_items, removed_items = as_items(added, used_a), as_items(removed, used_r)
+        order = lambda x: (x["line"], x["departure"] if x["departure"] is not None else 10**6)
+        added_items.sort(key=order)
+        removed_items.sort(key=order)
+        changed.sort(key=order)
+        out.append({
+            "dates": _spans(g["dates"]), "date_count": len(g["dates"]),
+            "day_types": [dt for dt in DAY_TYPES if dt in g["day_types"]],
+            "before": g["before"], "after": g["after"],
+            "added_count": len(added_items), "removed_count": len(removed_items), "changed_count": len(changed),
+            "added": added_items[:max_trips], "removed": removed_items[:max_trips], "changed": changed[:max_trips],
+        })
+    out.sort(key=lambda x: x["dates"][0]["start"])
+    return out[:max_groups], seen, differing
 
 
 def _pair_order(p: TripPair, a: list[Trip], b: list[Trip]) -> tuple:
@@ -339,6 +453,24 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
     moves.sort(key=lambda m: (m["old"]["line"], m["old"]["direction"], DAY_TYPES.index(m["day_type"]), m["old"]["trip"]))
     lines_with_moves = {m[s]["line"] for m in moves for s in ("old", "new")}
 
+    # 2b. Every date both publications cover, trip by trip.
+    old_service = {r[0]: r[1] for r in _column_pairs(ot.get("trips.txt"), "trip_id", "service_id")}
+    new_service = {r[0]: r[1] for r in _column_pairs(nt.get("trips.txt"), "trip_id", "service_id")}
+    all_old = build_trips(ot, frozenset(old_service.values()), old_route_line, place_of_stop(op), translate=to_new)
+    all_new = build_trips(nt, frozenset(new_service.values()), new_route_line, place_of_stop(np_))
+
+    def trips_of(side: str, services: frozenset) -> list[Trip]:
+        pool, service, group_of = (all_old, old_service, group_of_old) if side == "old" else (all_new, new_service, group_of_new)
+        return [Trip(t.trip_id, group_of[t.line].key, t.direction, t.places, t.times) for t in pool if service.get(t.trip_id) in services]
+
+    typical = {dt: (c.old_date, c.new_date) for dt, c in comparison.day_types.items()}
+    date_changes, ev.date_trips, differing_dates = _date_changes(
+        old_cal, new_cal, typical, trips_of, config.report["date_changes_max"], config.report["date_change_trips_max"],
+        cfg["trip_max_shift_min"])
+    for g in date_changes:
+        for item in g["added"] + g["removed"]:
+            places.use((item["from"], item["to"]))
+
     # 3. Report blocks.
     shift = cfg["first_last_min_shift"]
     first_last_changed = 0
@@ -456,6 +588,9 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
             "moved_m": m.distance_m if m.status in ("moved", "renamed_moved") else None,
             "lines": sorted(serving.get(ref, ())),
         })
+    for g in date_changes:
+        for item in g["added"] + g["removed"]:
+            item["from"], item["to"] = places[item["from"]], places[item["to"]]
     for m in moves:
         for edit in m["edits"]:
             edit["places"] = [places[r] for r in edit["places"]]
@@ -519,6 +654,7 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
             },
             "trips_by_day_type": totals,
             "first_last_changed": first_last_changed,
+            "date_changes": differing_dates,
             "trip_moves": len(moves),
             "fares": _fares(raw["changes"]),
             "quality": summary_quality,
@@ -529,6 +665,7 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
             "periods": {side: [{"day_type": p.day_type, "start": p.start.isoformat(), "end": p.end.isoformat()}
                                for p in cal.periods] for side, cal in (("old", old_cal), ("new", new_cal))},
             "special_days": {side: sorted(d.isoformat() for d in cal.special) for side, cal in (("old", old_cal), ("new", new_cal))},
+            "date_changes": date_changes,
         },
         "places": place_docs,
         "lines": line_docs,
