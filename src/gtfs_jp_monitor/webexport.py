@@ -13,7 +13,7 @@ from pathlib import Path
 
 from .catalog import load_catalog
 from .ordering import GenerationRef, order_generations
-from .store import generation_path, list_analyses
+from .store import content_digest, generation_path, list_analyses
 
 SCHEMA = "gtfs-jp-monitor-web-export/1"
 LANGS = ("tr", "en", "ja")
@@ -59,11 +59,15 @@ def build_export(data_dir: Path, key: str, analyzer: Path | None = None) -> dict
         entries = catalog_gens[fk]
         ordered, _ = order_generations(GenerationRef(e["uid"], e["from_date"], e["published_at"]) for e in entries.values())
         gens = []
+        last_digest = None
         for ref in ordered:
             if key not in analyses.get(ref.uid, {}):
                 continue
             doc = json.loads(generation_path(root, *fk, ref.uid, key).read_text(encoding="utf-8"))
             gens.append(_summary(entries[ref.uid], doc))
+            digest = content_digest(doc) if doc["validation_status"] != "FATAL" else None
+            gens[-1]["equivalent_to_previous"] = digest is not None and digest == last_digest  # data-model §4.2
+            last_digest = digest
             rule_ids.update(gens[-1]["rules"])
         if not gens:
             continue

@@ -68,11 +68,15 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["release_tag", "gtfs_jp_profile", "validation_status"],
+            "required": ["release_tag", "gtfs_jp_profile", "validation_status", "equivalent_to_previous"],
             "properties": {
               "release_tag": { "$ref": "generation.schema.json#/properties/analyzer/properties/release_tag" },
               "gtfs_jp_profile": { "$ref": "generation.schema.json#/properties/analyzer/properties/gtfs_jp_profile" },
-              "validation_status": { "$ref": "generation.schema.json#/properties/validation_status" }
+              "validation_status": { "$ref": "generation.schema.json#/properties/validation_status" },
+              "equivalent_to_previous": {
+                "type": "boolean",
+                "description": "True when this analysis summary is identical to the previous publication's for the same key (data-model §4.2). The ZIP itself may differ; nothing is removed."
+              }
             }
           }
         },

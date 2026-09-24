@@ -138,6 +138,22 @@ class PipelineTest(unittest.TestCase):
         status = {g["uid"]: g["source_status"] for g in index["generations"]}
         self.assertEqual(status[uid(2)], "SOURCE_CHANGED")
 
+    def test_equivalent_publications_are_flagged_not_removed(self):
+        # The fake analyzer returns the same report for every "OK" ZIP, like a daily republish.
+        dl = FakeDownloader({uid(1): b"OK1", uid(2): b"FATAL", uid(3): b"OK3"})
+        self.run_it(dl)
+        index = json.loads((self.feed_dir() / "feed.json").read_text())
+        flags = {g["uid"]: g["analyses"][0]["equivalent_to_previous"] for g in index["generations"]}
+        # uid(2) is FATAL, so uid(3) is compared with that and is not equivalent; nothing is dropped.
+        self.assertEqual(flags, {uid(1): False, uid(2): False, uid(3): False})
+        dl2 = FakeDownloader({uid(1): b"OK1", uid(2): b"OK2", uid(3): b"OK3"})
+        run_analysis(self.data, self.binary, "v3", downloader=dl2)
+        index = json.loads((self.feed_dir() / "feed.json").read_text())
+        v3 = {g["uid"]: [a for a in g["analyses"] if a["gtfs_jp_profile"] == "v3"][0]["equivalent_to_previous"]
+              for g in index["generations"]}
+        self.assertEqual(v3, {uid(1): False, uid(2): True, uid(3): True})
+        self.assertEqual(len(index["generations"]), 3)
+
     def test_unpinned_binary_refuses_unmarked_directory(self):
         (self.data / UNPINNED_MARKER).unlink()
         with self.assertRaises(StoreError):

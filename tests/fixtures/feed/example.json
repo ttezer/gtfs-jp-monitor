@@ -8,6 +8,7 @@
     {
       "analyses": [
         {
+          "equivalent_to_previous": false,
           "gtfs_jp_profile": "auto",
           "release_tag": "v0.14.0",
           "validation_status": "COMPLETE"

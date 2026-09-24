@@ -34,6 +34,7 @@ from .generation import (
 from .ids import is_path_id
 from .ordering import GenerationRef, order_generations
 from .store import (
+    analysis_digests,
     analysis_key,
     build_feed_index,
     check_writable,
@@ -200,7 +201,8 @@ def run_analysis(
             continue
         ordered_entries = _catalog_order(catalog_gens[fk])
         doc = build_feed_index(catalog_feeds[fk], ordered_entries, stored.get(fk, {}), key,
-                               previous=load_feed_index(root, *fk), source_changed=source_changed.get(fk, set()))
+                               previous=load_feed_index(root, *fk), source_changed=source_changed.get(fk, set()),
+                               digests=analysis_digests(root, *fk) if stored.get(fk) else None)
         if write_feed_index(root, doc):
             report.changed_files.append(f"feeds/{fk[0]}/{fk[1]}/feed.json")
         diffs = sync_feed_diffs(root, doc, key)

@@ -13,7 +13,9 @@ import re
 from pathlib import Path
 
 from .analyzer import PROFILES
-from .canonical import write_json_if_changed
+import hashlib
+
+from .canonical import dumps, write_json_if_changed
 from .ids import feed_dir, is_uid, require_uid
 
 FEED_SCHEMA = "gtfs-jp-monitor-feed/1"
@@ -80,6 +82,34 @@ def list_analyses(root: Path, org_id: str, feed_id: str) -> dict[str, dict[str, 
     return found
 
 
+# Fields compared to decide whether two publications are equivalent (data-model §4.2): the
+# analysis summary, not the ZIP bytes, which change on every republish.
+CONTENT_FIELDS = ("validation_status", "partial", "publishable", "coverage_complete", "is_gtfs_jp",
+                  "scores", "metrics", "file_row_counts", "rules")
+
+
+def content_digest(doc: dict) -> str:
+    return hashlib.sha256(dumps({k: doc[k] for k in CONTENT_FIELDS}).encode("utf-8")).hexdigest()
+
+
+def analysis_digests(root: Path, org_id: str, feed_id: str) -> dict[str, dict[str, str]]:
+    """{uid: {analysis_key: content digest}} for stored analyses that are not FATAL."""
+    base = feed_dir(root, org_id, feed_id) / "generations"
+    found: dict[str, dict[str, str]] = {}
+    if not base.is_dir():
+        return found
+    for uid_dir in sorted(base.iterdir()):
+        if not (uid_dir.is_dir() and is_uid(uid_dir.name)):
+            continue
+        for file in sorted(uid_dir.glob("*.json")):
+            if not _KEY_RE.fullmatch(file.stem):
+                continue
+            doc = json.loads(file.read_text(encoding="utf-8"))
+            if doc["validation_status"] != "FATAL":
+                found.setdefault(uid_dir.name, {})[file.stem] = content_digest(doc)
+    return found
+
+
 def load_generation(root: Path, org_id: str, feed_id: str, uid: str, key: str) -> dict | None:
     path = generation_path(root, org_id, feed_id, uid, key)
     return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
@@ -97,6 +127,7 @@ def build_feed_index(
     canonical_key: str,
     previous: dict | None = None,
     source_changed: set[str] = frozenset(),
+    digests: dict[str, dict[str, str]] | None = None,
 ) -> dict:
     """feed.json for one feed. `catalog_generations` must already be in data-model §2 order.
 
@@ -104,6 +135,8 @@ def build_feed_index(
     canonical is kept (so a partial re-analysis never drops a pointer).
     """
     prev_by_uid = {g["uid"]: g for g in (previous or {}).get("generations", [])}
+    digests = digests or {}
+    last_digest: dict[str, str | None] = {}  # per analysis key, the previous publication's digest
     entries = []
     for gen in catalog_generations:
         uid = gen["uid"]
@@ -129,7 +162,8 @@ def build_feed_index(
             "published_at": gen.get("published_at"),
             "source_status": status,
             "analyses": [
-                {"release_tag": split_key(k)[0], "gtfs_jp_profile": split_key(k)[1], "validation_status": v}
+                {"release_tag": split_key(k)[0], "gtfs_jp_profile": split_key(k)[1], "validation_status": v,
+                 "equivalent_to_previous": _equivalent(uid, k, status, digests, last_digest)}
                 for k, v in sorted(stored.items())
             ],
             "canonical": canonical,
@@ -146,6 +180,15 @@ def build_feed_index(
         },
         "generations": entries,
     }
+
+
+def _equivalent(uid: str, key: str, source_status: str, digests: dict, last_digest: dict) -> bool:
+    if source_status == "ORDERING_UNKNOWN":
+        return False
+    digest = digests.get(uid, {}).get(key)
+    same = digest is not None and last_digest.get(key) == digest
+    last_digest[key] = digest
+    return same
 
 
 def write_feed_index(root: Path, doc: dict) -> bool:

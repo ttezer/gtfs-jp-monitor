@@ -53,6 +53,16 @@ different releases or profiles live side by side and are never compared with eac
 - Time-dependent values (run times, durations, observed `rid`) appear only in run records and
   the catalog, never in generation or diff files.
 
+### §4.2 Equivalent publications
+
+Some feeds republish unchanged timetables as new generations (for example daily automatic
+imports). A publication is *equivalent to the previous one* when its analysis summary for the
+same analysis key is identical: validation status, partial details, publishability, coverage,
+GTFS-JP detection, scores, metrics, file row counts and rule counts. The ZIP bytes may still
+differ. Equivalence is recorded as `equivalent_to_previous` in `feed.json`; no publication is
+removed. Views may merge equivalent publications, but must always say that they did and keep the
+merged publications reachable.
+
 ## §5 Generation record
 
 `schemas/generation.schema.json` is binding. The record is language-neutral: rule codes,

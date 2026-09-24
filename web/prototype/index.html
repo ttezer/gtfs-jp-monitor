@@ -180,6 +180,7 @@ footer { margin-top: 24px; color: var(--faint); font-size: 12px; }
       <label class="toggle"><input id="merge" type="checkbox" checked> <span data-t="merge"></span></label>
       <div class="count" id="count"></div>
     </div>
+    <p class="hint" id="merge-note"></p>
     <div class="layout">
       <div class="scroll"><table class="grid" id="grid"></table></div>
       <aside class="panel" id="panel" aria-live="polite"></aside>
@@ -231,6 +232,7 @@ const T = {
     reportsText: "<p>Bu sekme her ardışık yayın çifti için semantic değişiklik raporunu gösterecek: hangi hat eklendi ya da kalktı, hangi durak taşındı ya da adı değişti, gün tipine göre sefer sayısı ve ilk/son sefer saatleri nasıl değişti, ve tüm ham farkların ne kadarının açıklanabildiği.</p><p>Semantic motorun yalnız ilk katmanı (ham fark) hazır; rapor içeriği ve depolama biçimi henüz kararlaştırılıyor.</p>",
     gtfsjpText: p => `<p>Analizler GTFS Analyzer ile <b>${p}</b> profiliyle yapıldı. Profil seçilebilir (auto, v3, v4); farklı profille yapılan analizler ayrı tutulur ve birbiriyle karşılaştırılmaz.</p><p>Doğrulama tarihi her yayının geçerlilik başlangıcıdır (from_date); böylece her yayın hizmete girdiği gündeki hâliyle değerlendirilir.</p>`,
     footer: "Veri kaynağı: gtfs-data.jp ve ilgili işletmeciler. Feed ve durak adları kaynaktaki hâliyle gösterilir. Skor rengi eşikleri geçicidir (≥95 / ≥85).",
+    mergeNote: "Birleştirilmiş yayınlar \"×N yayın\" ile gösterilir: analiz özeti (skorlar, metrikler, kural ve dosya satır sayıları) bir öncekiyle birebir aynı olan yayınlar tek sütunda toplanır. ZIP dosyaları farklı olabilir; hiçbir yayın silinmez, tamamı Feed Geçmişi sekmesinde listelenir.",
     compare: "Karşılaştır", compareHint: "Tablodaki bir Δ hücresine tıklayarak iki komşu yayını, bir yayın hücresine tıklayarak onu bir öncekiyle karşılaştırın; ya da aşağıdan herhangi iki yayını seçin.", clickGen: "Bu yayını bir öncekiyle karşılaştır", clickDelta: "Bu iki yayını karşılaştır",
     license: "Lisans", org: "Kurum"
   },
@@ -261,6 +263,7 @@ const T = {
     reportsText: "<p>This tab will show the semantic change report of each consecutive pair: routes added or discontinued, stops moved or renamed, trips per day type, first and last departures, and how much of the raw difference is explained.</p><p>Only the first layer of the semantic engine (raw diff) is ready; report content and storage are still being decided.</p>",
     gtfsjpText: p => `<p>Analyses were made with GTFS Analyzer using the <b>${p}</b> profile. The profile is selectable (auto, v3, v4); analyses with different profiles are kept apart and never compared.</p><p>Each publication is validated as of its first valid day (from_date), so it is judged as it was when it entered service.</p>`,
     footer: "Data: gtfs-data.jp and the transit operators. Feed and stop names are shown as published. Score colour thresholds are provisional (≥95 / ≥85).",
+    mergeNote: "Merged publications are marked \"×N publications\": publications whose analysis summary (scores, metrics, rule and file row counts) is identical to the previous one share a column. Their ZIP files may differ; none is removed, and all are listed under Feed history.",
     compare: "Compare", compareHint: "Click a Δ cell in the table to compare two neighbouring publications, click a publication to compare it with the one before, or pick any two below.", clickGen: "Compare this publication with the previous one", clickDelta: "Compare these two publications",
     license: "License", org: "Organisation"
   },
@@ -291,6 +294,7 @@ const T = {
     reportsText: "<p>このタブでは、連続する各公開ペアの意味的な変更レポートを表示します：路線の新設・廃止、停留所の移設・改称、曜日区分ごとの便数、始発・終発、そして生の差分のうち説明できた割合。</p><p>現在はセマンティックエンジンの第1層（生の差分）のみ完成しており、レポート内容と保存方法は検討中です。</p>",
     gtfsjpText: p => `<p>解析はGTFS Analyzerの<b>${p}</b>プロファイルで行いました。プロファイルは選択可能（auto・v3・v4）で、異なるプロファイルの結果は別に保持し、比較しません。</p><p>各公開は有効期間の開始日（from_date）時点で検証されます。</p>`,
     footer: "データ：gtfs-data.jpおよび各事業者。フィード名・停留所名は公開時のまま表示します。スコアの色の閾値は暫定です（≥95 / ≥85）。",
+    mergeNote: "まとめた公開は「×N回公開」と表示します：解析の要約（スコア・指標・ルール件数・ファイル行数）が直前と完全に同じ公開を1列にまとめています。ZIPファイル自体は異なる場合があり、どの公開も削除せず、すべてフィード履歴に一覧表示します。",
     compare: "比較", compareHint: "表のΔセルをクリックすると隣り合う2つの公開を、公開セルをクリックするとその前の公開と比較します。下で任意の2つを選ぶこともできます。", clickGen: "この公開を1つ前と比較", clickDelta: "この2つの公開を比較",
     license: "ライセンス", org: "事業者"
   }
@@ -325,7 +329,8 @@ function groups(feed) {
   const out = [];
   for (const g of feed.generations) {
     const last = out[out.length - 1];
-    if (state.merge && last && g.scores && last.rep.scores && contentKey(g) === contentKey(last.rep)) {
+    const same = g.equivalent_to_previous !== undefined ? g.equivalent_to_previous : (g.scores && last && last.rep.scores && contentKey(g) === contentKey(last.rep));
+    if (state.merge && last && same) {
       last.members.push(g); last.rep = g; continue;
     }
     out.push({ rep: g, members: [g] });
@@ -375,7 +380,7 @@ function genCell(gr, idx, sel) {
   const g = gr.rep;
   const attrs = `class="pickable${sel ? " sel" : ""}" data-new="${idx}"`;
   const date = `<div class="gdate num">${esc(g.from_date)}</div>`;
-  const merged = gr.members.length > 1 ? `<span class="merged">${esc(t("mergedChip", gr.members.length))}</span>` : "";
+  const merged = gr.members.length > 1 ? `<span class="merged" title="${esc(t("mergeNote"))}">${esc(t("mergedChip", gr.members.length))}</span>` : "";
   if (!g.scores) return `<td><div class="gcell"><span class="fatal">${esc(t("fatal"))}</span>${date}</div></td>`;
   return `<td ${attrs} title="${esc(t("clickGen"))}"><div class="gcell"><div class="pair">
       <span>Publish</span><span class="badge ${scoreClass(g.scores.publish)}">${fmt1(g.scores.publish)}</span>
@@ -584,6 +589,7 @@ function renderStatic() {
   $("reports").innerHTML = t("reportsText");
   $("gtfsjp").innerHTML = t("gtfsjpText", esc(profile));
   $("footer").textContent = t("footer");
+  $("merge-note").textContent = state.merge ? t("mergeNote") : "";
 }
 
 function renderAll() { renderStatic(); renderGrid(); renderPanel(); renderHistory(); }
@@ -595,7 +601,7 @@ document.querySelectorAll(".langs button").forEach(b => b.addEventListener("clic
 }));
 document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => { state.tab = b.dataset.tab; renderStatic(); }));
 ["q", "pref", "pub", "sort"].forEach(id => $(id).addEventListener("input", () => { renderGrid(); renderPanel(); renderHistory(); }));
-$("merge").addEventListener("change", e => { state.merge = e.target.checked; state.oldIdx = state.newIdx = null; renderGrid(); renderPanel(); renderHistory(); });
+$("merge").addEventListener("change", e => { state.merge = e.target.checked; state.oldIdx = state.newIdx = null; renderAll(); });
 
 renderAll();
 })();
