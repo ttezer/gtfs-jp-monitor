@@ -89,8 +89,11 @@ normalised `route_short_name`, falling back to `route_long_name`, then `route_id
 Old and new lines are matched by:
 
 1. **equal normalised name** — confidence 1;
-2. otherwise **served places**: the Jaccard similarity of the places (Part 3 matches) served by
-   the two lines' trips, at least `line_min_overlap`.
+2. otherwise **served places**, among lines without a same-name match: the overlap coefficient
+   (shared places over the smaller set, using the place matches of §3) of the places served by the
+   two lines' trips, at least `line_min_overlap`. The overlap coefficient is used rather than a
+   Jaccard index so that a line absorbed into another (merge) or divided into several (split)
+   still scores high.
 
 Matching may be 1:1 (same line, possibly renamed), N:1 (merged), 1:N (split) or N:M
 (restructured); the shape is reported as found. Components larger than

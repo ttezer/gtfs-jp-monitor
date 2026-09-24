@@ -2,6 +2,8 @@
   "bulk_threshold": 100000,
   "matching": {
     "accept_confidence": 0.5,
+    "line_max_component": 4,
+    "line_min_overlap": 0.6,
     "stop_moved_min_m": 20,
     "stop_name_min_similarity": 0.6,
     "stop_name_radius_m": 500,
@@ -28,5 +30,5 @@
   "max_uncompressed_bytes": 2147483648,
   "min_overlap_days": 14,
   "schema": "gtfs-jp-semantic-config/1",
-  "special_max_days": 10
+  "special_max_days": 8
 }

@@ -48,8 +48,9 @@ periods of both publications (with their date ranges). Special days are listed w
 One block per line that changed (unchanged lines are listed by name only):
 
 - Status: added, discontinued, renamed (old name → new name), merged from / split into, changed.
-- Trips per day type and per time band (bands configurable, default 05–07, 07–09, 09–16,
-  16–19, 19–22, 22–29 h), old → new.
+- Trips per day type and per hour of first departure (hourly bands, 04–05 up to 27–28 h for
+  service after midnight), old → new. Coarser groupings such as peak periods are built by the
+  viewer from the hourly counts.
 - First and last departure per direction and day type.
 - Pattern changes per direction: places added, removed, inserted, detours, with the place names.
 - **Timetables** per direction and day type, in three views:

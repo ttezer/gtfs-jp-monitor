@@ -198,11 +198,11 @@
       ],
       "trips": {
         "weekday": {
-          "07-09": {
+          "07-08": {
             "after": 5,
             "before": 6
           },
-          "09-16": {
+          "09-10": {
             "after": 10,
             "before": 10
           }
@@ -257,7 +257,7 @@
       "timetables": [],
       "trips": {
         "sunday_holiday": {
-          "09-16": {
+          "09-10": {
             "after": 12,
             "before": 0
           }
