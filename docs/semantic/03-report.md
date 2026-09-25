@@ -8,9 +8,12 @@ The reader is a **transport planner** comparing two publications of one feed. Th
 in this order: *what changed in the service*, *where exactly*, and *is the data itself sound*.
 Validation results support the report; they do not lead it.
 
-One report is produced for every consecutive pair of publications (data-model §9 pairs), using
-the comparison window and matches of Part 2. Equivalent pairs (data-model §4.2) produce no
-report; they carry only the equivalence flag.
+One report is produced for every pair of neighbouring publications and for the
+non-neighbouring pairs the page shows (data-model §11), using the comparison window and matches
+of Part 2. Equivalent pairs (data-model §4.2: the same analysis summary and the same content
+signature) produce no report; they carry only the equivalence flag. A report of non-neighbouring
+publications covers all changes between them combined, and the page says how many publications
+it skips.
 
 ## Sections
 
@@ -79,7 +82,9 @@ One block per line that changed (unchanged lines are listed by name only):
   other line is measured (up to `report.geometry_cap_m`); parts farther than
   `report.geometry_diverge_m` are where the route runs elsewhere and are kept as point ranges
   for drawing. A line whose route runs elsewhere counts as changed even if its stops and times
-  did not change. The page draws a network map of all lines and, per line, old and new routes
+  did not change. Distances are looked up in a grid of `report.geometry_cap_m` cells; a segment
+  spanning many cells (for example to a stop whose latitude and longitude are swapped) is
+  indexed along its path, not over its bounding box, so memory stays proportional to its length. The page draws a network map of all lines and, per line, old and new routes
   with the diverging parts.
 - **Timetables** per direction and day type, in three views:
   - **old**: the old typical day's trips as a table, places in pattern order as rows, trips as
@@ -115,7 +120,7 @@ The validation diff (scores, rule counts) already produced by the monitoring pip
 
 ## Storage
 
-Per pair of neighbouring, non-equivalent publications (data-model §11), under the feed's
+Per reported pair (data-model §11), under the feed's
 directory in the data repository:
 
 ```text
