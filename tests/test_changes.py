@@ -12,7 +12,9 @@ from gtfs_jp_monitor.catalog import load_catalog, sync_catalog
 from gtfs_jp_monitor.changes import find_pending_reports, page_pairs, report_pairs, run_reports
 from gtfs_jp_monitor.download import DownloadError, Downloaded
 from gtfs_jp_monitor.pipeline import _catalog_order
-from gtfs_jp_monitor.store import analysis_digests, build_feed_index, change_path, generation_path, list_analyses, write_feed_index
+from gtfs_jp_monitor.signature import content_signature
+from gtfs_jp_monitor.store import (analysis_digests, build_feed_index, change_path, content_path, generation_path, list_analyses,
+                                 write_feed_index)
 
 from .schema_support import FIXTURES, load_json
 from .test_catalog import FEED, ORG, FakeClient, feed_record, gen, uid
@@ -51,8 +53,9 @@ class ReportRunTest(unittest.TestCase):
         self.root = Path(self.tmp.name)
         sync_catalog(FakeClient([feed_record()], {FK: [gen(3, "current", "2026-04-01"), gen(2, "prev_1", "2025-10-01"),
                                                        gen(1, "prev_2", "2025-04-01")]}), self.root)
-        # uid(1) -> uid(2) changed; uid(3) republishes uid(2) with the same content (equivalent).
-        self.blobs = {uid(1): zip_bytes(OLD), uid(2): zip_bytes(NEW), uid(3): zip_bytes(dict(NEW, **{"extra.txt": "x\n"}))}
+        # uid(1) -> uid(2) changed; uid(3) republishes uid(2) with the same content in other ZIP bytes
+        # (files in another order), so it is equivalent.
+        self.blobs = {uid(1): zip_bytes(OLD), uid(2): zip_bytes(NEW), uid(3): zip_bytes(dict(reversed(list(NEW.items()))))}
         base = load_json(FIXTURES / "generation" / "complete.json")
         for n in (1, 2, 3):
             doc = copy.deepcopy(base)
@@ -61,10 +64,17 @@ class ReportRunTest(unittest.TestCase):
             if n == 1:
                 doc["metrics"]["routes"] += 1
             write_json(generation_path(self.root, *FK, uid(n), KEY), doc)
+            self.sign(n)
         self.index()
 
     def tearDown(self):
         self.tmp.cleanup()
+
+    def sign(self, n):
+        path = self.root / "sign.zip"
+        path.write_bytes(self.blobs[uid(n)])
+        write_json(content_path(self.root, *FK, uid(n)), content_signature(path, hashlib.sha256(self.blobs[uid(n)]).hexdigest()))
+        path.unlink()
 
     def index(self):
         feeds, gens = load_catalog(self.root)

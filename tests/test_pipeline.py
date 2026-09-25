@@ -11,7 +11,7 @@ from gtfs_jp_monitor.analyzer import AnalyzerBinary
 from gtfs_jp_monitor.catalog import sync_catalog
 from gtfs_jp_monitor.download import Downloaded, DownloadError
 from gtfs_jp_monitor.pipeline import run_analysis
-from gtfs_jp_monitor.store import UNPINNED_MARKER, StoreError, generation_path
+from gtfs_jp_monitor.store import UNPINNED_MARKER, StoreError, content_path, generation_path
 
 from .schema_support import FIXTURES, HAVE_JSONSCHEMA, errors, validator
 from .test_catalog import FEED, ORG, FakeClient, feed_record, gen, uid
@@ -146,13 +146,30 @@ class PipelineTest(unittest.TestCase):
         flags = {g["uid"]: g["analyses"][0]["equivalent_to_previous"] for g in index["generations"]}
         # uid(2) is FATAL, so uid(3) is compared with that and is not equivalent; nothing is dropped.
         self.assertEqual(flags, {uid(1): False, uid(2): False, uid(3): False})
-        dl2 = FakeDownloader({uid(1): b"OK1", uid(2): b"OK2", uid(3): b"OK3"})
+        # Same analysis summary everywhere, but uid(3) has other content than uid(2): only uid(2),
+        # a byte-identical republish of uid(1), is equivalent.
+        dl2 = FakeDownloader({uid(1): b"OK1", uid(2): b"OK1", uid(3): b"OK3"})
         run_analysis(self.data, self.binary, "v3", downloader=dl2)
         index = json.loads((self.feed_dir() / "feed.json").read_text())
         v3 = {g["uid"]: [a for a in g["analyses"] if a["gtfs_jp_profile"] == "v3"][0]["equivalent_to_previous"]
               for g in index["generations"]}
-        self.assertEqual(v3, {uid(1): False, uid(2): True, uid(3): True})
+        self.assertEqual(v3, {uid(1): False, uid(2): True, uid(3): False})
         self.assertEqual(len(index["generations"]), 3)
+
+    def test_candidates_without_a_signature_are_signed_later(self):
+        dl = FakeDownloader({uid(1): b"OK1", uid(2): b"OK1", uid(3): b"OK3"})
+        self.run_it(dl)
+        for n in (1, 2, 3):  # as analysed before content signatures existed
+            content_path(self.data, ORG, FEED, uid(n)).unlink()
+        result = self.run_it(dl, signature_limit=1)
+        # All three have the same summary; newest first and one per run, and none is equivalent yet.
+        self.assertEqual((result.counts["analyzed"], result.counts["signed"], dl.calls[3:]), (0, 1, [uid(3)]))
+        self.assertTrue(content_path(self.data, ORG, FEED, uid(3)).exists())
+        self.run_it(dl)
+        index = json.loads((self.feed_dir() / "feed.json").read_text())
+        flags = {g["uid"]: g["analyses"][0]["equivalent_to_previous"] for g in index["generations"]}
+        self.assertEqual(flags, {uid(1): False, uid(2): True, uid(3): False})
+        self.assertEqual(self.run_it(dl).changed_files, [])  # nothing left to sign
 
     def test_unpinned_binary_refuses_unmarked_directory(self):
         (self.data / UNPINNED_MARKER).unlink()
@@ -168,11 +185,11 @@ class PipelineTest(unittest.TestCase):
     def test_outputs_match_schemas(self):
         dl = FakeDownloader({uid(1): b"OK1", uid(2): b"FATAL", uid(3): b"OK3"})
         result = self.run_it(dl)
-        gv, dv, fv, rv = (validator(n) for n in ("generation.schema.json", "diff.schema.json",
-                                                   "feed.schema.json", "run.schema.json"))
+        gv, dv, fv, rv, cv = (validator(n) for n in ("generation.schema.json", "diff.schema.json",
+                                                       "feed.schema.json", "run.schema.json", "content.schema.json"))
         for path in self.feed_dir().rglob("*.json"):
             doc = json.loads(path.read_text())
-            v = fv if path.name == "feed.json" else dv if "diffs" in path.parts else gv
+            v = fv if path.name == "feed.json" else dv if "diffs" in path.parts else cv if path.name == "content.json" else gv
             with self.subTest(path=path.name):
                 self.assertEqual(errors(v, doc), [])
         self.assertEqual(errors(rv, json.loads((self.data / result.run_file).read_text())), [])

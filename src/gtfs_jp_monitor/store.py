@@ -3,6 +3,7 @@
 feeds/<org_id>/<feed_id>/
     feed.json
     generations/<uid>/<analysis_key>.json      analysis_key = <release_tag>__<gtfs_jp_profile>
+    generations/<uid>/content.json             content signature of the ZIP (signature.py)
     diffs/<analysis_key>/<old_uid>__<new_uid>.json
     changes/<engine_version>/<old_uid>__<new_uid>.report.json.gz   semantic change report
     changes/<engine_version>/<old_uid>__<new_uid>.error.json       report could not be built
@@ -46,6 +47,15 @@ def split_key(key: str) -> tuple[str, str]:
 def generation_path(root: Path, org_id: str, feed_id: str, uid: str, key: str) -> Path:
     split_key(key)
     return feed_dir(root, org_id, feed_id) / "generations" / require_uid(uid) / f"{key}.json"
+
+
+def content_path(root: Path, org_id: str, feed_id: str, uid: str) -> Path:
+    return feed_dir(root, org_id, feed_id) / "generations" / require_uid(uid) / "content.json"
+
+
+def load_content(root: Path, org_id: str, feed_id: str, uid: str) -> dict | None:
+    path = content_path(root, org_id, feed_id, uid)
+    return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
 
 
 def diff_path(root: Path, org_id: str, feed_id: str, key: str, old_uid: str, new_uid: str) -> Path:
@@ -95,18 +105,27 @@ def list_analyses(root: Path, org_id: str, feed_id: str) -> dict[str, dict[str, 
     return found
 
 
-# Fields compared to decide whether two publications are equivalent (data-model §4.2): the
-# analysis summary, not the ZIP bytes, which change on every republish.
+# Two publications are equivalent (data-model §4.2) when their analysis summaries and the content
+# signatures of their ZIPs are equal. The ZIP bytes may differ; the summary alone is not enough,
+# since values can change while every count and rule result stays the same.
 CONTENT_FIELDS = ("validation_status", "partial", "publishable", "coverage_complete", "is_gtfs_jp",
                   "scores", "metrics", "file_row_counts", "rules")
 
 
-def content_digest(doc: dict) -> str:
+def summary_digest(doc: dict) -> str:
     return hashlib.sha256(dumps({k: doc[k] for k in CONTENT_FIELDS}).encode("utf-8")).hexdigest()
 
 
+def content_digest(doc: dict, content: dict | None) -> str | None:
+    """None (never equivalent) without a signature for the analysed ZIP."""
+    if content is None or content.get("zip_sha256") != doc["generation"]["sha256"]:
+        return None
+    return hashlib.sha256(f"{summary_digest(doc)}:{content['signature']}".encode("utf-8")).hexdigest()
+
+
 def analysis_digests(root: Path, org_id: str, feed_id: str) -> dict[str, dict[str, str]]:
-    """{uid: {analysis_key: content digest}} for stored analyses that are not FATAL."""
+    """{uid: {analysis_key: content digest}} for stored analyses that are not FATAL and have a
+    content signature."""
     base = feed_dir(root, org_id, feed_id) / "generations"
     found: dict[str, dict[str, str]] = {}
     if not base.is_dir():
@@ -114,12 +133,13 @@ def analysis_digests(root: Path, org_id: str, feed_id: str) -> dict[str, dict[st
     for uid_dir in sorted(base.iterdir()):
         if not (uid_dir.is_dir() and is_uid(uid_dir.name)):
             continue
+        content = load_content(root, org_id, feed_id, uid_dir.name)
         for file in sorted(uid_dir.glob("*.json")):
             if not _KEY_RE.fullmatch(file.stem):
                 continue
             doc = json.loads(file.read_text(encoding="utf-8"))
-            if doc["validation_status"] != "FATAL":
-                found.setdefault(uid_dir.name, {})[file.stem] = content_digest(doc)
+            if doc["validation_status"] != "FATAL" and (digest := content_digest(doc, content)) is not None:
+                found.setdefault(uid_dir.name, {})[file.stem] = digest
     return found
 
 

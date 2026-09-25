@@ -1,7 +1,7 @@
 """Incremental analysis run (data-model §8, §9).
 
-catalog -> pending (uid, analysis_key) -> download -> analyze -> generation record
-        -> feed.json -> consecutive diffs -> run record
+catalog -> pending (uid, analysis_key) -> download -> content signature + analyze -> generation record
+        -> content signatures of equivalence candidates -> feed.json -> consecutive diffs -> run record
 
 A generation counts as done once a record exists for the analysis key, so an interrupted
 run resumes where it stopped (data-model §8). Transient download failures write nothing and
@@ -33,18 +33,25 @@ from .generation import (
 )
 from .ids import is_path_id
 from .ordering import GenerationRef, order_generations
+from .signature import content_signature
 from .store import (
     analysis_digests,
     analysis_key,
     build_feed_index,
     check_writable,
+    content_path,
     generation_path,
     list_analyses,
+    load_content,
     load_feed_index,
+    summary_digest,
     write_feed_index,
 )
 
 RUN_SCHEMA = "gtfs-jp-monitor-run/1"
+# Publications analysed before content signatures existed get one when they may be equivalent
+# (same analysis summary as a neighbour); at most this many downloads per run.
+SIGNATURE_LIMIT = 200
 
 FeedKey = tuple[str, str]
 Downloader = Callable[[str, Path], object]
@@ -123,6 +130,7 @@ def run_analysis(
     downloader: Callable[..., object] = download_zip,
     now: Callable[[], _dt.datetime] = _utc_now,
     extra_warnings: list[dict] | None = None,
+    signature_limit: int = SIGNATURE_LIMIT,
 ) -> RunReport:
     root = Path(data_dir)
     check_writable(root, binary.is_pinned)
@@ -170,6 +178,9 @@ def run_analysis(
                     report.warnings.append({"code": "SOURCE_CHANGED", "org_id": item.org_id, "feed_id": item.feed_id,
                                             "uid": uid, "detail": "ZIP checksum differs from the stored analysis"})
 
+                if _write_signature(root, item.org_id, item.feed_id, uid, zip_path, downloaded.sha256):
+                    report.changed_files.append(str(content_path(root, item.org_id, item.feed_id, uid).relative_to(root)))
+
                 # Missing source values stay null; nothing is guessed (data-model §5).
                 meta = GenerationMeta(uid, downloaded.sha256, entry["published_at"], entry["from_date"],
                                       entry["to_date"], feed_row.get("license", {}).get("raw", ""))
@@ -193,6 +204,26 @@ def run_analysis(
                               error_code=doc["fatal"]["code"] if doc["fatal"] else None)
                 counts["analyzed"] += 1
                 report.items.append(record)
+            finally:
+                zip_path.unlink(missing_ok=True)
+
+        candidates = [(fk, u) for fk in sorted(catalog_gens) if stored.get(fk) and all(is_path_id(x) for x in fk)
+                      for u in _signature_candidates(root, fk, catalog_gens[fk], stored[fk], key)]
+        for fk, uid in candidates[:signature_limit]:
+            zip_path = work / f"{uid}.zip"
+            try:
+                try:
+                    downloaded = downloader(catalog_gens[fk][uid]["gtfs_url"], zip_path)
+                except DownloadError:
+                    counts["signature_failed"] = counts.get("signature_failed", 0) + 1  # stays not equivalent
+                    continue
+                analysed = json.loads(generation_path(root, *fk, uid, key).read_text(encoding="utf-8"))
+                if analysed["generation"]["sha256"] != downloaded.sha256:
+                    counts["signature_failed"] = counts.get("signature_failed", 0) + 1
+                    continue
+                if _write_signature(root, *fk, uid, zip_path, downloaded.sha256):
+                    report.changed_files.append(str(content_path(root, *fk, uid).relative_to(root)))
+                    counts["signed"] = counts.get("signed", 0) + 1
             finally:
                 zip_path.unlink(missing_ok=True)
 
@@ -225,6 +256,38 @@ def run_analysis(
         write_json_if_changed(run_path, run_doc)
         report.run_file = str(run_path.relative_to(root))
     return report
+
+
+def _write_signature(root: Path, org_id: str, feed_id: str, uid: str, zip_path: Path, sha256: str) -> bool:
+    """Write the content signature unless one exists for these ZIP bytes."""
+    current = load_content(root, org_id, feed_id, uid)
+    if current is not None and current.get("zip_sha256") == sha256:
+        return False
+    write_json(content_path(root, org_id, feed_id, uid), content_signature(zip_path, sha256))
+    return True
+
+
+def _signature_candidates(root: Path, fk: FeedKey, entries: dict[str, dict], analyses: dict[str, dict[str, str]],
+                          key: str) -> list[str]:
+    """Uids whose analysis summary for `key` equals that of the previous analysed publication, or
+    of the next one, and that have no content signature for the analysed ZIP (newest first)."""
+    chain: list[tuple[str, str | None, str]] = []  # (uid, summary digest or None when FATAL, analysed sha)
+    for entry in _catalog_order(entries):
+        uid = entry["uid"]
+        if key not in analyses.get(uid, {}) or not entry.get("from_date"):
+            continue
+        doc = json.loads(generation_path(root, *fk, uid, key).read_text(encoding="utf-8"))
+        digest = summary_digest(doc) if doc["validation_status"] != "FATAL" else None
+        chain.append((uid, digest, doc["generation"]["sha256"]))
+    wanted: list[str] = []
+    for i, (uid, digest, sha) in enumerate(chain):
+        if digest is None:
+            continue
+        neighbours = [chain[j][1] for j in (i - 1, i + 1) if 0 <= j < len(chain)]
+        content = load_content(root, *fk, uid)
+        if digest in neighbours and (content is None or content.get("zip_sha256") != sha) and entries[uid].get("present", True):
+            wanted.append(uid)
+    return list(reversed(wanted))
 
 
 def _catalog_order(by_uid: dict[str, dict]) -> list[dict]:

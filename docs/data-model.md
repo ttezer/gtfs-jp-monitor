@@ -39,6 +39,7 @@ catalog/feeds.json
 catalog/generations/<org_id>/<feed_id>.json
 feeds/<org_id>/<feed_id>/feed.json
 feeds/<org_id>/<feed_id>/generations/<uid>/<analysis_key>.json
+feeds/<org_id>/<feed_id>/generations/<uid>/content.json
 feeds/<org_id>/<feed_id>/diffs/<analysis_key>/<old_uid>__<new_uid>.json
 feeds/<org_id>/<feed_id>/changes/<engine_version>/<old_uid>__<new_uid>.report.json.gz
 feeds/<org_id>/<feed_id>/changes/<engine_version>/<old_uid>__<new_uid>.error.json
@@ -58,11 +59,24 @@ different releases or profiles live side by side and are never compared with eac
 ### §4.2 Equivalent publications
 
 Some feeds republish unchanged timetables as new generations (for example daily automatic
-imports). A publication is *equivalent to the previous one* when its analysis summary for the
-same analysis key is identical: validation status, partial details, publishability, coverage,
-GTFS-JP detection, scores, metrics, file row counts and rule counts. The ZIP bytes may still
-differ. Equivalence is recorded as `equivalent_to_previous` in `feed.json`; no publication is
-removed. Views may merge equivalent publications, but must always say that they did and keep the
+imports). A publication is *equivalent to the previous one* when both of these are identical:
+
+- its analysis summary for the same analysis key: validation status, partial details,
+  publishability, coverage, GTFS-JP detection, scores, metrics, file row counts and rule counts;
+- the content signature of its ZIP (`content.json`, `schemas/content.schema.json`), which does
+  not depend on the analysis key.
+
+The summary alone is not enough: stop names, coordinates, times and fares can change while every
+count and rule result stays the same. The signature ignores how the ZIP is packed (member order,
+compression, BOM, line endings, CSV quoting, column and row order) but never merges different
+values: nothing is trimmed, case-folded, rounded or decoded lossily, and a file that is not
+regular UTF-8 CSV is compared byte for byte (`src/gtfs_jp_monitor/signature.py`). A publication
+without a signature for its analysed ZIP is never equivalent. The analysis run signs every ZIP
+it downloads and, up to a limit per run, publications analysed before signatures existed whose
+summary equals a neighbour's.
+
+The ZIP bytes may still differ. Equivalence is recorded as `equivalent_to_previous` in
+`feed.json`; no publication is removed. Views may merge equivalent publications, but must always say that they did and keep the
 merged publications reachable.
 
 ## §5 Generation record

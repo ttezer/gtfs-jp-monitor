@@ -18,7 +18,7 @@ from gtfs_jp_semantic import ENGINE_VERSION
 from .catalog import load_catalog
 from .ids import feed_dir
 from .ordering import GenerationRef, order_generations
-from .store import content_digest, generation_path, list_analyses
+from .store import content_digest, generation_path, list_analyses, load_content
 
 SCHEMA = "gtfs-jp-monitor-web-export/1"
 LANGS = ("tr", "en", "ja")
@@ -110,7 +110,7 @@ def build_export(data_dir: Path, key: str, analyzer: Path | None = None) -> tupl
                 continue
             doc = json.loads(generation_path(root, *fk, ref.uid, key).read_text(encoding="utf-8"))
             gens.append(_summary(entries[ref.uid], doc))
-            digest = content_digest(doc) if doc["validation_status"] != "FATAL" else None
+            digest = content_digest(doc, load_content(root, *fk, ref.uid)) if doc["validation_status"] != "FATAL" else None
             gens[-1]["equivalent_to_previous"] = digest is not None and digest == last_digest  # data-model §4.2
             last_digest = digest
             rule_ids.update(gens[-1]["rules"])

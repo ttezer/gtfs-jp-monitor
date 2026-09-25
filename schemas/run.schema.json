@@ -32,7 +32,9 @@
         "new_generations": { "$ref": "generation.schema.json#/$defs/count" },
         "analyzed": { "$ref": "generation.schema.json#/$defs/count" },
         "skipped": { "$ref": "generation.schema.json#/$defs/count" },
-        "failed": { "$ref": "generation.schema.json#/$defs/count" }
+        "failed": { "$ref": "generation.schema.json#/$defs/count" },
+        "signed": { "$ref": "generation.schema.json#/$defs/count" },
+        "signature_failed": { "$ref": "generation.schema.json#/$defs/count" }
       }
     },
     "items": {
