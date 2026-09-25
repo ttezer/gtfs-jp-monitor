@@ -138,6 +138,13 @@ class ReportRunTest(unittest.TestCase):
         write_json(path, dict(marker, code="SOURCE_CHANGED"))  # lasting failures stay marked
         self.assertEqual(find_pending_reports(self.root, [FK], KEY, "0.1.0"), [])
 
+    def test_time_budget_defers_the_rest(self):
+        ticks = iter([0, 100, 100])  # start, then before the only pair: the budget is spent
+        run = run_reports(self.root, KEY, downloader=FakeDownloader(self.blobs), engine_version="0.1.0",
+                          max_seconds=50, clock=lambda: next(ticks))
+        self.assertEqual((run.counts["reported"], run.counts["deferred"]), (0, 1))
+        self.assertEqual(len(find_pending_reports(self.root, [FK], KEY, "0.1.0")), 1)  # still pending
+
     def test_transient_download_failure_is_retried(self):
         dl = FakeDownloader(self.blobs, failing={uid(1): DownloadError("DOWNLOAD_FAILED", "timeout")})
         run = run_reports(self.root, KEY, downloader=dl, engine_version="0.1.0")

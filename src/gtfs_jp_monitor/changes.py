@@ -15,6 +15,7 @@ from __future__ import annotations
 import hashlib
 import json
 import tempfile
+import time
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -142,8 +143,12 @@ def _publication(entry: dict) -> dict:
 
 
 def run_reports(data_dir: Path, key: str, limit: int | None = None, only: set[FeedKey] | None = None,
-                downloader: Callable[..., object] = download_zip, engine_version: str = ENGINE_VERSION) -> ReportRun:
+                downloader: Callable[..., object] = download_zip, engine_version: str = ENGINE_VERSION,
+                max_seconds: float | None = None, clock: Callable[[], float] = time.monotonic) -> ReportRun:
+    """Build pending reports. max_seconds is a time budget: no new pair starts after it, so the
+    workflow never reaches its own time limit and loses the run; the rest waits for the next run."""
     root = Path(data_dir)
+    deadline = None if max_seconds is None else clock() + max_seconds
     split_key(key)
     _, catalog_gens = load_catalog(root)
     feeds = [fk for fk in sorted(catalog_gens) if all(is_path_id(x) for x in fk) and (only is None or fk in only)]
@@ -156,6 +161,9 @@ def run_reports(data_dir: Path, key: str, limit: int | None = None, only: set[Fe
     with tempfile.TemporaryDirectory(prefix="gtfs-jp-changes-") as tmp:
         zips: dict[str, Path] = {}
         for p in selected:
+            if deadline is not None and clock() >= deadline:
+                run.counts["deferred"] += 1
+                continue
             fk = (p.org_id, p.feed_id)
             record = {"org_id": p.org_id, "feed_id": p.feed_id, "old_uid": p.old_uid, "new_uid": p.new_uid,
                       "action": None, "code": None}

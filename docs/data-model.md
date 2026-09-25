@@ -171,4 +171,5 @@ only that job has `pages: write` and `id-token: write`.
   again under its own directory.
 - Raw differences (docs/semantic/01-raw-diff.md) are not stored; they can be rebuilt from the
   two ZIPs. Newest pairs are reported first, round-robin across feeds, at most
-  `report_limit` per run.
+  `report_limit` per run and within a time budget (`report_minutes`): no new report starts
+  after it, so the job never reaches its own time limit and loses the run.

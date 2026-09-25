@@ -145,7 +145,8 @@ def _cmd_semantic_reports(args: argparse.Namespace) -> int:
     from .store import analysis_key
 
     key = analysis_key(Lock.load(Path(args.lock)).release_tag, args.profile)
-    run = run_reports(Path(args.data_dir), key, limit=args.limit, only=set(args.only) if args.only else None)
+    run = run_reports(Path(args.data_dir), key, limit=args.limit, only=set(args.only) if args.only else None,
+                      max_seconds=args.max_minutes * 60 if args.max_minutes else None)
     print(json.dumps({"analysis_key": key, "counts": dict(sorted(run.counts.items())),
                       "failed": [i for i in run.items if i["action"] == "failed"][:50]}, ensure_ascii=False, indent=2))
     return 0
@@ -245,6 +246,7 @@ def main(argv: list[str] | None = None) -> int:
     reps.add_argument("--lock", default=str(DEFAULT_LOCK), help="the analysis key uses the pinned release of this lock")
     reps.add_argument("--limit", type=int, help="build at most this many reports (newest pairs first)")
     reps.add_argument("--only", type=_feed_key, action="append", metavar="ORG_ID/FEED_ID")
+    reps.add_argument("--max-minutes", type=float, help="time budget: start no new report after this many minutes")
     reps.set_defaults(func=_cmd_semantic_reports)
 
     web = sub.add_parser("export-web", help="export data for the web page (prototype)")
