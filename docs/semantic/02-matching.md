@@ -19,15 +19,28 @@ For each publication, every `service_id` is expanded into its set of active date
 additions, minus removals. Dates are clipped to the publication's validity
 (`feed_info` start/end if present, else the catalogue `from_date`/`to_date`).
 
-A **day** is described by the set of services active on it. Days are classified into day types
-used throughout the report:
+A **day** is described by the set of services active on it. Every date has a **calendar
+category**: its weekday (`mon` .. `sun`), or `hol` on a national holiday whatever its weekday.
 
-| Day type | Rule |
-|---|---|
-| `weekday` | Monday–Friday that is not a national holiday |
-| `saturday` | Saturday that is not a national holiday |
-| `sunday_holiday` | Sunday or national holiday |
-| `special` | a date whose service set occurs on fewer than `special_max_days` dates in the window |
+**Day types come from each publication's own calendar.** Two categories belong to one day
+type when they run the same services: every date is compared with the nearest date (at most 7
+days away) of the other category, and the categories join when at least
+`day_group_min_agreement` of these comparisons agree. A holiday is thus compared with the
+weekday it replaced one week before or after. Dates whose services differ from both
+neighbouring dates of their own category are isolated exceptions and take no part; two dates
+without service say nothing, and categories that never run form one day type. Joins are
+transitive. The id of a day type lists its categories in calendar order: a common result is
+`mon,tue,wed,thu,fri` / `sat` / `sun,hol`; a community bus running some routes on Monday,
+Wednesday and Friday and others on Tuesday, Thursday and Saturday gets `mon,wed,fri` /
+`tue,thu,sat` / `sun` / `hol`.
+
+Two publications are compared on the **common refinement** of their day types: categories stay
+together only if they share a day type on both sides (old `mon,tue,wed,thu,fri` and new `mon` +
+`tue,wed,thu,fri` are compared as `mon` and `tue,wed,thu,fri`). The report keeps each side's
+own day types as well.
+
+Within a day type, a date whose service set occurs on fewer than `special_max_days` dates of
+that day type is **special**.
 
 National holidays come from a bundled, versioned table of Japanese public holidays (a data file
 of the engine, updated yearly). The table version is written into every output.

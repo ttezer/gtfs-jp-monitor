@@ -28,9 +28,19 @@
         "comparison": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["mode", "day_types"],
+          "required": ["mode", "day_types", "groups"],
           "properties": {
             "mode": { "enum": ["same_days", "successive_periods"] },
+            "groups": {
+              "description": "Each publication's own day types; day_types is their common refinement.",
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["old", "new"],
+              "properties": {
+                "old": { "type": "array", "items": { "$ref": "#/$defs/day_type" } },
+                "new": { "type": "array", "items": { "$ref": "#/$defs/day_type" } }
+              }
+            },
             "day_types": {
               "description": "Typical day compared for each day type (docs/semantic/02-matching.md §2). A day type missing on one side has null there.",
               "type": "object",
@@ -497,7 +507,11 @@
       "required": ["before", "after"],
       "properties": { "before": { "$ref": "#/$defs/count" }, "after": { "$ref": "#/$defs/count" } }
     },
-    "day_type": { "enum": ["weekday", "saturday", "sunday_holiday"] },
+    "day_type": {
+      "type": "string",
+      "pattern": "^(mon|tue|wed|thu|fri|sat|sun|hol)(,(mon|tue|wed|thu|fri|sat|sun|hol))*$",
+      "description": "Calendar categories (weekdays, hol = national holiday) that run the same services, in calendar order; found from the feed's own calendar (docs/semantic/02-matching.md §1)."
+    },
     "time_band": { "type": "string", "pattern": "^[0-9]{2}-[0-9]{2}$" },
     "direction": { "type": "string", "pattern": "^(0|1|[0-9a-f]{8})$", "description": "direction_id, or a short hash of first/last place when direction_id is missing." },
     "minutes": { "type": "integer", "minimum": 0, "maximum": 2880, "description": "Minutes after midnight of the service day; values above 1440 are after midnight." },

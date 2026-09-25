@@ -1,12 +1,20 @@
-"""Service days, day types, periods and the comparison window (docs/semantic/02-matching.md §1-2)."""
+"""Service days, day types, periods and the comparison window (docs/semantic/02-matching.md §1-2).
+
+Day types come from each feed's own calendar: calendar categories (weekdays and national
+holidays) that run the same services in the same weeks form one day type, for example
+"mon,tue,wed,thu,fri" / "sat" / "sun,hol", or "mon" / "tue,wed,thu,fri" for a feed with a
+Tuesday-Friday timetable. Two publications are compared on the common refinement of their
+day types.
+"""
 
 from __future__ import annotations
 
+import bisect
 import collections
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
-from .holidays import DAY_TYPES, HolidayTable
+from .holidays import CATEGORIES, HolidayTable
 from .reader import Config, Table
 
 WEEKDAY_COLUMNS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
@@ -36,17 +44,33 @@ class Period:
     services: frozenset[str]
 
 
+def day_type_id(categories) -> str:
+    """Stable id of a group of categories, in calendar order: "mon,tue,wed,thu,fri"."""
+    return ",".join(c for c in CATEGORIES if c in set(categories))
+
+
+def day_type_order(day_type: str) -> tuple[int, ...]:
+    return tuple(CATEGORIES.index(c) for c in day_type.split(","))
+
+
 @dataclass
 class ServiceCalendar:
     window: tuple[date, date] | None
     days: dict[date, frozenset[str]]
-    day_types: dict[date, str]
+    categories: dict[date, str]
+    groups: dict[str, str]  # category -> day type id of this publication
     special: set[date]
     periods: list[Period]
     notes: list[str] = field(default_factory=list)
 
-    def active_days(self, day_type: str) -> int:
-        return sum(1 for d, s in self.days.items() if s and self.day_types[d] == day_type)
+    @property
+    def day_types(self) -> dict[date, str]:
+        return {d: self.groups[c] for d, c in self.categories.items()}
+
+    def active_days(self, categories) -> int:
+        """Dates with service whose category is one of `categories`."""
+        wanted = set(categories)
+        return sum(1 for d, s in self.days.items() if s and self.categories[d] in wanted)
 
 
 def _window(tables: dict[str, Table], validity: tuple[date | None, date | None] | None,
@@ -93,14 +117,14 @@ def build_calendar(tables: dict[str, Table], holidays: HolidayTable, config: Con
     notes: list[str] = []
     window = _window(tables, validity, set().union(*services.values()) if services else set())
     if window is None:
-        return ServiceCalendar(None, {}, {}, set(), [], ["NO_SERVICE_DAYS"])
+        return ServiceCalendar(None, {}, {}, {}, set(), [], ["NO_SERVICE_DAYS"])
     start, end = window
     lo, hi = date(holidays.first_year, 1, 1), date(holidays.last_year, 12, 31)
     if start < lo or end > hi:
         start, end = max(start, lo), min(end, hi)
         notes.append("WINDOW_CLIPPED_TO_HOLIDAY_TABLE")
         if start > end:
-            return ServiceCalendar(None, {}, {}, set(), [], notes)
+            return ServiceCalendar(None, {}, {}, {}, set(), [], notes)
 
     by_date: dict[date, set[str]] = collections.defaultdict(set)
     for sid, ds in services.items():
@@ -108,21 +132,82 @@ def build_calendar(tables: dict[str, Table], holidays: HolidayTable, config: Con
             if start <= d <= end:
                 by_date[d].add(sid)
     days: dict[date, frozenset[str]] = {}
-    day_types: dict[date, str] = {}
+    categories: dict[date, str] = {}
     d = start
     while d <= end:
         days[d] = frozenset(by_date.get(d, ()))
-        day_types[d] = holidays.day_type(d)
+        categories[d] = holidays.category(d)
         d += timedelta(days=1)
 
+    groups = _day_groups(days, categories, config.matching["day_group_min_agreement"])
+    day_types = {d: groups[c] for d, c in categories.items()}
     special = _special_days(days, day_types, config.special_max_days)
-    return ServiceCalendar((start, end), days, day_types, special, _periods(days, day_types, special), notes)
+    return ServiceCalendar((start, end), days, categories, groups, special, _periods(days, day_types, special), notes)
+
+
+def _day_groups(days: dict[date, frozenset[str]], categories: dict[date, str], min_agreement: float) -> dict[str, str]:
+    """category -> day type id.
+
+    Each date is compared with the nearest date (at most 7 days away) of every other category;
+    two categories join when at least `min_agreement` of these comparisons find the same
+    services. A holiday is thus compared with the weekday it replaced one week before or after.
+    Isolated exceptions (a date whose services differ from both neighbouring dates of its own
+    category) take no part; they are special days. Two dates without service say nothing;
+    categories that never run form one day type. Joins are transitive.
+    """
+    by_cat: dict[str, list[date]] = collections.defaultdict(list)
+    for d in sorted(days):
+        by_cat[categories[d]].append(d)
+    usable: dict[str, list[date]] = {}
+    for c, ds in by_cat.items():
+        usable[c] = [d for i, d in enumerate(ds)
+                     if not (0 < i < len(ds) - 1 and days[d] != days[ds[i - 1]] and days[d] != days[ds[i + 1]])]
+    present = [c for c in CATEGORIES if usable.get(c)]
+
+    def nearest(ds: list[date], d: date) -> date | None:
+        i = bisect.bisect_left(ds, d)
+        best = [x for x in ds[max(0, i - 1):i + 1] if abs((x - d).days) <= 7]
+        return min(best, key=lambda x: (abs((x - d).days), x)) if best else None
+
+    parent = {c: c for c in present}
+
+    def find(c: str) -> str:
+        while parent[c] != c:
+            parent[c] = parent[parent[c]]
+            c = parent[c]
+        return c
+
+    for i, a in enumerate(present):
+        for b in present[i + 1:]:
+            same = total = 0
+            for x, y in ((a, b), (b, a)):
+                for d in usable[x]:
+                    e = nearest(usable[y], d)
+                    if e is not None and (days[d] or days[e]):  # two days without service say nothing
+                        total += 1
+                        same += days[d] == days[e]
+            if total and same / total >= min_agreement:
+                ra, rb = find(a), find(b)
+                if ra != rb:
+                    parent[max(ra, rb, key=CATEGORIES.index)] = min(ra, rb, key=CATEGORIES.index)
+    idle = [c for c in present if not any(days[d] for d in usable[c])]
+    for c in idle[1:]:  # categories that never run form one day type
+        ra, rb = find(idle[0]), find(c)
+        if ra != rb:
+            parent[max(ra, rb, key=CATEGORIES.index)] = min(ra, rb, key=CATEGORIES.index)
+    members: dict[str, list[str]] = collections.defaultdict(list)
+    for c in present:
+        members[find(c)].append(c)
+    groups = {c: day_type_id(members[find(c)]) for c in present}
+    for c in by_cat:  # a category whose every date is an exception stands alone
+        groups.setdefault(c, c)
+    return groups
 
 
 def _special_days(days: dict[date, frozenset[str]], day_types: dict[date, str], max_days: int) -> set[date]:
     """Dates whose service set is rare for their day type, while a regular set exists for it."""
     special: set[date] = set()
-    for dt in DAY_TYPES:
+    for dt in sorted(set(day_types.values()), key=day_type_order):
         counts = collections.Counter(s for d, s in days.items() if day_types[d] == dt)
         if not counts or max(counts.values()) < max_days:
             continue
@@ -133,7 +218,7 @@ def _special_days(days: dict[date, frozenset[str]], day_types: dict[date, str], 
 
 def _periods(days: dict[date, frozenset[str]], day_types: dict[date, str], special: set[date]) -> list[Period]:
     periods: list[Period] = []
-    for dt in DAY_TYPES:
+    for dt in sorted(set(day_types.values()), key=day_type_order):
         current: Period | None = None
         for d in sorted(x for x in days if day_types[x] == dt and x not in special):
             s = days[d]
@@ -145,7 +230,7 @@ def _periods(days: dict[date, frozenset[str]], day_types: dict[date, str], speci
                 current = Period(dt, d, d, s)
         if current is not None:
             periods.append(current)
-    return sorted(periods, key=lambda p: (DAY_TYPES.index(p.day_type), p.start))
+    return sorted(periods, key=lambda p: (day_type_order(p.day_type), p.start))
 
 
 @dataclass(frozen=True)
@@ -159,12 +244,26 @@ class DayChoice:
 @dataclass(frozen=True)
 class Comparison:
     mode: str  # same_days | successive_periods
-    day_types: dict[str, DayChoice]
+    day_types: dict[str, DayChoice]  # common day type id -> typical days, in calendar order
+
+    def day_type_of(self, category: str) -> str | None:
+        return next((dt for dt in self.day_types if category in dt.split(",")), None)
+
+
+def common_day_types(old: ServiceCalendar, new: ServiceCalendar) -> list[str]:
+    """The common refinement of both publications' day types: categories that share a day type
+    on both sides stay together."""
+    by_pair: dict[tuple, list[str]] = collections.defaultdict(list)
+    for c in CATEGORIES:
+        if c in old.groups or c in new.groups:
+            by_pair[(old.groups.get(c), new.groups.get(c))].append(c)
+    return sorted((day_type_id(cs) for cs in by_pair.values()), key=day_type_order)
 
 
 def _typical(cal: ServiceCalendar, dt: str, dates: set[date] | None, latest: bool = False) -> tuple[date | None, frozenset[str]]:
     """Most frequent service set of a day type (ties: earliest occurrence) and its earliest (or latest) date."""
-    candidates = sorted(d for d in cal.days if cal.day_types[d] == dt and d not in cal.special and (dates is None or d in dates))
+    members = set(dt.split(","))
+    candidates = sorted(d for d in cal.days if cal.categories[d] in members and d not in cal.special and (dates is None or d in dates))
     if not candidates:
         return None, frozenset()
     counts = collections.Counter(cal.days[d] for d in candidates)
@@ -180,15 +279,16 @@ def _typical(cal: ServiceCalendar, dt: str, dates: set[date] | None, latest: boo
 def choose_comparison(old: ServiceCalendar, new: ServiceCalendar, config: Config) -> Comparison:
     overlap = set(old.days) & set(new.days)
     choices: dict[str, DayChoice] = {}
+    common = common_day_types(old, new)
     if len(overlap) >= config.min_overlap_days:
-        for dt in DAY_TYPES:
+        for dt in common:
             od, os_ = _typical(old, dt, overlap)
             nd, ns = _typical(new, dt, overlap)
             choices[dt] = DayChoice(od, nd, os_, ns)
         return Comparison("same_days", choices)
     # Each side's dominant timetable: short periods (school holidays, a bundled previous timetable)
     # must not stand in for the regular one.
-    for dt in DAY_TYPES:
+    for dt in common:
         od, os_ = _typical(old, dt, None, latest=True)
         nd, ns = _typical(new, dt, None)
         choices[dt] = DayChoice(od, nd, os_, ns)

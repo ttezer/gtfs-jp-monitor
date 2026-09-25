@@ -14,13 +14,13 @@ from pathlib import Path
 
 from . import ENGINE_VERSION
 from .accounting import Evidence, classify
-from .holidays import DAY_TYPES, HolidayTable, default_table
+from .holidays import HolidayTable, default_table
 from .lines import Line, LineMatch, build_lines, match_lines
 from .places import PlaceMatch, build_places, match_places, place_of_stop
 from .rawdiff import diff_feeds
 from .reader import Config, Feed, read_feed
 from .report_check import check_report
-from .service import build_calendar, choose_comparison
+from .service import build_calendar, choose_comparison, day_type_order
 from .trips import Trip, TripPair, build_trips, dominant_pattern, match_moved_trips, match_trips, pattern_edits
 
 SCHEMA = "gtfs-jp-semantic-report/1"
@@ -172,7 +172,7 @@ def _spans(dates: list[date]) -> list[dict]:
     return [{"start": a.isoformat(), "end": b.isoformat()} for a, b in spans]
 
 
-def _date_changes(old_cal, new_cal, typical: dict, trips_of, max_groups: int, max_trips: int,
+def _date_changes(old_cal, new_cal, typical: dict, type_of, trips_of, max_groups: int, max_trips: int,
                   max_shift: int) -> tuple[list[dict], set[str], int]:
     """Dates both publications cover whose change differs from the regular one (03-report.md §2).
 
@@ -213,7 +213,7 @@ def _date_changes(old_cal, new_cal, typical: dict, trips_of, max_groups: int, ma
         fits = [b for b in bases if b[0] <= old_cal.days[d] and b[1] <= new_cal.days[d]]
         if fits:
             return max(fits, key=lambda b: (len(b[0]) + len(b[1]), sorted(b[0]), sorted(b[1])))[2]
-        return regular.get(new_cal.day_types[d], collections.Counter())
+        return regular.get(type_of(d), collections.Counter())
 
     groups: dict[tuple, dict] = {}
     seen: set[str] = set()
@@ -230,7 +230,7 @@ def _date_changes(old_cal, new_cal, typical: dict, trips_of, max_groups: int, ma
         key = tuple(sorted(rest.items(), key=repr))  # times may hold None (no time at a stop)
         g = groups.setdefault(key, {"dates": [], "day_types": set(), "before": sum(a.values()), "after": sum(b.values())})
         g["dates"].append(d)
-        g["day_types"].add(new_cal.day_types[d])
+        g["day_types"].add(type_of(d))
 
     def dep(times: tuple) -> int | None:
         return next((x for x in times if x is not None), None)
@@ -259,7 +259,7 @@ def _date_changes(old_cal, new_cal, typical: dict, trips_of, max_groups: int, ma
         changed.sort(key=order)
         out.append({
             "dates": _spans(g["dates"]), "date_count": len(g["dates"]),
-            "day_types": [dt for dt in DAY_TYPES if dt in g["day_types"]],
+            "day_types": sorted((dt for dt in g["day_types"] if dt), key=day_type_order),
             "before": g["before"], "after": g["after"],
             "added_count": len(added_items), "removed_count": len(removed_items), "changed_count": len(changed),
             "added": added_items[:max_trips], "removed": removed_items[:max_trips], "changed": changed[:max_trips],
@@ -412,8 +412,7 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
     # 1. Per line, direction and day type: combos[(group key, direction, day type)] = (old trips, new trips, pairs)
     combos: dict[tuple[str, str, str], tuple[list[Trip], list[Trip], list[TripPair]]] = {}
     totals: dict[str, dict[str, int]] = {}
-    for dt in DAY_TYPES:
-        choice = comparison.day_types[dt]
+    for dt, choice in comparison.day_types.items():
         old_trips = build_trips(ot, choice.old_services, old_route_line, place_of_stop(op), translate=to_new)
         new_trips = build_trips(nt, choice.new_services, new_route_line, place_of_stop(np_))
         totals[dt] = {"before": len(old_trips), "after": len(new_trips)}
@@ -432,7 +431,7 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
     # variant of the same corridor): matched again across lines with stricter rules.
     moves: list[dict] = []
     moved: set[tuple[str, str, str, str, int]] = set()  # (side, group key, direction, day type, trip index)
-    for dt in DAY_TYPES:
+    for dt in comparison.day_types:
         left_old = [(k, p.old) for k, (a, b, pairs) in sorted(combos.items()) if k[2] == dt for p in pairs if p.new is None]
         left_new = [(k, p.new) for k, (a, b, pairs) in sorted(combos.items()) if k[2] == dt for p in pairs if p.old is None]
         if not left_old or not left_new:
@@ -450,7 +449,7 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
                           "new": {"line": kn[0], "direction": kn[1], "trip": j},
                           "edits": [{"kind": e.kind, "places": list(e.places)} for e in edits]})
             moved.update({("old", *ko, i), ("new", *kn, j)})
-    moves.sort(key=lambda m: (m["old"]["line"], m["old"]["direction"], DAY_TYPES.index(m["day_type"]), m["old"]["trip"]))
+    moves.sort(key=lambda m: (m["old"]["line"], m["old"]["direction"], day_type_order(m["day_type"]), m["old"]["trip"]))
     lines_with_moves = {m[s]["line"] for m in moves for s in ("old", "new")}
 
     # 2b. Every date both publications cover, trip by trip.
@@ -465,7 +464,7 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
 
     typical = {dt: (c.old_date, c.new_date) for dt, c in comparison.day_types.items()}
     date_changes, ev.date_trips, differing_dates = _date_changes(
-        old_cal, new_cal, typical, trips_of, config.report["date_changes_max"], config.report["date_change_trips_max"],
+        old_cal, new_cal, typical, lambda d: comparison.day_type_of(new_cal.categories[d]), trips_of, config.report["date_changes_max"], config.report["date_change_trips_max"],
         cfg["trip_max_shift_min"])
     for g in date_changes:
         for item in g["added"] + g["removed"]:
@@ -505,7 +504,7 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
                 changed = True
                 places.use(x for e in edits for x in e["places"])
                 patterns.append({"direction": direction, "edits": edits})
-            for dt in DAY_TYPES:
+            for dt in comparison.day_types:
                 if dt not in by_dir[direction]:
                     continue
                 a, b, pairs = by_dir[direction][dt]
@@ -638,6 +637,8 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
                 "day_types": {dt: {"old_date": c.old_date.isoformat() if c.old_date else None,
                                    "new_date": c.new_date.isoformat() if c.new_date else None}
                               for dt, c in comparison.day_types.items()},
+                # Each publication's own day types; the comparison uses their common refinement.
+                "groups": {side: sorted(set(cal.groups.values()), key=day_type_order) for side, cal in (("old", old_cal), ("new", new_cal))},
             },
             "notes": notes,
             "engine": {"version": ENGINE_VERSION, "config": config.as_dict(), "holidays_version": holidays.version},
@@ -660,8 +661,8 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
             "quality": summary_quality,
         },
         "service_days": {
-            "day_types": {dt: {"active_days": {"before": old_cal.active_days(dt), "after": new_cal.active_days(dt)}}
-                          for dt in DAY_TYPES},
+            "day_types": {dt: {"active_days": {"before": old_cal.active_days(dt.split(",")), "after": new_cal.active_days(dt.split(","))}}
+                          for dt in comparison.day_types},
             "periods": {side: [{"day_type": p.day_type, "start": p.start.isoformat(), "end": p.end.isoformat()}
                                for p in cal.periods] for side, cal in (("old", old_cal), ("new", new_cal))},
             "special_days": {side: sorted(d.isoformat() for d in cal.special) for side, cal in (("old", old_cal), ("new", new_cal))},

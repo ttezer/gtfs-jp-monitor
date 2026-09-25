@@ -106,7 +106,7 @@ class ReportTest(unittest.TestCase):
         s = self.report["summary"]
         self.assertEqual(s["lines"]["changed"], 2)
         self.assertEqual(s["places"], {"added": 1, "removed": 1, "renamed": 1, "moved": 0})
-        self.assertEqual(s["trips_by_day_type"]["weekday"], {"before": 4, "after": 5})
+        self.assertEqual(s["trips_by_day_type"]["mon,tue,wed,thu,fri,hol"], {"before": 4, "after": 5})
         self.assertEqual(s["lines"]["added"], 1)
         self.assertEqual(s["trip_moves"], 1)
         self.assertEqual(s["fares"], {"changed": True, "classes_added": 0, "classes_removed": 0, "prices_changed": 1})
@@ -116,14 +116,14 @@ class ReportTest(unittest.TestCase):
         line = self.line("1")
         self.assertEqual(line["status"], "changed")
         (table,) = line["timetables"]
-        self.assertEqual(table["day_type"], "weekday")
+        self.assertEqual(table["day_type"], "mon,tue,wed,thu,fri,hol")
         self.assertEqual([self.place_name(i) for i in table["new"]["places"]], ["駅前", "市役所前", "病院"])
         self.assertEqual(table["old"]["places"], table["new"]["places"])  # old side speaks new place ids
         self.assertEqual([t["trip_id"] for t in table["old"]["trips"]], ["T1", "T2", "T4"])
         self.assertEqual(table["new"]["trips"][0]["times"], [405, 410, 415])
         self.assertEqual(table["pairs"], [[0, 0], [1, 1], [None, 2], [2, None]])
         (weekday,) = line["trips"]
-        self.assertEqual((weekday["direction"], weekday["day_type"]), ("0", "weekday"))
+        self.assertEqual((weekday["direction"], weekday["day_type"]), ("0", "mon,tue,wed,thu,fri,hol"))
         self.assertEqual(weekday["bands"]["09-10"], {"before": 0, "after": 1})
 
     def test_pattern_edit_uses_places(self):
@@ -208,12 +208,12 @@ class DateChangesTest(unittest.TestCase):
         from datetime import date
         from types import SimpleNamespace
         d = date(2026, 5, 15)
-        cal = lambda services: SimpleNamespace(days={d: frozenset(services)}, day_types={d: "weekday"})
+        cal = lambda services: SimpleNamespace(days={d: frozenset(services)}, categories={d: "fri"})
         trips = {
             ("old", frozenset({"A"})): [Trip("x", "1", "0", ("P", "Q", "R"), (400, None, 410)), Trip("y", "1", "0", ("P", "R"), (500, None))],
             ("new", frozenset({"A"})): [Trip("x", "1", "0", ("P", "Q", "R"), (405, None, 415))],
         }
-        groups, seen, differing = _date_changes(cal({"A"}), cal({"A"}), {}, lambda side, s: trips[(side, s)], 10, 10, 45)
+        groups, seen, differing = _date_changes(cal({"A"}), cal({"A"}), {}, lambda d: "fri", lambda side, s: trips[(side, s)], 10, 10, 45)
         self.assertEqual((differing, seen), (1, {"x", "y"}))
         (g,) = groups
         self.assertEqual((g["changed"], g["removed_count"]), ([{"line": "1", "departure": 405, "old_departure": 400}], 1))

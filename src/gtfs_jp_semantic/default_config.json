@@ -4,6 +4,7 @@
     "accept_confidence": 0.5,
     "cross_line_max_shift_min": 10,
     "cross_line_min_containment": 0.8,
+    "day_group_min_agreement": 0.8,
     "first_last_min_shift": 10,
     "line_max_component": 4,
     "line_min_overlap": 0.6,

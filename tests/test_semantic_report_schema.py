@@ -89,7 +89,7 @@ class ReportCheckTest(unittest.TestCase):
         self.assertTrue(self.problems(lambda d: d["places"][2].update(moved_m=None)))
 
     def test_move_references(self):
-        move = {"day_type": "weekday", "kind": "rerouted", "edits": [],
+        move = {"day_type": "mon,tue,wed,thu,fri", "kind": "rerouted", "edits": [],
                 "old": {"line": "1", "direction": "0", "trip": 1}, "new": {"line": "1", "direction": "0", "trip": 0}}
         # old trip 1 is removed (unpaired) but new trip 0 is paired with old trip 0
         self.assertEqual(self.problems(lambda d: d["moves"].append(move)), ["moves[0].new: trip is paired in its own line"])

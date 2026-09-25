@@ -1,4 +1,4 @@
-"""Japanese national holidays and day types (docs/semantic/02-matching.md §1).
+"""Japanese national holidays and calendar categories (docs/semantic/02-matching.md §1).
 
 The table is the Cabinet Office list, stored as a versioned data file of the engine. Dates in
 years the table does not cover raise instead of being treated as ordinary days, so an outdated
@@ -14,7 +14,9 @@ from pathlib import Path
 
 DATA_FILE = Path(__file__).with_name("data") / "jp_holidays.json"
 SCHEMA = "gtfs-jp-semantic-holidays/1"
-DAY_TYPES = ("weekday", "saturday", "sunday_holiday")
+# Calendar categories of a date: its weekday, or "hol" on a national holiday (any weekday).
+# Day types are groups of these, found from each feed's calendar (service.py).
+CATEGORIES = ("mon", "tue", "wed", "thu", "fri", "sat", "sun", "hol")
 
 
 class HolidayTableOutOfRange(ValueError):
@@ -41,13 +43,9 @@ class HolidayTable:
             )
         return day in self._dates
 
-    def day_type(self, day: date) -> str:
-        """weekday, saturday or sunday_holiday. Holidays on any weekday count as sunday_holiday."""
-        if day.weekday() == 6 or self.is_holiday(day):
-            return "sunday_holiday"
-        if day.weekday() == 5:
-            return "saturday"
-        return "weekday"
+    def category(self, day: date) -> str:
+        """The weekday of a date (mon .. sun), or hol on a national holiday."""
+        return "hol" if self.is_holiday(day) else CATEGORIES[day.weekday()]
 
 
 @lru_cache(maxsize=1)

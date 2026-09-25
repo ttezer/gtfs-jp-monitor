@@ -24,21 +24,21 @@ class HolidayTableTest(unittest.TestCase):
             with self.subTest(d=d):
                 self.assertFalse(self.table.is_holiday(date.fromisoformat(d)))
 
-    def test_day_types(self):
+    def test_categories(self):
         cases = {
-            "2026-04-01": "weekday",       # Wednesday
-            "2026-04-04": "saturday",
-            "2026-04-05": "sunday_holiday",  # Sunday
-            "2026-04-29": "sunday_holiday",  # Showa Day on a Wednesday
-            "2026-01-12": "sunday_holiday",  # Coming of Age Day (Monday)
+            "2026-04-01": "wed",
+            "2026-04-04": "sat",
+            "2026-04-05": "sun",
+            "2026-04-29": "hol",  # Showa Day on a Wednesday
+            "2026-01-12": "hol",  # Coming of Age Day (Monday)
         }
         for d, expected in cases.items():
             with self.subTest(d=d):
-                self.assertEqual(self.table.day_type(date.fromisoformat(d)), expected)
+                self.assertEqual(self.table.category(date.fromisoformat(d)), expected)
 
     def test_uncovered_years_raise(self):
         with self.assertRaises(HolidayTableOutOfRange):
-            self.table.day_type(date(self.table.last_year + 1, 1, 5))
+            self.table.category(date(self.table.last_year + 1, 1, 5))
 
 
 if __name__ == "__main__":
