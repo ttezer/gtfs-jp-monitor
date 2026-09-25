@@ -400,6 +400,7 @@ def _file_table(raw: dict, acc) -> tuple[dict[str, dict], dict[str, int]]:
             "old_rows": meta["rows"]["old"], "new_rows": meta["rows"]["new"],
             "added": sum(k[0] == "row_added" for k in rows), "removed": sum(k[0] == "row_removed" for k in rows),
             "changed_rows": sum(k[0] == "changed" for k in rows), "changed_fields": meta["counts"].get("field_changed", 0),
+            "columns": dict(sorted(collections.Counter(c["column"] for c in by_file.get(name, []) if c["kind"] == "field_changed").items())),
             "structure": structure, "changes": len(rows) + len(structure),
             "classified": counts["classified"], "outside_comparison": counts["outside_comparison"],
             "unclassified": counts["unclassified"],

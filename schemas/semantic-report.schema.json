@@ -496,7 +496,7 @@
             "type": "object",
             "additionalProperties": false,
             "description": "Counted in rows: a row with several changed fields counts once, in the least explained bucket of its fields; each file or column change counts once. classified + outside_comparison + unclassified = changes = added + removed + changed_rows + structure items.",
-            "required": ["old_rows", "new_rows", "added", "removed", "changed_rows", "changed_fields", "structure", "changes", "classified", "outside_comparison", "unclassified"],
+            "required": ["old_rows", "new_rows", "added", "removed", "changed_rows", "changed_fields", "columns", "structure", "changes", "classified", "outside_comparison", "unclassified"],
             "properties": {
               "old_rows": { "type": ["integer", "null"], "minimum": 0, "description": "Rows in the file; null when the file is absent on that side." },
               "new_rows": { "type": ["integer", "null"], "minimum": 0 },
@@ -504,6 +504,7 @@
               "removed": { "$ref": "#/$defs/count" },
               "changed_rows": { "$ref": "#/$defs/count" },
               "changed_fields": { "$ref": "#/$defs/count", "description": "Changed fields over all changed rows (information only)." },
+              "columns": { "type": "object", "additionalProperties": { "$ref": "#/$defs/count" }, "description": "Changed fields per column." },
               "structure": {
                 "type": "array",
                 "items": {

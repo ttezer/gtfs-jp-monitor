@@ -14,6 +14,12 @@ report; they carry only the equivalence flag.
 
 ## Sections
 
+The page shows a report in two views. **Report** is for the planner: sections 1-5.
+**Verification** is for checking the report itself: coverage, a consistency check of figures
+that must agree (timetables against hourly counts, the file table against the coverage),
+section 6 with the changed columns of each file, the unclassified differences and formatting-
+only changes.
+
 ### 0. Header
 
 - Feed, organisation, prefecture; old and new publication (validity, publication date, the
