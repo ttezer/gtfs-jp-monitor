@@ -198,6 +198,8 @@ table.tt tr.only-old td.pl { color: var(--bad); }
 .edits { margin: 0; padding-left: 18px; font-size: 13px; }
 .chips { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; font-family: var(--mono); font-size: 13px; }
 .pmap { position: relative; height: 380px; overflow: hidden; border: 1px solid var(--hair); border-radius: 6px; background: var(--surface-2); touch-action: none; cursor: grab; user-select: none; }
+.pmap.netmap { height: 460px; }
+.pmap.lmap { height: 340px; }
 .pmap .tiles img { position: absolute; width: 256px; height: 256px; pointer-events: none; }
 .pmap svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .pmap .mapctl { position: absolute; top: 8px; right: 8px; display: grid; gap: 4px; }
@@ -435,7 +437,7 @@ const R = {
     truncated: n => `+${n} kayıt daha (tamamı ham fark dosyasında).`, showDetails: n => `Ayrıntılar (${n})`,
     fileCols: ["Dosya", "Eski satır", "Yeni satır", "Net", "Eklenen", "Kaldırılan", "Değişen satır", "Açıklandı", "Karşılaştırma dışı", "Sınıflandırılmamış"],
     farkTitle: c => `${c} alan değişti`,
-    map: "Harita", mapAll: "Tümünü göster", mapLegend: "Yeşil: eklenen · kırmızı: kaldırılan · turuncu: adı değişen · çizgi: taşınan durağın eski → yeni yeri · gri: raporda geçen diğer duraklar. Tablodaki satıra tıklayınca harita o durağa gider.", mapNoCoords: "Değişen durakların koordinatı yok.",
+    map: "Harita", mapAll: "Tümünü göster", mapLegend: "Yeşil: eklenen · kırmızı: kaldırılan · turuncu: adı değişen · çizgi: taşınan durağın eski → yeni yeri · gri: raporda geçen diğer duraklar. Tablodaki satıra tıklayınca harita o durağa gider.", mapNoCoords: "Değişen durakların koordinatı yok.", routeMap: "Güzergâh haritası", routeOld: "Eski güzergâh", routeNew: "Yeni güzergâh", routeLegend: "Mavi: yeni güzergâh · kırmızı kesikli: eski güzergâh · gölgeli: 50 m'den fazla ayrılan kısım · noktalar: bu hatta değişen duraklar.", routeMoved: (d, len, max) => `${d}: güzergâh ${len} m boyunca başka yoldan gidiyor (en fazla ${max} m)`, routeSame: d => `${d}: güzergâh aynı`, routeMinor: (d, max) => `${d}: yalnız çizim farkı (en fazla ${max} m, 50 m eşiğinin altında)`, routeOnlyNew: d => `${d}: yalnız yeni yayında`, routeOnlyOld: d => `${d}: yalnız eski yayında`, routeFromStops: "(feed'de güzergâh şekli yok; duraklar birleştirildi)", netLegend: "Hat ağı · renkli: değişen hatlar · gri: değişmeyen · turuncu: güzergâhı ayrılan kısımlar. Bir hatta tıklayınca ayrıntısı açılır.",
   },
   en: {
     wd: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], hol: "Hol", every: "Every day", dtSep: ", ", dtGroups: (o, n) => `Day types · old: ${o} · new: ${n}. Compared on their common refinement.`,
@@ -489,7 +491,7 @@ const R = {
     truncated: n => `+${n} more (all in the raw difference file).`, showDetails: n => `Details (${n})`,
     fileCols: ["File", "Old rows", "New rows", "Net", "Added", "Removed", "Changed rows", "Explained", "Outside comparison", "Unclassified"],
     farkTitle: c => `${c} fields changed`,
-    map: "Map", mapAll: "Show all", mapLegend: "Green: added · red: removed · orange: renamed · line: old → new position of a moved stop · grey: other stops in the report. Click a table row to move the map to that stop.", mapNoCoords: "The changed stops have no coordinates.",
+    map: "Map", mapAll: "Show all", mapLegend: "Green: added · red: removed · orange: renamed · line: old → new position of a moved stop · grey: other stops in the report. Click a table row to move the map to that stop.", mapNoCoords: "The changed stops have no coordinates.", routeMap: "Route map", routeOld: "Old route", routeNew: "New route", routeLegend: "Blue: new route · red dashed: old route · shaded: parts more than 50 m apart · dots: changed stops of this line.", routeMoved: (d, len, max) => `${d}: runs elsewhere for ${len} m (up to ${max} m away)`, routeSame: d => `${d}: same route`, routeMinor: (d, max) => `${d}: drawing difference only (up to ${max} m, below the 50 m threshold)`, routeOnlyNew: d => `${d}: new publication only`, routeOnlyOld: d => `${d}: old publication only`, routeFromStops: "(no shapes in the feed; stops joined)", netLegend: "Network · coloured: changed lines · grey: unchanged · orange: parts where the route moved. Click a line to open it.",
   },
   ja: {
     wd: ["月", "火", "水", "木", "金", "土", "日"], hol: "祝", every: "毎日", dtSep: "・", dtGroups: (o, n) => `曜日区分 ・旧：${o} ・新：${n}。両者を細かい方に合わせて比較しました。`,
@@ -543,7 +545,7 @@ const R = {
     truncated: n => `ほか${n}件（すべて差分ファイルに記録）。`, showDetails: n => `詳細（${n}）`,
     fileCols: ["ファイル", "旧行数", "新行数", "増減", "追加", "削除", "変更行", "説明済み", "比較対象外", "未分類"],
     farkTitle: c => `変更項目 ${c}`,
-    map: "地図", mapAll: "全体表示", mapLegend: "緑：新設・赤：廃止・橙：改称・線：移設した停留所の旧→新位置・灰：レポート内のその他の停留所。表の行をクリックするとその停留所へ移動します。", mapNoCoords: "変更された停留所に座標がありません。",
+    map: "地図", mapAll: "全体表示", mapLegend: "緑：新設・赤：廃止・橙：改称・線：移設した停留所の旧→新位置・灰：レポート内のその他の停留所。表の行をクリックするとその停留所へ移動します。", mapNoCoords: "変更された停留所に座標がありません。", routeMap: "経路地図", routeOld: "旧経路", routeNew: "新経路", routeLegend: "青：新経路・赤破線：旧経路・網掛け：50 m以上離れた区間・点：この路線で変更された停留所。", routeMoved: (d, len, max) => `${d}：${len} mの区間で別の道を通行（最大${max} m）`, routeSame: d => `${d}：経路は同じ`, routeMinor: (d, max) => `${d}：描画上の差のみ（最大${max} m、50 m未満）`, routeOnlyNew: d => `${d}：新公開のみ`, routeOnlyOld: d => `${d}：旧公開のみ`, routeFromStops: "（経路形状なし・停留所を結線）", netLegend: "路線網・色付き：変更のある路線・灰：変更なし・橙：経路が変わった区間。路線をクリックすると詳細を開きます。",
   },
 };
 const rt = (k, ...a) => { const v = R[state.lang][k]; return typeof v === "function" ? v(...a) : v; };
@@ -624,6 +626,8 @@ function dirLabel(rep, line, dir) {
   const tab = line.timetables.find(x => x.direction === dir);
   const side = tab && (tab.new || tab.old);
   if (side && side.places.length) return `${pname(rep, side.places[0])} → ${pname(rep, side.places[side.places.length - 1])}`;
+  const gm = (line.geometry || []).find(g => g.direction === dir && g.from != null && g.to != null);
+  if (gm) return `${pname(rep, gm.from)} → ${pname(rep, gm.to)}`;
   return `${rt("dir")} ${dir}`;
 }
 
@@ -804,12 +808,25 @@ function lineBlock(rep, line) {
       tts = `<div><h3>${esc(rt("timetables"))}</h3><div class="ttbar"><div class="seg">${choices}</div><div class="seg">${views}</div></div>
         ${sel.view === "diff" ? `<p class="hint">${esc(rt("ttLegend"))}</p>` : ""}${ttHtml(rep, tab, sel.view)}<p class="hint">${esc(rt("ttUnchanged"))}</p></div>`;
     }
-    inner = `<div class="lb">${changeTable}${pat}${fl}${hourTable}${tts}</div>`;
+    const routes = routesOf(line);
+    const routeText = routes.map(r => {
+      const d = dirLabel(rep, line, r.dir), c = r.change;
+      const src = (line.geometry.find(g => g.direction === r.dir) || {}).new;
+      const note = src && src.source === "stops" ? ` ${rt("routeFromStops")}` : "";
+      if (!c) return (r.now.length ? rt("routeOnlyNew", d) : rt("routeOnlyOld", d)) + note;
+      if (r.moved) return rt("routeMoved", d, Math.max(c.diverged_new_m, c.diverged_old_m).toLocaleString(), c.max_m.toLocaleString() + (c.capped ? "+" : "")) + note;
+      return (r.identical || c.max_m === 0 ? rt("routeSame", d) : rt("routeMinor", d, c.max_m)) + note;
+    });
+    const routeMap = routes.length ? `<div><h3>${esc(rt("routeMap"))}</h3>${mapShell(`lmap-${rep.lines.indexOf(line)}`, "pmap lmap")}
+      <p class="hint">${esc(rt("routeLegend"))}</p><ul class="edits">${routeText.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>` : "";
+    inner = `<div class="lb">${changeTable}${pat}${routeMap}${fl}${hourTable}${tts}</div>`;
   }
   return `<details class="line" data-key="${esc(line.key)}"${open ? " open" : ""}><summary>${stChip(line.status, rt("ls")[line.status])}<span class="ln">${esc(lineNames(line))}</span><span class="lt">${esc(tot)}</span></summary>${inner}</details>`;
 }
 
 function bindLine(rep, el) {
+  const m = el.querySelector(".lmap");
+  if (m) initLineMap(rep, rep.lines.find(l => l.key === el.dataset.key), m);
   el.addEventListener("toggle", () => {
     const k = el.dataset.key;
     if (el.open === state.openLines.has(k)) return;
@@ -864,15 +881,17 @@ function mapPoints(rep) {
   return rep.places.map((p, i) => ({ i, p, a: p.old && p.old.lat != null && p.old.lon != null ? p.old : null, b: p.new && p.new.lat != null && p.new.lon != null ? p.new : null }))
     .filter(x => x.a || x.b);
 }
-function initMap(rep) {
-  const el = $("pmap");
-  if (!el) return;
-  const pts = mapPoints(rep), changed = pts.filter(x => x.p.status !== "unchanged");
-  if (!changed.length) { el.outerHTML = `<p class="hint">${esc(rt("mapNoCoords"))}</p>`; return; }
+// A tile map with an SVG overlay: pan by dragging, +/- zoom, "show all". overlay(P, view) returns
+// SVG for the current view, P([lat, lon]) -> [x, y]; onPick(element) gets clicks (not drags).
+function mapShell(id, cls = "pmap") {
+  return `<div class="${cls}" id="${id}"><div class="tiles"></div><svg aria-label="${esc(rt("map"))}"></svg>
+    <div class="mapctl"><button type="button" data-z="+" aria-label="+">+</button><button type="button" data-z="-" aria-label="−">−</button><button type="button" data-z="all">${esc(rt("mapAll"))}</button></div>
+    <div class="attr"><a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル</a></div></div>`;
+}
+function makeMap(el, bounds, overlay, onPick) {
   const view = { z: 16, lat: 0, lon: 0, focus: null };
   const fit = () => {
-    const c = changed.flatMap(x => [x.a, x.b].filter(Boolean));
-    const lats = c.map(s => s.lat), lons = c.map(s => s.lon);
+    const lats = bounds.map(p => p[0]), lons = bounds.map(p => p[1]);
     const W = el.clientWidth - 40, H = el.clientHeight - 40;
     let z = 17;
     while (z > 5 && (wx(Math.max(...lons), z) - wx(Math.min(...lons), z) > W || wy(Math.min(...lats), z) - wy(Math.max(...lats), z) > H)) z--;
@@ -885,45 +904,129 @@ function initMap(rep) {
     for (let tx = Math.floor(x0 / TILE); tx <= Math.floor((x0 + W) / TILE); tx++)
       for (let ty = Math.floor(y0 / TILE); ty <= Math.floor((y0 + H) / TILE); ty++)
         if (ty >= 0 && ty < n) tiles += `<img alt="" draggable="false" src="${GSI(z, ((tx % n) + n) % n, ty)}" style="left:${Math.round(tx * TILE - x0)}px;top:${Math.round(ty * TILE - y0)}px" onerror="this.remove()">`;
-    const P = s => [wx(s.lon, z) - x0, wy(s.lat, z) - y0];
-    const dot = (s, x, r) => { const [px, py] = P(s); return `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${r}" fill="${MAP_COLOR[x.p.status]}" stroke="var(--surface)" stroke-width="1.5"><title>${esc(s.name)} (${esc(s.stop_id)}) · ${esc(rt("ps")[x.p.status])}</title></circle>`; };
-    let svg = pts.filter(x => x.p.status === "unchanged").map(x => dot(x.b || x.a, x, 3)).join("");
-    for (const x of changed) {
-      if (x.a && x.b && (x.p.status === "moved" || x.p.status === "renamed_moved")) {
-        const [ax, ay] = P(x.a), [bx, by] = P(x.b);
-        svg += `<line x1="${ax.toFixed(1)}" y1="${ay.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}" stroke="var(--warn)" stroke-width="2" stroke-dasharray="4 3"/>`;
-        svg += dot(x.a, { p: { status: "removed" } }, 4).replace(rt("ps").removed, rt("ps")[x.p.status]);
-      }
-      svg += dot(x.b || x.a, x, 6);
-      if (view.focus === x.i) { const [fx, fy] = P(x.b || x.a); svg += `<circle cx="${fx.toFixed(1)}" cy="${fy.toFixed(1)}" r="12" fill="none" stroke="var(--accent)" stroke-width="2.5"/>`; }
-    }
+    const P = p => [wx(p[1], z) - x0, wy(p[0], z) - y0];
     el.querySelector(".tiles").innerHTML = tiles;
-    el.querySelector("svg").innerHTML = svg;
+    el.querySelector("svg").innerHTML = overlay(P, view);
     el.querySelector("svg").setAttribute("viewBox", `0 0 ${W} ${H}`);
   };
-  // Drag to pan.
   let drag = null;
-  el.addEventListener("pointerdown", e => { if (e.target.closest(".mapctl")) return; drag = { x: e.clientX, y: e.clientY, cx: wx(view.lon, view.z), cy: wy(view.lat, view.z) }; el.setPointerCapture(e.pointerId); });
+  el.addEventListener("pointerdown", e => {
+    if (e.target.closest(".mapctl")) return;
+    drag = { x: e.clientX, y: e.clientY, cx: wx(view.lon, view.z), cy: wy(view.lat, view.z), target: e.target, moved: false };
+    el.setPointerCapture(e.pointerId);
+  });
   el.addEventListener("pointermove", e => {
     if (!drag) return;
+    if (Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y) > 4) drag.moved = true;
     const n = TILE * 2 ** view.z, x = drag.cx - (e.clientX - drag.x), y = drag.cy - (e.clientY - drag.y);
     view.lon = x / n * 360 - 180;
     view.lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * y / n))) * 180 / Math.PI;
     requestAnimationFrame(draw);
   });
-  el.addEventListener("pointerup", () => { drag = null; });
+  el.addEventListener("pointerup", () => { if (drag && !drag.moved && onPick) onPick(drag.target); drag = null; });
   el.querySelector("[data-z='+']").addEventListener("click", () => { view.z = Math.min(18, view.z + 1); draw(); });
   el.querySelector("[data-z='-']").addEventListener("click", () => { view.z = Math.max(5, view.z - 1); draw(); });
   el.querySelector("[data-z='all']").addEventListener("click", () => { fit(); draw(); });
+  fit(); draw();
+  return { view, draw, focus: (lat, lon, z, id) => { Object.assign(view, { z, lat, lon, focus: id }); draw(); } };
+}
+
+function initMap(rep) {
+  const el = $("pmap");
+  if (!el) return;
+  const pts = mapPoints(rep), changed = pts.filter(x => x.p.status !== "unchanged");
+  if (!changed.length) { el.outerHTML = `<p class="hint">${esc(rt("mapNoCoords"))}</p>`; return; }
+  const bounds = changed.flatMap(x => [x.a, x.b].filter(Boolean)).map(s => [s.lat, s.lon]);
+  const overlay = (P, view) => {
+    const dot = (s, x, r) => { const [px, py] = P([s.lat, s.lon]); return `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${r}" fill="${MAP_COLOR[x.p.status]}" stroke="var(--surface)" stroke-width="1.5"><title>${esc(s.name)} (${esc(s.stop_id)}) · ${esc(rt("ps")[x.p.status])}</title></circle>`; };
+    let svg = pts.filter(x => x.p.status === "unchanged").map(x => dot(x.b || x.a, x, 3)).join("");
+    for (const x of changed) {
+      if (x.a && x.b && (x.p.status === "moved" || x.p.status === "renamed_moved")) {
+        const [ax, ay] = P([x.a.lat, x.a.lon]), [bx, by] = P([x.b.lat, x.b.lon]);
+        svg += `<line x1="${ax.toFixed(1)}" y1="${ay.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}" stroke="var(--warn)" stroke-width="2" stroke-dasharray="4 3"/>`;
+        svg += dot(x.a, { p: { status: "removed" } }, 4).replace(rt("ps").removed, rt("ps")[x.p.status]);
+      }
+      svg += dot(x.b || x.a, x, 6);
+      if (view.focus === x.i) { const [fx, fy] = P([(x.b || x.a).lat, (x.b || x.a).lon]); svg += `<circle cx="${fx.toFixed(1)}" cy="${fy.toFixed(1)}" r="12" fill="none" stroke="var(--accent)" stroke-width="2.5"/>`; }
+    }
+    return svg;
+  };
+  const map = makeMap(el, bounds, overlay);
   document.querySelectorAll("#reports tr[data-place]").forEach(tr => tr.addEventListener("click", () => {
     const x = pts.find(q => q.i === +tr.dataset.place);
     if (!x) return;
     const s = x.b || x.a;
-    Object.assign(view, { z: 17, lat: s.lat, lon: s.lon, focus: x.i });
-    draw();
+    map.focus(s.lat, s.lon, 17, x.i);
     el.scrollIntoView({ block: "nearest" });
   }));
-  fit(); draw();
+}
+
+// ---- Routes ----
+const decode = pts => (pts || []).map(p => [p[0] / 1e5, p[1] / 1e5]);
+const pathD = (P, pts) => pts.map((p, i) => { const [x, y] = P(p); return `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`; }).join("");
+const spanPts = (pts, spans) => (spans || []).map(([a, b]) => pts.slice(a, b + 1)).filter(s => s.length > 1);
+function routesOf(line) {
+  return (line.geometry || []).map(g => {
+    const now = decode(g.new && g.new.points), before = g.identical ? now : decode(g.old && g.old.points);
+    return { dir: g.direction, now, before, identical: g.identical, change: g.change,
+             moved: !!(g.change && (g.change.diverged_new_m || g.change.diverged_old_m)) };
+  });
+}
+
+function initNetworkMap(rep) {
+  const el = $("netmap");
+  if (!el) return;
+  const lines = rep.lines.map(l => ({ l, routes: routesOf(l) })).filter(x => x.routes.length);
+  const bounds = lines.flatMap(x => x.routes.flatMap(r => r.now.length ? r.now : r.before));
+  if (!bounds.length) { el.remove(); return; }
+  const overlay = P => {
+    let base = "", top = "";
+    for (const { l, routes } of lines) {
+      const changed = l.status !== "unchanged", name = esc(lineNames(l));
+      for (const r of routes) {
+        const pts = r.now.length ? r.now : r.before;
+        const d = pathD(P, pts);
+        const path = `<path d="${d}" fill="none" stroke="${changed ? "var(--accent)" : "var(--faint)"}" stroke-width="${changed ? 3 : 1.6}" stroke-linecap="round" data-line="${esc(l.key)}" style="cursor:pointer"><title>${name}</title></path>`;
+        if (changed) top += path; else base += path;
+        if (r.moved) for (const s of spanPts(r.now, r.change.new_spans)) top += `<path d="${pathD(P, s)}" fill="none" stroke="var(--warn)" stroke-width="6" stroke-opacity=".7" data-line="${esc(l.key)}"><title>${name}</title></path>`;
+      }
+    }
+    return base + top;
+  };
+  makeMap(el, bounds, overlay, target => {
+    const k = target && target.getAttribute && target.getAttribute("data-line");
+    if (!k) return;
+    state.openLines.add(k);
+    redrawLine(rep, k);
+    const block = [...document.querySelectorAll("details.line")].find(d => d.dataset.key === k);
+    if (block) block.scrollIntoView({ block: "start", behavior: "smooth" });
+  });
+}
+
+function initLineMap(rep, line, el) {
+  const routes = routesOf(line);
+  const bounds = routes.flatMap(r => [...r.now, ...r.before]);
+  if (!bounds.length) { el.remove(); return; }
+  const places = rep.places.map((p, i) => [p, i]).filter(([p]) => p.status !== "unchanged" && p.lines.includes(line.key));
+  const overlay = P => {
+    let svg = "";
+    for (const r of routes) {
+      if (r.moved) {
+        for (const s of spanPts(r.before, r.change.old_spans)) svg += `<path d="${pathD(P, s)}" fill="none" stroke="var(--bad)" stroke-width="8" stroke-opacity=".25"/>`;
+        for (const s of spanPts(r.now, r.change.new_spans)) svg += `<path d="${pathD(P, s)}" fill="none" stroke="var(--warn)" stroke-width="8" stroke-opacity=".35"/>`;
+      }
+      if (!r.identical && r.before.length) svg += `<path d="${pathD(P, r.before)}" fill="none" stroke="var(--bad)" stroke-width="2.5" stroke-dasharray="6 4"><title>${esc(rt("routeOld"))}</title></path>`;
+      if (r.now.length) svg += `<path d="${pathD(P, r.now)}" fill="none" stroke="var(--accent)" stroke-width="3"><title>${esc(rt("routeNew"))}</title></path>`;
+    }
+    for (const [p] of places) {
+      const s = p.new || p.old;
+      if (s.lat == null) continue;
+      const [x, y] = P([s.lat, s.lon]);
+      svg += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5" fill="${MAP_COLOR[p.status]}" stroke="var(--surface)" stroke-width="1.5"><title>${esc(s.name)} · ${esc(rt("ps")[p.status])}</title></circle>`;
+    }
+    return svg;
+  };
+  makeMap(el, bounds, overlay);
 }
 
 function renderReport() {
@@ -1020,17 +1123,16 @@ function renderReport() {
       <p class="hint">${esc(rt("special"))} · ${esc(rt("old"))}: ${esc(specials("old"))}<br>${esc(rt("special"))} · ${esc(rt("new"))}: ${esc(specials("new"))}</p>
       ${h.comparison.groups ? `<p class="hint">${esc(rt("dtGroups", h.comparison.groups.old.map(dtLabel).join(" | ") || "—", h.comparison.groups.new.map(dtLabel).join(" | ") || "—"))}</p>` : ""}
       ${dateTable}</div>
-    <div><h3>3. ${esc(rt("sLines"))}</h3>${changed.length ? `<div class="lines" style="display:grid;gap:6px">${changed.map(l => lineBlock(rep, l)).join("")}</div>` : `<p class="hint">${esc(s.date_changes ? rt("noLineChangeDates", s.date_changes) : rt("noLineChange"))}</p>`}
+    <div><h3>3. ${esc(rt("sLines"))}</h3>${rep.lines.some(l => (l.geometry || []).length) ? `${mapShell("netmap", "pmap netmap")}<p class="hint">${esc(rt("netLegend"))}</p>` : ""}${changed.length ? `<div class="lines" style="display:grid;gap:6px">${changed.map(l => lineBlock(rep, l)).join("")}</div>` : `<p class="hint">${esc(s.date_changes ? rt("noLineChangeDates", s.date_changes) : rt("noLineChange"))}</p>`}
       ${same.length ? `<p class="hint">${esc(rt("unchangedLines", same.length))}: ${esc(same.map(lineNames).join(", "))}</p>` : ""}</div>
-    <div><h3>4. ${esc(rt("sPlaces"))}</h3>${placeRows ? `<div class="pmap" id="pmap"><div class="tiles"></div><svg aria-label="${esc(rt("map"))}"></svg>
-        <div class="mapctl"><button type="button" data-z="+" aria-label="+">+</button><button type="button" data-z="-" aria-label="−">−</button><button type="button" data-z="all">${esc(rt("mapAll"))}</button></div>
-        <div class="attr"><a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル</a></div></div>
+    <div><h3>4. ${esc(rt("sPlaces"))}</h3>${placeRows ? `${mapShell("pmap")}
       <p class="hint">${esc(rt("mapLegend"))}</p>` : ""}${placeRows ? `<div class="scroll" style="border:0"><table class="mini">${thl(rt("placeCols"))}<tbody>${placeRows}</tbody></table></div>` : ""}<p class="hint">${esc(rt("unchangedPlaces", nUnchangedPlaces))}</p></div>
     <div><h3>5. ${esc(rt("sOther"))}</h3>${otherRows ? `<div style="display:grid;gap:8px">${otherRows}</div>` : `<p class="hint">${esc(rt("noOther"))}</p>`}</div>
     <div><h3>6. ${esc(rt("sAll"))}</h3><div class="scroll" style="border:0"><table class="mini">${th(rt("fileCols"))}<tbody>${fileRows}</tbody></table></div><p class="hint">${esc(rt("rawNote"))}</p>${unclassBlock}</div>
     <p class="hint">${esc(rt("engine", h.engine.version, h.engine.holidays_version))}</p>
   </div>`;
   box.querySelectorAll("details.line").forEach(el => bindLine(rep, el));
+  initNetworkMap(rep);
   initMap(rep);
   box.querySelectorAll("button[data-pick]").forEach(b => b.addEventListener("click", () => openPair(b.dataset.pick)));
 }
