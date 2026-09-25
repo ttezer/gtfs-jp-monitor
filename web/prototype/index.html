@@ -384,7 +384,7 @@ const t = (key, ...args) => { const v = T[state.lang][key]; return typeof v === 
 // ---- Semantic change report (gtfs-jp-semantic-report/1) ----
 const R = {
   tr: {
-    dt: { weekday: "Hafta içi", saturday: "Cumartesi", sunday_holiday: "Pazar / tatil" },
+    wd: ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"], hol: "Tatil", every: "Her gün", dtSep: ", ", dtGroups: (o, n) => `Gün tipleri · eski: ${o} · yeni: ${n}. Karşılaştırma ikisinin ortak bölünmesiyle yapıldı.`,
     mode: { same_days: "Aynı günler karşılaştırıldı", successive_periods: "Ardışık dönemler: her yayının baskın tarifesi karşılaştırıldı" },
     ls: { added: "Eklendi", discontinued: "Kaldırıldı", renamed: "Adı değişti", merged: "Birleşti", split: "Bölündü", restructured: "Yeniden düzenlendi", changed: "Değişti", unchanged: "Değişmedi" },
     ps: { added: "Eklendi", removed: "Kaldırıldı", renamed: "Adı değişti", moved: "Taşındı", renamed_moved: "Adı değişti · taşındı", unchanged: "Değişmedi" },
@@ -438,7 +438,7 @@ const R = {
     map: "Harita", mapAll: "Tümünü göster", mapLegend: "Yeşil: eklenen · kırmızı: kaldırılan · turuncu: adı değişen · çizgi: taşınan durağın eski → yeni yeri · gri: raporda geçen diğer duraklar. Tablodaki satıra tıklayınca harita o durağa gider.", mapNoCoords: "Değişen durakların koordinatı yok.",
   },
   en: {
-    dt: { weekday: "Weekday", saturday: "Saturday", sunday_holiday: "Sunday / holiday" },
+    wd: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], hol: "Hol", every: "Every day", dtSep: ", ", dtGroups: (o, n) => `Day types · old: ${o} · new: ${n}. Compared on their common refinement.`,
     mode: { same_days: "Same days compared", successive_periods: "Successive periods: each publication's dominant timetable compared" },
     ls: { added: "Added", discontinued: "Discontinued", renamed: "Renamed", merged: "Merged", split: "Split", restructured: "Restructured", changed: "Changed", unchanged: "Unchanged" },
     ps: { added: "Added", removed: "Removed", renamed: "Renamed", moved: "Moved", renamed_moved: "Renamed · moved", unchanged: "Unchanged" },
@@ -492,7 +492,7 @@ const R = {
     map: "Map", mapAll: "Show all", mapLegend: "Green: added · red: removed · orange: renamed · line: old → new position of a moved stop · grey: other stops in the report. Click a table row to move the map to that stop.", mapNoCoords: "The changed stops have no coordinates.",
   },
   ja: {
-    dt: { weekday: "平日", saturday: "土曜", sunday_holiday: "日曜・祝日" },
+    wd: ["月", "火", "水", "木", "金", "土", "日"], hol: "祝", every: "毎日", dtSep: "・", dtGroups: (o, n) => `曜日区分 ・旧：${o} ・新：${n}。両者を細かい方に合わせて比較しました。`,
     mode: { same_days: "同じ日付で比較", successive_periods: "連続する期間：各公開の主要ダイヤを比較" },
     ls: { added: "新設", discontinued: "廃止", renamed: "改称", merged: "統合", split: "分割", restructured: "再編", changed: "変更", unchanged: "変更なし" },
     ps: { added: "新設", removed: "廃止", renamed: "改称", moved: "移設", renamed_moved: "改称・移設", unchanged: "変更なし" },
@@ -547,7 +547,25 @@ const R = {
   },
 };
 const rt = (k, ...a) => { const v = R[state.lang][k]; return typeof v === "function" ? v(...a) : v; };
-const DAYS = ["weekday", "saturday", "sunday_holiday"];
+// Day types are groups of calendar categories found from each feed ("mon,tue,wed,thu,fri", "sun,hol").
+const CATS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun", "hol"];
+const LEGACY_DT = { weekday: "mon,tue,wed,thu,fri", saturday: "sat", sunday_holiday: "sun,hol" };  // reports before engine 0.5.0
+const dtCats = id => (LEGACY_DT[id] || id).split(",");
+const byDt = (a, b) => { const x = dtCats(a).map(c => CATS.indexOf(c)), y = dtCats(b).map(c => CATS.indexOf(c)); for (let i = 0; i < Math.min(x.length, y.length); i++) if (x[i] !== y[i]) return x[i] - y[i]; return x.length - y.length; };
+const dayTypes = obj => Object.keys(obj || {}).sort(byDt);
+function dtLabel(id) {
+  const cats = dtCats(id);
+  if (CATS.every(c => cats.includes(c))) return rt("every");
+  const idx = cats.filter(c => c !== "hol").map(c => CATS.indexOf(c)).sort((a, b) => a - b), names = rt("wd"), parts = [];
+  for (let i = 0; i < idx.length; i++) {
+    let j = i;
+    while (j + 1 < idx.length && idx[j + 1] === idx[j] + 1) j++;
+    parts.push(j > i ? `${names[idx[i]]}–${names[idx[j]]}` : names[idx[i]]);
+    i = j;
+  }
+  const text = parts.join(rt("dtSep"));
+  return cats.includes("hol") ? (text ? `${text} + ${rt("hol")}` : rt("hol")) : text;
+}
 const hm = m => m == null ? "" : `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
 state.openLines = new Set(); state.tt = {};
 
@@ -590,9 +608,9 @@ function panelSemantic() {
   if (!entry) return `<div class="empty">${esc(rt("panelNone"))}</div>`;
   const s = entry.summary, c = entry.coverage;
   const pct = c.raw_total ? Math.floor(c.explained / c.raw_total * 1000) / 10 : 100;
-  const trips = DAYS.filter(d => s.trips_by_day_type[d]).map(d => {
+  const trips = dayTypes(s.trips_by_day_type).map(d => {
     const x = s.trips_by_day_type[d], dv = x.after - x.before;
-    return `<tr><td>${esc(rt("dt")[d])}</td><td class="r">${x.before}</td><td class="r">${x.after}</td><td class="r ${dv > 0 ? "up" : dv < 0 ? "down" : "flat"}">${signed(dv)}</td></tr>`;
+    return `<tr><td>${esc(dtLabel(d))}</td><td class="r">${x.before}</td><td class="r">${x.after}</td><td class="r ${dv > 0 ? "up" : dv < 0 ? "down" : "flat"}">${signed(dv)}</td></tr>`;
   }).join("");
   return `<p class="hint">${esc(rt("panelLines", s.lines))}<br>${esc(rt("panelPlaces", s.places))}${s.date_changes ? `<br>${esc(rt("dcCard", s.date_changes))}` : ""}<br>${esc(rt("panelCov", pct))}</p>
     <table class="mini"><thead><tr><th>${esc(rt("trips"))}</th><th class="r">${esc(t("before"))}</th><th class="r">${esc(t("after"))}</th><th class="r">Δ</th></tr></thead><tbody>${trips}</tbody></table>
@@ -734,7 +752,7 @@ function tripChanges(rep, line) {
       rows.push({ dir: sortDir, dt: t.day_type, kind, f0, f1, l0: oldTrip ? lastTime(oldTrip.times) : null, l1: newTrip ? lastTime(newTrip.times) : null, note });
     }
   }
-  rows.sort((p, q) => p.dir.localeCompare(q.dir) || DAYS.indexOf(p.dt) - DAYS.indexOf(q.dt) || ((p.f0 ?? p.f1) - (q.f0 ?? q.f1)));
+  rows.sort((p, q) => p.dir.localeCompare(q.dir) || byDt(p.dt, q.dt) || ((p.f0 ?? p.f1) - (q.f0 ?? q.f1)));
   return rows;
 }
 
@@ -742,7 +760,7 @@ function lineBlock(rep, line) {
   const open = state.openLines.has(line.key);
   const perDay = {};
   line.trips.forEach(x => Object.values(x.bands).forEach(c => { const d = perDay[x.day_type] || (perDay[x.day_type] = [0, 0]); d[0] += c.before; d[1] += c.after; }));
-  const tot = DAYS.filter(d => perDay[d]).map(d => `${rt("dt")[d]} ${perDay[d][0]}→${perDay[d][1]}`).join(" · ");
+  const tot = dayTypes(perDay).map(d => `${dtLabel(d)} ${perDay[d][0]}→${perDay[d][1]}`).join(" · ");
   let inner = "";
   if (open) {
     const changes = tripChanges(rep, line);
@@ -750,21 +768,21 @@ function lineBlock(rep, line) {
     const changeTable = changes.length ? `<div><h3>${esc(rt("tripChanges"))} <small>${changes.length}</small></h3><div class="scroll" style="border:0"><table class="mini">
       <thead><tr>${rt("tcCols").map((c, i) => `<th${i >= 3 && i <= 7 ? ' class="r"' : ""}>${esc(c)}</th>`).join("")}</tr></thead><tbody>${changes.map(r => {
         const d = r.f0 != null && r.f1 != null ? r.f1 - r.f0 : null;
-        return `<tr><td>${esc(dirLabel(rep, line, r.dir))}</td><td>${esc(rt("dt")[r.dt])}</td><td class="${cls[r.kind] || ""}">${esc(rt("tk")[r.kind])}</td>
+        return `<tr><td>${esc(dirLabel(rep, line, r.dir))}</td><td>${esc(dtLabel(r.dt))}</td><td class="${cls[r.kind] || ""}">${esc(rt("tk")[r.kind])}</td>
           <td class="r">${hm(r.f0)}</td><td class="r">${hm(r.f1)}</td><td class="r ${d > 0 ? "up" : d < 0 ? "down" : "flat"}">${d == null ? "" : signed(d)}</td>
           <td class="r">${hm(r.l0)}</td><td class="r">${hm(r.l1)}</td><td>${esc(r.note)}</td></tr>`;
       }).join("")}</tbody></table></div><p class="hint">${esc(rt("tcNote"))}</p></div>` : "";
     const bands = [...new Set(line.trips.flatMap(x => Object.keys(x.bands)))].sort();
-    const hourRows = line.trips.slice().sort((p, q) => p.direction.localeCompare(q.direction) || DAYS.indexOf(p.day_type) - DAYS.indexOf(q.day_type));
+    const hourRows = line.trips.slice().sort((p, q) => p.direction.localeCompare(q.direction) || byDt(p.day_type, q.day_type));
     const hourTable = bands.length ? `<div><h3>${esc(rt("byHour"))}</h3><div class="scroll"><table class="tt"><thead><tr><th class="pl"></th>${bands.map(b => `<th>${esc(b.replace(/^0/, "").replace("-0", "-"))}</th>`).join("")}</tr></thead><tbody>${
-      hourRows.map(x => `<tr><td class="pl" title="${esc(dirLabel(rep, line, x.direction))}">${esc(dirLabel(rep, line, x.direction))} · ${esc(rt("dt")[x.day_type])}</td>${bands.map(b => {
+      hourRows.map(x => `<tr><td class="pl" title="${esc(dirLabel(rep, line, x.direction))}">${esc(dirLabel(rep, line, x.direction))} · ${esc(dtLabel(x.day_type))}</td>${bands.map(b => {
         const c = x.bands[b]; if (!c) return "<td></td>";
         return c.before === c.after ? `<td>${c.after}</td>` : `<td class="chg"><b>${c.after}</b> <s>${c.before}</s></td>`;
       }).join("")}</tr>`).join("")}</tbody></table></div></div>` : "";
     const fl = line.first_last.length ? `<div><h3>${esc(rt("firstLast"))}</h3><table class="mini"><thead><tr><th>${esc(rt("dir"))}</th><th></th><th class="r">${esc(rt("first"))}</th><th class="r">${esc(rt("last"))}</th></tr></thead><tbody>${
       line.first_last.map(x => {
         const cell = c => c.before === c.after ? hm(c.after) : `<b>${hm(c.after) || "—"}</b> <s>${hm(c.before) || "—"}</s>`;
-        return `<tr><td>${esc(dirLabel(rep, line, x.direction))}</td><td>${esc(rt("dt")[x.day_type])}</td><td class="r">${cell(x.first)}</td><td class="r">${cell(x.last)}</td></tr>`;
+        return `<tr><td>${esc(dirLabel(rep, line, x.direction))}</td><td>${esc(dtLabel(x.day_type))}</td><td class="r">${cell(x.first)}</td><td class="r">${cell(x.last)}</td></tr>`;
       }).join("")}</tbody></table></div>` : "";
     // Same-named places in one pattern's edits are different poles; show their stop_id to tell them apart.
     const editName = (p, i) => {
@@ -781,7 +799,7 @@ function lineBlock(rep, line) {
     if (line.timetables.length) {
       const sel = state.tt[line.key] || { i: 0, view: "diff" };
       const tab = line.timetables[Math.min(sel.i, line.timetables.length - 1)];
-      const choices = line.timetables.map((x, i) => `<button type="button" data-line="${esc(line.key)}" data-tt="${i}" aria-pressed="${i === sel.i}">${esc(dirLabel(rep, line, x.direction))} · ${esc(rt("dt")[x.day_type])}</button>`).join("");
+      const choices = line.timetables.map((x, i) => `<button type="button" data-line="${esc(line.key)}" data-tt="${i}" aria-pressed="${i === sel.i}">${esc(dirLabel(rep, line, x.direction))} · ${esc(dtLabel(x.day_type))}</button>`).join("");
       const views = [["old", "vOld"], ["new", "vNew"], ["diff", "vDiff"]].map(([v, k]) => `<button type="button" data-line="${esc(line.key)}" data-view="${v}" aria-pressed="${v === sel.view}">${esc(rt(k))}</button>`).join("");
       tts = `<div><h3>${esc(rt("timetables"))}</h3><div class="ttbar"><div class="seg">${choices}</div><div class="seg">${views}</div></div>
         ${sel.view === "diff" ? `<p class="hint">${esc(rt("ttLegend"))}</p>` : ""}${ttHtml(rep, tab, sel.view)}<p class="hint">${esc(rt("ttUnchanged"))}</p></div>`;
@@ -933,17 +951,17 @@ function renderReport() {
   const f = DATA.feeds.find(x => x.org_id === h.feed.org_id && x.feed_id === h.feed.feed_id);
   const c = h.coverage, w = x => c.raw_total ? (x / c.raw_total * 100).toFixed(2) : 0;
   const notes = h.notes.map(n => `<p class="fmt">${esc(rt("notes")[n.code](n))}</p>`).join("");
-  const dayRows = DAYS.map(d => {
+  const dayRows = dayTypes(h.comparison.day_types).map(d => {
     const cmp = h.comparison.day_types[d] || {}, ad = sd.day_types[d].active_days;
-    return `<tr><td>${esc(rt("dt")[d])}</td><td class="num">${esc(cmp.old_date || "—")}</td><td class="num">${esc(cmp.new_date || "—")}</td><td class="r">${ad.before}</td><td class="r">${ad.after}</td></tr>`;
+    return `<tr><td>${esc(dtLabel(d))}</td><td class="num">${esc(cmp.old_date || "—")}</td><td class="num">${esc(cmp.new_date || "—")}</td><td class="r">${ad.before}</td><td class="r">${ad.after}</td></tr>`;
   }).join("");
-  const periods = side => sd.periods[side].map(p => `${rt("dt")[p.day_type]} ${p.start} – ${p.end}`).join("; ");
+  const periods = side => sd.periods[side].map(p => `${dtLabel(p.day_type)} ${p.start} – ${p.end}`).join("; ");
   const specials = side => { const l = sd.special_days[side]; return l.length ? `${l.length}: ${l.slice(0, 30).join(", ")}${l.length > 30 ? " …" : ""}` : "—"; };
   const ls = s.lines;
   const lineCard = Object.keys(ls).filter(k => ls[k]).map(k => `${stChip(k, rt("ls")[k])} ${ls[k]}`).join(" ");
   const pl = s.places;
   const placeCard = ["added", "removed", "renamed", "moved"].map(k => `${stChip(k, rt("ps")[k])} ${pl[k]}`).join(" ");
-  const tripCard = DAYS.filter(d => s.trips_by_day_type[d]).map(d => { const x = s.trips_by_day_type[d]; const dv = x.after - x.before; return `${esc(rt("dt")[d])}: <span class="num">${x.before} → ${x.after}</span> <span class="${dv > 0 ? "up" : dv < 0 ? "down" : "flat"} num">${signed(dv)}</span>`; }).join("<br>");
+  const tripCard = dayTypes(s.trips_by_day_type).map(d => { const x = s.trips_by_day_type[d]; const dv = x.after - x.before; return `${esc(dtLabel(d))}: <span class="num">${x.before} → ${x.after}</span> <span class="${dv > 0 ? "up" : dv < 0 ? "down" : "flat"} num">${signed(dv)}</span>`; }).join("<br>");
   const q = s.quality ? ["publish", "overall"].map(k => `${esc(t(k))}: <span class="num">${fmt1(s.quality[k].before)} → ${fmt1(s.quality[k].after)}</span>`).join("<br>") : "—";
   const changed = rep.lines.filter(l => l.status !== "unchanged"), same = rep.lines.filter(l => l.status === "unchanged");
   const dcs = (sd.date_changes || []);
@@ -957,7 +975,7 @@ function renderReport() {
         ...g.added.map(x => `<li><span class="up">${esc(rt("dcAdded"))}</span> ${esc(lineLabel(rep, x.line))}: ${esc(tripText(x))}</li>`),
         ...g.removed.map(x => `<li><span class="down">${esc(rt("dcRemoved"))}</span> ${esc(lineLabel(rep, x.line))}: ${esc(tripText(x))}</li>`),
       ].join("");
-      return `<tr><td class="num">${g.dates.map(x => esc(span(x))).join("<br>")}</td><td>${esc(g.day_types.map(d => rt("dt")[d]).join(", "))}</td>
+      return `<tr><td class="num">${g.dates.map(x => esc(span(x))).join("<br>")}</td><td>${esc(g.day_types.map(d => dtLabel(d)).join(", "))}</td>
         <td class="r">${g.before} → ${g.after}</td><td><ul class="edits">${parts}</ul>${more > 0 ? `<span class="hint">${esc(rt("dcMore", more))}</span>` : ""}</td></tr>`;
     }).join("")}</tbody></table></div><p class="hint">${esc(rt("dcNote"))}</p>` : `<p class="hint">${esc(rt("dcNone"))}</p>`;
   const th = cols => `<thead><tr>${cols.map((x, i) => `<th${i ? ' class="r"' : ""}>${esc(x)}</th>`).join("")}</tr></thead>`;
@@ -1000,6 +1018,7 @@ function renderReport() {
       <div class="scroll" style="border:0"><table class="mini"><thead><tr><th></th><th>${esc(rt("compared"))} · ${esc(rt("old"))}</th><th>${esc(rt("compared"))} · ${esc(rt("new"))}</th><th class="r">${esc(rt("activeDays"))} · ${esc(t("before"))}</th><th class="r">${esc(t("after"))}</th></tr></thead><tbody>${dayRows}</tbody></table></div>
       <p class="hint">${esc(rt("periods"))} · ${esc(rt("old"))}: ${esc(periods("old") || "—")}<br>${esc(rt("periods"))} · ${esc(rt("new"))}: ${esc(periods("new") || "—")}</p>
       <p class="hint">${esc(rt("special"))} · ${esc(rt("old"))}: ${esc(specials("old"))}<br>${esc(rt("special"))} · ${esc(rt("new"))}: ${esc(specials("new"))}</p>
+      ${h.comparison.groups ? `<p class="hint">${esc(rt("dtGroups", h.comparison.groups.old.map(dtLabel).join(" | ") || "—", h.comparison.groups.new.map(dtLabel).join(" | ") || "—"))}</p>` : ""}
       ${dateTable}</div>
     <div><h3>3. ${esc(rt("sLines"))}</h3>${changed.length ? `<div class="lines" style="display:grid;gap:6px">${changed.map(l => lineBlock(rep, l)).join("")}</div>` : `<p class="hint">${esc(s.date_changes ? rt("noLineChangeDates", s.date_changes) : rt("noLineChange"))}</p>`}
       ${same.length ? `<p class="hint">${esc(rt("unchangedLines", same.length))}: ${esc(same.map(lineNames).join(", "))}</p>` : ""}</div>
