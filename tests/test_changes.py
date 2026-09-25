@@ -115,6 +115,17 @@ class ReportRunTest(unittest.TestCase):
         marker = json.loads(change_path(self.root, *FK, "0.1.0", uid(1), uid(2), ".error.json").read_text())
         self.assertEqual((run.counts["failed"], marker["code"]), (1, "ENGINE_ERROR"))
 
+    def test_engine_error_is_retried_after_an_engine_change(self):
+        self.test_engine_error_is_marked()
+        self.assertEqual(find_pending_reports(self.root, [FK], KEY, "0.1.0"), [])  # same code: not retried
+        path = change_path(self.root, *FK, "0.1.0", uid(1), uid(2), ".error.json")
+        marker = json.loads(path.read_text())
+        marker["engine_build"] = "older"
+        write_json(path, marker)
+        self.assertEqual(len(find_pending_reports(self.root, [FK], KEY, "0.1.0")), 1)
+        write_json(path, dict(marker, code="SOURCE_CHANGED"))  # lasting failures stay marked
+        self.assertEqual(find_pending_reports(self.root, [FK], KEY, "0.1.0"), [])
+
     def test_transient_download_failure_is_retried(self):
         dl = FakeDownloader(self.blobs, failing={uid(1): DownloadError("DOWNLOAD_FAILED", "timeout")})
         run = run_reports(self.root, KEY, downloader=dl, engine_version="0.1.0")

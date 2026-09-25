@@ -161,7 +161,8 @@ only that job has `pages: write` and `id-token: write`.
 - Both ZIPs are downloaded again and must match the analysed SHA-256; reports are produced on
   the production platform only, like analyses (§6.2).
 - A pair that cannot be reported (source unavailable or changed, engine error) gets an
-  `.error.json` marker and is not retried for that engine version; a transient download
+  `.error.json` marker and is not retried for that engine version; an engine error is retried
+  once the engine code changes (the marker records an `engine_build` digest of it); a transient download
   failure writes nothing and is retried next run. A new engine version reports every pair
   again under its own directory.
 - Raw differences (docs/semantic/01-raw-diff.md) are not stored; they can be rebuilt from the

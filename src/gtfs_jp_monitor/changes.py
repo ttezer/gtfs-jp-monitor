@@ -5,11 +5,14 @@ equivalent pairs get no report. Newest pairs first, round-robin across feeds, so
 backfill covers the current change of every feed first.
 
 A report that cannot be built leaves an .error.json marker for this engine version, so a
-broken pair is not retried every day; a new engine version retries every pair.
+broken pair is not retried every day; a new engine version retries every pair. An engine
+error is also retried once the engine code changes (engine_build), so a fix reaches the
+failed pairs without rebuilding every report.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import tempfile
 from collections import Counter
@@ -17,6 +20,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
+import gtfs_jp_semantic
 from gtfs_jp_semantic import ENGINE_VERSION
 from gtfs_jp_semantic.rawdiff import gzip_bytes
 from gtfs_jp_semantic.report import build_report
@@ -28,6 +32,15 @@ from .ids import is_path_id
 from .store import change_path, diff_path, generation_path, load_feed_index, split_key
 
 ERROR_SCHEMA = "gtfs-jp-monitor-change-error/1"
+
+
+def engine_build() -> str:
+    """Digest of the semantic engine's code and data files, in a fixed order."""
+    base = Path(gtfs_jp_semantic.__file__).parent
+    h = hashlib.sha256()
+    for path in sorted(p for p in base.rglob("*") if p.is_file() and p.suffix in (".py", ".json")):
+        h.update(str(path.relative_to(base)).encode("utf-8") + b"\0" + path.read_bytes() + b"\0")
+    return h.hexdigest()[:16]
 FeedKey = tuple[str, str]
 
 
@@ -72,6 +85,7 @@ def report_pairs(feed_index: dict, key: str) -> list[tuple[str, str]]:
 
 
 def find_pending_reports(root: Path, feeds: list[FeedKey], key: str, engine_version: str = ENGINE_VERSION) -> list[PendingReport]:
+    build = engine_build()
     pending = []
     for fk in feeds:
         index = load_feed_index(root, *fk)
@@ -79,10 +93,14 @@ def find_pending_reports(root: Path, feeds: list[FeedKey], key: str, engine_vers
             continue
         pairs = report_pairs(index, key)
         for depth, (old_uid, new_uid) in enumerate(reversed(pairs)):
-            done = any(change_path(root, *fk, engine_version, old_uid, new_uid, suffix).exists()
-                       for suffix in (".report.json.gz", ".error.json"))
-            if not done:
-                pending.append(PendingReport(fk[0], fk[1], depth, old_uid, new_uid))
+            if change_path(root, *fk, engine_version, old_uid, new_uid).exists():
+                continue
+            marker = change_path(root, *fk, engine_version, old_uid, new_uid, ".error.json")
+            if marker.exists():
+                doc = json.loads(marker.read_text(encoding="utf-8"))
+                if not (doc.get("code") == "ENGINE_ERROR" and doc.get("engine_build") != build):
+                    continue  # lasting failure, or an engine error this code already produced
+            pending.append(PendingReport(fk[0], fk[1], depth, old_uid, new_uid))
     pending.sort(key=lambda p: (p.depth, p.org_id, p.feed_id))
     return pending
 
@@ -167,5 +185,6 @@ def run_reports(data_dir: Path, key: str, limit: int | None = None, only: set[Fe
 
 def _mark(root: Path, p: PendingReport, engine_version: str, code: str, detail: str, run: ReportRun) -> None:
     path = change_path(root, p.org_id, p.feed_id, engine_version, p.old_uid, p.new_uid, ".error.json")
-    write_json(path, {"schema": ERROR_SCHEMA, "engine_version": engine_version, "code": code, "detail": detail[:2000]})
+    write_json(path, {"schema": ERROR_SCHEMA, "engine_version": engine_version, "engine_build": engine_build(),
+                      "code": code, "detail": detail[:2000]})
     run.changed_files.append(str(path.relative_to(root)))
