@@ -5,7 +5,8 @@ from pathlib import Path
 
 from gtfs_jp_monitor.canonical import dumps
 from gtfs_jp_semantic.accounting import Evidence, classify
-from gtfs_jp_semantic.report import _attribute_details, _rows_for, build_report
+from gtfs_jp_semantic.report import _attribute_details, _date_changes, _rows_for, build_report
+from gtfs_jp_semantic.trips import Trip
 from gtfs_jp_semantic.report_check import check_report
 
 from .schema_support import HAVE_JSONSCHEMA, errors, validator
@@ -200,6 +201,22 @@ class AttributeDetailsTest(unittest.TestCase):
             ("coordinates_adjusted", None, "stop_lat", None, None, {"rows": 1}),  # ties: by file name
             ("column_added", None, "shape_id", None, None, {"rows": 1}),
         ])
+
+
+class DateChangesTest(unittest.TestCase):
+    def test_trips_without_a_time_at_some_stop(self):
+        from datetime import date
+        from types import SimpleNamespace
+        d = date(2026, 5, 15)
+        cal = lambda services: SimpleNamespace(days={d: frozenset(services)}, day_types={d: "weekday"})
+        trips = {
+            ("old", frozenset({"A"})): [Trip("x", "1", "0", ("P", "Q", "R"), (400, None, 410)), Trip("y", "1", "0", ("P", "R"), (500, None))],
+            ("new", frozenset({"A"})): [Trip("x", "1", "0", ("P", "Q", "R"), (405, None, 415))],
+        }
+        groups, seen, differing = _date_changes(cal({"A"}), cal({"A"}), {}, lambda side, s: trips[(side, s)], 10, 10, 45)
+        self.assertEqual((differing, seen), (1, {"x", "y"}))
+        (g,) = groups
+        self.assertEqual((g["changed"], g["removed_count"]), ([{"line": "1", "departure": 405, "old_departure": 400}], 1))
 
 
 class AccountingTest(unittest.TestCase):

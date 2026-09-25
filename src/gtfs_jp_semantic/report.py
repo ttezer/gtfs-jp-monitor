@@ -213,7 +213,7 @@ def _date_changes(old_cal, new_cal, typical: dict, trips_of, max_groups: int, ma
         fits = [b for b in bases if b[0] <= old_cal.days[d] and b[1] <= new_cal.days[d]]
         if fits:
             return max(fits, key=lambda b: (len(b[0]) + len(b[1]), sorted(b[0]), sorted(b[1])))[2]
-        return regular[new_cal.day_types[d]]
+        return regular.get(new_cal.day_types[d], collections.Counter())
 
     groups: dict[tuple, dict] = {}
     seen: set[str] = set()
@@ -227,7 +227,7 @@ def _date_changes(old_cal, new_cal, typical: dict, trips_of, max_groups: int, ma
         if not rest:
             continue
         differing += 1
-        key = tuple(sorted(rest.items()))
+        key = tuple(sorted(rest.items(), key=repr))  # times may hold None (no time at a stop)
         g = groups.setdefault(key, {"dates": [], "day_types": set(), "before": sum(a.values()), "after": sum(b.values())})
         g["dates"].append(d)
         g["day_types"].add(new_cal.day_types[d])
