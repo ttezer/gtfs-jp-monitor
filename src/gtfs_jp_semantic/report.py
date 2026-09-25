@@ -21,7 +21,7 @@ from .geometry import compare as compare_geometry, encode, length_m, load_shapes
 from .rawdiff import diff_feeds
 from .reader import Config, Feed, read_feed
 from .report_check import check_report
-from .service import build_calendar, choose_comparison, day_type_order, irregular_services
+from .service import build_calendar, choose_comparison, day_type_order, irregular_services, parse_yyyymmdd
 from .trips import Trip, TripPair, build_trips, dominant_pattern, match_moved_trips, match_trips, pattern_edits
 
 SCHEMA = "gtfs-jp-semantic-report/1"
@@ -303,6 +303,42 @@ def _details(changes: list[dict], ids: list[str], limit: int) -> tuple[list[dict
     for sid, counts in sorted(shapes.items()):
         items.append({"id": None, "file": "shapes.txt", "kind": "shape_changed", "key": [sid], "column": None,
                       "old": None, "new": None, "counts": dict(sorted(counts.items()))})
+    return items[:limit], max(0, len(items) - limit)
+
+
+def _calendar_details(changes: list[dict], ids: list[str], old_cal, new_cal, limit: int) -> tuple[list[dict], int]:
+    """calendar_dates differences by effect: dates a service gained or lost within the period
+    both publications cover, one item per service; rewrites with no effect, dates outside the
+    shared period and services no trip uses are counted apart."""
+    wanted = set(ids)
+    shared = set(old_cal.days) & set(new_cal.days)
+    gained: dict[str, set] = collections.defaultdict(set)
+    lost: dict[str, set] = collections.defaultdict(set)
+    other: collections.Counter = collections.Counter()
+    for c in changes:
+        if c["id"] not in wanted:
+            continue
+        row = c.get("old") if isinstance(c.get("old"), dict) else c.get("new") if isinstance(c.get("new"), dict) else {}
+        sid, raw_date = (c["key"][0], c["key"][1]) if c.get("key") and len(c["key"]) >= 2 else (row.get("service_id", ""), row.get("date", ""))
+        d = parse_yyyymmdd(raw_date)
+        if sid not in old_cal.service_dates and sid not in new_cal.service_dates:
+            other["calendar_unused_service"] += 1
+        elif d is None or d not in shared:
+            other["calendar_outside_shared"] += 1
+        else:
+            before, after = d in old_cal.service_dates.get(sid, ()), d in new_cal.service_dates.get(sid, ())
+            if before == after:
+                other["calendar_no_effect"] += 1
+            elif after:
+                gained[sid].add(d)
+            else:
+                lost[sid].add(d)
+    text = lambda ds: ", ".join(x["start"] if x["start"] == x["end"] else f"{x['start']}..{x['end']}" for x in _spans(list(ds))) or None
+    items = [{"id": None, "file": "calendar_dates.txt", "kind": "service_dates_changed", "key": [sid], "column": None,
+              "old": text(lost[sid]), "new": text(gained[sid]), "counts": {"added": len(gained[sid]), "removed": len(lost[sid])}}
+             for sid in sorted(set(gained) | set(lost))]
+    items += [{"id": None, "file": "calendar_dates.txt", "kind": kind, "key": None, "column": None, "old": None, "new": None,
+               "counts": {"rows": n}} for kind, n in sorted(other.items())]
     return items[:limit], max(0, len(items) - limit)
 
 
@@ -736,6 +772,7 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
         "other": [{"topic": topic, "counts": _counts(raw["changes"], ids), "evidence": ids,
                    **dict(zip(("details", "truncated"),
                               _attribute_details(raw["changes"], ids, config.report["other_details_max"], line_of) if topic == "attributes"
+                              else _calendar_details(raw["changes"], ids, old_cal, new_cal, config.report["other_details_max"]) if topic == "calendar_exceptions"
                               else _details(raw["changes"], ids, config.report["other_details_max"])))}
                   for topic, ids in sorted(acc.other.items())],
         "accounting": {"files": file_table, "unclassified": acc.unclassified,

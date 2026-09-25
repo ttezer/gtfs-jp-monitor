@@ -133,6 +133,12 @@ class ReportTest(unittest.TestCase):
                          [("inserted", ["新団地"]), ("removed", ["旧団地"])])
         self.assertEqual({e["trips"] for e in pattern["edits"]}, {1})  # seen on one paired trip
 
+    def test_calendar_exceptions_by_effect(self):
+        cal = next(o for o in self.report["other"] if o["topic"] == "calendar_exceptions")
+        # HOL,20260515 removed: the HOL service lost its only date within the shared period.
+        self.assertEqual([(d["kind"], d["key"], d["old"], d["new"], d["counts"]) for d in cal["details"]],
+                         [("service_dates_changed", ["HOL"], "2026-05-15", None, {"added": 0, "removed": 1})])
+
     def test_irregular_services(self):
         irr = self.report["service_days"]["irregular"]
         self.assertEqual([(x["service_id"], x["dates"], x["trips"], x["mode"]) for x in irr["old"]],

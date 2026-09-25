@@ -160,7 +160,9 @@ places every raw difference in one bucket.
   route are the dominant patterns of both sides compared (`trips` is then null).
 - **Trips by hour.** Per direction and day type.
 - **Other changes.** Each topic carries up to `report.other_details_max` row-level items;
-  shapes are summarised per shape_id.
+  shapes are summarised per shape_id. Calendar exceptions are summarised by effect: per
+  service, the dates it gained or lost within the period both publications cover; rewrites
+  with no effect, dates outside the shared period and services no trip uses are counted apart.
 - **All differences.** Every file of either side with its row counts, added / removed / changed
   rows and the accounting buckets, all counted in rows: a row with several changed fields counts
   once, in the least explained bucket of its fields; file and column changes are listed apart
