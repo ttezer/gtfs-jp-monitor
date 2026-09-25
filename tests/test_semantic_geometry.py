@@ -37,6 +37,18 @@ class CompareTest(unittest.TestCase):
         first, last = r["new_spans"][0]
         self.assertTrue(4 <= first and last <= 7)
 
+    def test_stop_with_swapped_coordinates(self):
+        # A stop at (lat 134.98, lon 34.58) makes a segment of thousands of kilometres; indexing its
+        # bounding box took more than 8 GiB. A point next to that segment must still be found.
+        old = north(11)
+        new = north(11) + [(134.98, 34.58)]
+        r = compare(old, new, 20, 50, 500)
+        self.assertEqual((r["max_m"], r["capped"]), (500, True))
+        self.assertEqual(r["diverged_old_m"], 0)
+        mid = ((35.01 + 134.98) / 2, (135.0 + 34.58) / 2)
+        r = compare([mid, (mid[0] + 0.0001, mid[1])], new, 20, 50, 500)
+        self.assertEqual(r["diverged_old_m"], 0)  # the old line lies on the long segment
+
     def test_far_away_is_capped(self):
         r = compare(north(11), north(11, lon=136.0), 20, 50, 500)
         self.assertEqual((r["max_m"], r["capped"]), (500, True))

@@ -109,11 +109,23 @@ class _Index:
         self.xy, self.cell = xy, cap
         self.grid: dict[tuple[int, int], list[int]] = defaultdict(list)
         for k, (a, b) in enumerate(zip(xy, xy[1:])):
-            x0, x1 = sorted((a[0], b[0]))
-            y0, y1 = sorted((a[1], b[1]))
-            for gx in range(math.floor(x0 / cap), math.floor(x1 / cap) + 1):
-                for gy in range(math.floor(y0 / cap), math.floor(y1 / cap) + 1):
-                    self.grid[(gx, gy)].append(k)
+            gx0, gx1 = sorted((math.floor(a[0] / cap), math.floor(b[0] / cap)))
+            gy0, gy1 = sorted((math.floor(a[1] / cap), math.floor(b[1] / cap)))
+            if (gx1 - gx0 + 1) * (gy1 - gy0 + 1) <= 16:
+                cells = {(gx, gy) for gx in range(gx0, gx1 + 1) for gy in range(gy0, gy1 + 1)}
+            else:
+                # A long segment (such as one to a stop with swapped coordinates) would fill its
+                # whole bounding box; walk along it instead. Samples one cell apart leave every
+                # point of the segment within half a cell of a sample, so a sample's cell and its
+                # neighbours cover every cell the segment touches.
+                n = math.ceil(math.dist(a, b) / cap)
+                cells = set()
+                for i in range(n + 1):
+                    cx = math.floor((a[0] + (b[0] - a[0]) * i / n) / cap)
+                    cy = math.floor((a[1] + (b[1] - a[1]) * i / n) / cap)
+                    cells.update((cx + dx, cy + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1))
+            for cell in cells:
+                self.grid[cell].append(k)
 
     def distance(self, p) -> float:
         """Distance to the line, or `cap` when it is at least that far."""
