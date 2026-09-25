@@ -14,6 +14,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import subprocess
+import sys
 import tempfile
 import time
 from collections import Counter
@@ -33,6 +36,10 @@ from .ids import is_path_id
 from .store import change_path, diff_path, generation_path, load_feed_index, split_key
 
 ERROR_SCHEMA = "gtfs-jp-monitor-change-error/1"
+# Each report is built in its own process: memory is returned after every pair, and a pair that
+# needs too much memory or time fails alone instead of taking the whole run down.
+CHILD_TIMEOUT_S = 900
+CHILD_MEMORY_BYTES = 8 << 30
 
 
 def engine_build() -> str:
@@ -144,7 +151,8 @@ def _publication(entry: dict) -> dict:
 
 def run_reports(data_dir: Path, key: str, limit: int | None = None, only: set[FeedKey] | None = None,
                 downloader: Callable[..., object] = download_zip, engine_version: str = ENGINE_VERSION,
-                max_seconds: float | None = None, clock: Callable[[], float] = time.monotonic) -> ReportRun:
+                max_seconds: float | None = None, clock: Callable[[], float] = time.monotonic,
+                child_timeout: float = CHILD_TIMEOUT_S, child_memory: int = CHILD_MEMORY_BYTES) -> ReportRun:
     """Build pending reports. max_seconds is a time budget: no new pair starts after it, so the
     workflow never reaches its own time limit and loses the run; the rest waits for the next run."""
     root = Path(data_dir)
@@ -161,6 +169,7 @@ def run_reports(data_dir: Path, key: str, limit: int | None = None, only: set[Fe
     with tempfile.TemporaryDirectory(prefix="gtfs-jp-changes-") as tmp:
         zips: dict[str, Path] = {}
         for p in selected:
+            started = clock()
             if deadline is not None and clock() >= deadline:
                 run.counts["deferred"] += 1
                 continue
@@ -199,28 +208,60 @@ def run_reports(data_dir: Path, key: str, limit: int | None = None, only: set[Fe
                     scores = json.loads(path.read_text(encoding="utf-8"))["scores"]
                     if scores:
                         quality = {"publish": scores["publish"], "overall": scores["overall"]}
-                try:
-                    report, _ = build_report(zips[p.old_uid], zips[p.new_uid], feed={"org_id": p.org_id, "feed_id": p.feed_id},
-                                             old_pub=_publication(entries[p.old_uid]), new_pub=_publication(entries[p.new_uid]),
-                                             summary_quality=quality, analysis_key=key if path.is_file() else None)
-                except Exception as err:  # any engine failure is recorded, never fatal to the run
-                    _mark(root, p, engine_version, "ENGINE_ERROR", f"{type(err).__name__}: {err}", run)
+                out = change_path(root, *fk, engine_version, p.old_uid, p.new_uid)
+                spec = {"old_zip": str(zips[p.old_uid]), "new_zip": str(zips[p.new_uid]),
+                        "feed": {"org_id": p.org_id, "feed_id": p.feed_id},
+                        "old_pub": _publication(entries[p.old_uid]), "new_pub": _publication(entries[p.new_uid]),
+                        "summary_quality": quality, "analysis_key": key if path.is_file() else None,
+                        "out": str(Path(tmp) / "report.json.gz")}
+                error = _build_in_child(spec, child_timeout, child_memory)
+                if error is not None:  # any engine failure is recorded, never fatal to the run
+                    _mark(root, p, engine_version, "ENGINE_ERROR", error, run)
                     record.update(action="failed", code="ENGINE_ERROR")
                     run.counts["failed"] += 1
                     continue
-                out = change_path(root, *fk, engine_version, p.old_uid, p.new_uid)
                 out.parent.mkdir(parents=True, exist_ok=True)
-                out.write_bytes(gzip_bytes(report))
+                Path(spec["out"]).replace(out)
                 run.changed_files.append(str(out.relative_to(root)))
                 record["action"] = "reported"
                 run.counts["reported"] += 1
             finally:
                 run.items.append(record)
+                done = len(run.items)
+                print(f"[{done}/{len(selected)}] {p.org_id}/{p.feed_id} {p.old_uid[:8]}->{p.new_uid[:8]} "
+                      f"{record['action'] or 'deferred'} {record['code'] or ''} {clock() - started:.1f}s", file=sys.stderr, flush=True)
                 for uid in (p.old_uid, p.new_uid):
                     uses[uid] -= 1
                     if uses[uid] == 0 and uid in zips:
                         zips.pop(uid).unlink(missing_ok=True)
     return run
+
+
+def _child() -> None:
+    """Build one report from a JSON spec on stdin (see run_reports)."""
+    spec = json.loads(sys.stdin.read())
+    report, _ = build_report(Path(spec["old_zip"]), Path(spec["new_zip"]), feed=spec["feed"], old_pub=spec["old_pub"],
+                             new_pub=spec["new_pub"], summary_quality=spec["summary_quality"], analysis_key=spec["analysis_key"])
+    Path(spec["out"]).write_bytes(gzip_bytes(report))
+
+
+def _build_in_child(spec: dict, timeout: float, memory: int) -> str | None:
+    """None when the report was written, else a short error."""
+    def limit() -> None:  # Linux enforces address-space limits; elsewhere this is a no-op
+        if sys.platform.startswith("linux"):
+            import resource
+            resource.setrlimit(resource.RLIMIT_AS, (memory, memory))
+
+    env = dict(os.environ, PYTHONPATH=os.pathsep.join(filter(None, [str(Path(__file__).resolve().parents[1]), os.environ.get("PYTHONPATH")])))
+    try:
+        proc = subprocess.run([sys.executable, "-c", "from gtfs_jp_monitor.changes import _child; _child()"],
+                              input=json.dumps(spec), capture_output=True, text=True, timeout=timeout, env=env, preexec_fn=limit)
+    except subprocess.TimeoutExpired:
+        return f"Timeout: no report after {timeout:.0f} s"
+    if proc.returncode != 0 or not Path(spec["out"]).is_file():
+        tail = (proc.stderr or "").strip().splitlines()
+        return (tail[-1] if tail else f"exit code {proc.returncode}")[:2000]
+    return None
 
 
 def _mark(root: Path, p: PendingReport, engine_version: str, code: str, detail: str, run: ReportRun) -> None:

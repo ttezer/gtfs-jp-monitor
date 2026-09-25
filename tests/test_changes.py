@@ -145,6 +145,12 @@ class ReportRunTest(unittest.TestCase):
         self.assertEqual((run.counts["reported"], run.counts["deferred"]), (0, 1))
         self.assertEqual(len(find_pending_reports(self.root, [FK], KEY, "0.1.0")), 1)  # still pending
 
+    def test_a_slow_pair_fails_alone(self):
+        run = run_reports(self.root, KEY, downloader=FakeDownloader(self.blobs), engine_version="0.1.0", child_timeout=0.001)
+        marker = json.loads(change_path(self.root, *FK, "0.1.0", uid(1), uid(2), ".error.json").read_text())
+        self.assertEqual((run.counts["failed"], marker["code"]), (1, "ENGINE_ERROR"))
+        self.assertTrue(marker["detail"].startswith("Timeout"))
+
     def test_transient_download_failure_is_retried(self):
         dl = FakeDownloader(self.blobs, failing={uid(1): DownloadError("DOWNLOAD_FAILED", "timeout")})
         run = run_reports(self.root, KEY, downloader=dl, engine_version="0.1.0")

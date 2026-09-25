@@ -173,3 +173,6 @@ only that job has `pages: write` and `id-token: write`.
   two ZIPs. Newest pairs are reported first, round-robin across feeds, at most
   `report_limit` per run and within a time budget (`report_minutes`): no new report starts
   after it, so the job never reaches its own time limit and loses the run.
+- Each report is built in its own process, with a time limit (15 min) and, on Linux, a memory
+  limit (8 GiB): memory is returned after every pair, and a pair beyond the limits fails alone
+  with an engine-error marker instead of ending the run. The step logs one line per pair.
