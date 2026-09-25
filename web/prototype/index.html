@@ -860,12 +860,18 @@ function reportList(intro = true) {
   return `${intro ? `<p>${esc(rt("pick", items.length))}</p>` : ""}<ul>${items.map(({ pair, e, f }) => `<li><button type="button" class="linkbtn" data-pick="${esc(pair)}">${esc(f.organization_name)} — ${esc(f.name)} · ${esc(e.dates[0])} → ${esc(e.dates[1])}</button></li>`).join("")}</ul>`;
 }
 
+// Group indices of a report's two publications; the pair need not be neighbours.
+function pairIndices(gs, pairKey) {
+  const [oldUid, newUid] = pairKey.split("__");
+  const at = uid => gs.findIndex(g => g.members.some(m => m.uid === uid));
+  const ni = at(newUid), oi = at(oldUid);
+  return [oi >= 0 && oi !== ni ? oi : ni - 1, ni];
+}
 function openPair(pairKey) {
-  const e = REPORTS[pairKey], newUid = pairKey.split("__")[1];
+  const e = REPORTS[pairKey];
   const f = DATA.feeds.find(x => x.org_id === e.feed[0] && x.feed_id === e.feed[1]);
-  const gs = groups(f);
-  const ni = gs.findIndex(g => g.members.some(m => m.uid === newUid));
-  state.selected = key(f); state.newIdx = ni; state.oldIdx = ni - 1;
+  const [oi, ni] = pairIndices(groups(f), pairKey);
+  state.selected = key(f); state.newIdx = ni; state.oldIdx = oi;
   state.openLines = new Set(); state.tt = {};
   renderAll();
 }
