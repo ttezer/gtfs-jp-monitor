@@ -133,6 +133,16 @@ class ReportTest(unittest.TestCase):
                          [("inserted", ["新団地"]), ("removed", ["旧団地"])])
         self.assertEqual({e["trips"] for e in pattern["edits"]}, {1})  # seen on one paired trip
 
+    def test_route_geometry(self):
+        (g1,) = self.line("1")["geometry"]
+        self.assertTrue(g1["identical"])  # the dominant stop sequence is the same
+        self.assertEqual((g1["old"], g1["new"]["source"], g1["change"]["max_m"]), (None, "stops", 0))
+        self.assertEqual((self.place_name(g1["from"]), self.place_name(g1["to"])), ("駅前", "病院"))
+        (g2,) = self.line("2")["geometry"]
+        self.assertFalse(g2["identical"])
+        self.assertTrue(g2["change"]["capped"])  # the new end stop is 8 km away
+        self.assertGreater(g2["change"]["diverged_new_m"], 0)
+
     def test_trip_moved_to_another_line(self):
         (move,) = self.report["moves"]
         self.assertEqual((move["old"]["line"], move["new"]["line"], move["kind"]), ("1", "3", "rerouted"))

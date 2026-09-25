@@ -62,6 +62,14 @@ One block per line that changed (unchanged lines are listed by name only):
   viewer from the hourly counts.
 - First and last departure per direction and day type.
 - Pattern changes per direction: places added, removed, inserted, detours, with the place names.
+- **Route geometry** per direction on both sides, for every line: the most used shape of the
+  direction, else the line through its stops, simplified to `report.geometry_tolerance_m`.
+  Both lines are sampled every `report.geometry_sample_m` and each sample's distance to the
+  other line is measured (up to `report.geometry_cap_m`); parts farther than
+  `report.geometry_diverge_m` are where the route runs elsewhere and are kept as point ranges
+  for drawing. A line whose route runs elsewhere counts as changed even if its stops and times
+  did not change. The page draws a network map of all lines and, per line, old and new routes
+  with the diverging parts.
 - **Timetables** per direction and day type, in three views:
   - **old**: the old typical day's trips as a table, places in pattern order as rows, trips as
     columns ordered by first departure;

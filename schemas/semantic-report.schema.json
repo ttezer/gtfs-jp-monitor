@@ -299,7 +299,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["key", "status", "old", "new", "related", "match", "trips", "first_last", "patterns", "timetables"],
+        "required": ["key", "status", "old", "new", "related", "match", "trips", "first_last", "patterns", "timetables", "geometry"],
         "properties": {
           "key": { "type": "string", "minLength": 1, "description": "Stable key of the line within this report (normalised new name, or old name when discontinued)." },
           "status": { "enum": ["unchanged", "added", "discontinued", "renamed", "merged", "split", "restructured", "changed"] },
@@ -359,6 +359,41 @@
                       "trips": { "type": ["integer", "null"], "minimum": 1, "description": "Paired trips showing this edit; null when it comes from comparing the dominant patterns." }
                     }
                   }
+                }
+              }
+            }
+          },
+          "geometry": {
+            "description": "Route of each direction on both sides: the most used shape, else the line through the stops; simplified. identical: both sides are the same after simplification and only new is kept.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["direction", "from", "to", "identical", "old", "new", "change"],
+              "properties": {
+                "direction": { "$ref": "#/$defs/direction" },
+                "from": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/place_ref" }], "description": "First place of the direction's most frequent pattern (new side, else old)." },
+                "to": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/place_ref" }] },
+                "identical": { "type": "boolean" },
+                "old": { "$ref": "#/$defs/nullable_route" },
+                "new": { "$ref": "#/$defs/nullable_route" },
+                "change": {
+                  "oneOf": [
+                    { "type": "null" },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["max_m", "diverged_old_m", "diverged_new_m", "old_spans", "new_spans", "capped"],
+                      "properties": {
+                        "max_m": { "$ref": "#/$defs/count", "description": "Largest distance of either line from the other (capped at report.geometry_cap_m)." },
+                        "diverged_old_m": { "$ref": "#/$defs/count", "description": "Length of the old line farther than report.geometry_diverge_m from the new one." },
+                        "diverged_new_m": { "$ref": "#/$defs/count" },
+                        "old_spans": { "$ref": "#/$defs/spans" },
+                        "new_spans": { "$ref": "#/$defs/spans" },
+                        "capped": { "type": "boolean" }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -586,6 +621,27 @@
     "nullable_line_side": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/line_side" }] },
     "line_ref": { "type": "string", "minLength": 1, "description": "The key of a line in `lines`." },
     "place_ref": { "type": "integer", "minimum": 0, "description": "Index into `places`." },
+    "route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "length_m", "points"],
+      "properties": {
+        "source": { "enum": ["shape", "stops"] },
+        "length_m": { "$ref": "#/$defs/count" },
+        "points": {
+          "description": "[lat * 1e5, lon * 1e5] pairs.",
+          "type": "array",
+          "minItems": 2,
+          "items": { "type": "array", "prefixItems": [{ "type": "integer" }, { "type": "integer" }], "minItems": 2, "maxItems": 2 }
+        }
+      }
+    },
+    "nullable_route": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/route" }] },
+    "spans": {
+      "description": "[first, last] point indices of a part of the line.",
+      "type": "array",
+      "items": { "type": "array", "items": { "type": "integer", "minimum": 0 }, "minItems": 2, "maxItems": 2 }
+    },
     "date_trip": {
       "type": "object",
       "additionalProperties": false,

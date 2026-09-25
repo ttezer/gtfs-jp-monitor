@@ -39,6 +39,10 @@
   "report": {
     "date_change_trips_max": 30,
     "date_changes_max": 100,
+    "geometry_cap_m": 500,
+    "geometry_diverge_m": 50,
+    "geometry_sample_m": 20,
+    "geometry_tolerance_m": 10,
     "other_details_max": 200
   },
   "schema": "gtfs-jp-semantic-config/1",

@@ -112,6 +112,7 @@
           }
         }
       ],
+      "geometry": [],
       "key": "1",
       "match": {
         "confidence": 1.0,
@@ -238,6 +239,7 @@
     },
     {
       "first_last": [],
+      "geometry": [],
       "key": "2",
       "match": {
         "confidence": 0.8,
@@ -267,6 +269,7 @@
     },
     {
       "first_last": [],
+      "geometry": [],
       "key": "3",
       "match": null,
       "new": {
@@ -297,6 +300,7 @@
     },
     {
       "first_last": [],
+      "geometry": [],
       "key": "4",
       "match": {
         "confidence": 1.0,

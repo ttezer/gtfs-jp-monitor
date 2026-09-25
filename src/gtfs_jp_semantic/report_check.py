@@ -47,6 +47,10 @@ def check_report(doc: dict) -> list[str]:
             for e, edit in enumerate(pattern["edits"]):
                 for ref in edit["places"]:
                     place_ok(ref, f"line {name} patterns[{p}].edits[{e}]")
+        for gm in line.get("geometry", []):
+            for ref in (gm["from"], gm["to"]):
+                if ref is not None:
+                    place_ok(ref, f"line {name} geometry")
         for t, table in enumerate(line["timetables"]):
             where = f"line {name} timetables[{t}]"
             sizes = {}

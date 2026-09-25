@@ -17,6 +17,7 @@ from .accounting import Evidence, classify
 from .holidays import HolidayTable, default_table
 from .lines import Line, LineMatch, build_lines, match_lines
 from .places import PlaceMatch, build_places, match_places, place_of_stop
+from .geometry import compare as compare_geometry, encode, length_m, load_shapes, simplify
 from .rawdiff import diff_feeds
 from .reader import Config, Feed, read_feed
 from .report_check import check_report
@@ -471,6 +472,50 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
             places.use((item["from"], item["to"]))
 
     # 3. Report blocks.
+    # Route geometry: the most used shape of a line direction, else the line through its stops.
+    shapes = {"old": load_shapes(ot.get("shapes.txt")), "new": load_shapes(nt.get("shapes.txt"))}
+    shape_of = {"old": dict(_column_pairs(ot.get("trips.txt"), "trip_id", "shape_id")),
+                "new": dict(_column_pairs(nt.get("trips.txt"), "trip_id", "shape_id"))}
+
+    def place_point(ref: str):
+        p = op.get(ref[4:]) if ref.startswith("old:") else np_.get(ref)
+        return (p.lat, p.lon) if p is not None and p.lat is not None and p.lon is not None else None
+
+    def side_geometry(side: str, trips: list[Trip]) -> dict | None:
+        if not trips:
+            return None
+        used = collections.Counter(shape_of[side].get(t.trip_id, "") for t in trips)
+        used.pop("", None)
+        for sid, _ in sorted(used.items(), key=lambda x: (-x[1], x[0])):
+            if sid in shapes[side]:
+                points, source = shapes[side][sid], "shape"
+                break
+        else:
+            points = [pt for pt in map(place_point, dominant_pattern(trips)) if pt is not None]
+            source = "stops"
+        if len(points) < 2:
+            return None
+        points = simplify(points, config.report["geometry_tolerance_m"])
+        return {"source": source, "length_m": round(length_m(points)), "points": points}
+
+    def geometry(direction: str, by_dt: dict) -> dict | None:
+        old = side_geometry("old", [t for a, _, _ in by_dt.values() for t in a])
+        new = side_geometry("new", [t for _, b, _ in by_dt.values() for t in b])
+        if old is None and new is None:
+            return None
+        change = None
+        if old and new:
+            change = compare_geometry(old["points"], new["points"], config.report["geometry_sample_m"],
+                                      config.report["geometry_diverge_m"], config.report["geometry_cap_m"])
+        identical = bool(old and new and encode(old["points"]) == encode(new["points"]))
+        pack = lambda g: None if g is None else dict(g, points=encode(g["points"]))
+        # End places of the direction (new side first), so a direction without direction_id has a name.
+        pattern = dominant_pattern([t for _, b, _ in by_dt.values() for t in b]) or dominant_pattern([t for a, _, _ in by_dt.values() for t in a])
+        ends = (pattern[0], pattern[-1]) if pattern else (None, None)
+        places.use(x for x in ends if x is not None)
+        return {"direction": direction, "from": ends[0], "to": ends[1], "identical": identical,
+                "old": None if identical else pack(old), "new": pack(new), "change": change}
+
     shift = cfg["first_last_min_shift"]
     first_last_changed = 0
     line_docs = []
@@ -480,6 +525,8 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
     for g in sorted(groups, key=lambda g: g.key):
         by_dir = by_group.get(g.key, {})
         doc_trips, first_last, patterns, timetables = [], [], [], []
+        geometries = [x for x in (geometry(d, by_dir[d]) for d in sorted(by_dir)) if x is not None]
+        route_moved = any(gm["change"] and (gm["change"]["diverged_new_m"] or gm["change"]["diverged_old_m"]) for gm in geometries)
         changed = g.key in lines_with_moves
         for direction in sorted(by_dir):
             # Pattern edits seen on paired trips of this line, with the number of trips showing them.
@@ -538,6 +585,7 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
                 if any(x["before"] is not None and x["after"] is not None and abs(x["after"] - x["before"]) >= shift
                        for x in (first, last)):
                     first_last_changed += 1
+        changed = changed or route_moved
         relation = g.match.relation
         status = ("changed" if changed else "unchanged") if relation == "same" else relation
         if status != "unchanged":
@@ -558,6 +606,7 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
             "first_last": first_last,
             "patterns": patterns,
             "timetables": timetables,
+            "geometry": geometries,
         })
 
     for m in place_matches:
@@ -593,6 +642,10 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
     for m in moves:
         for edit in m["edits"]:
             edit["places"] = [places[r] for r in edit["places"]]
+    for line in line_docs:
+        for gm in line["geometry"]:
+            gm["from"] = None if gm["from"] is None else places[gm["from"]]
+            gm["to"] = None if gm["to"] is None else places[gm["to"]]
     for line in line_docs:
         for pattern in line["patterns"]:
             for edit in pattern["edits"]:
