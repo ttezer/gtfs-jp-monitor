@@ -198,8 +198,8 @@ table.tt tr.only-old td.pl { color: var(--bad); }
 .edits { margin: 0; padding-left: 18px; font-size: 13px; }
 .chips { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; font-family: var(--mono); font-size: 13px; }
 .pmap { position: relative; height: 380px; overflow: hidden; border: 1px solid var(--hair); border-radius: 6px; background: var(--surface-2); touch-action: none; cursor: grab; user-select: none; }
-.pmap.netmap { height: 460px; }
-.pmap.lmap { height: 340px; }
+.pmap.netmap { height: 620px; }
+.pmap.lmap { height: 440px; }
 .pmap .tiles img { position: absolute; width: 256px; height: 256px; pointer-events: none; }
 .pmap svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .pmap .mapctl { position: absolute; top: 8px; right: 8px; display: grid; gap: 4px; }
@@ -892,17 +892,19 @@ function makeMap(el, bounds, overlay, onPick) {
   const fit = () => {
     const lats = bounds.map(p => p[0]), lons = bounds.map(p => p[1]);
     const W = el.clientWidth - 40, H = el.clientHeight - 40;
+    // Fractional zoom in quarter steps, so the lines fill the box; tiles come from the level below.
     let z = 17;
-    while (z > 5 && (wx(Math.max(...lons), z) - wx(Math.min(...lons), z) > W || wy(Math.min(...lats), z) - wy(Math.max(...lats), z) > H)) z--;
+    while (z > 5 && (wx(Math.max(...lons), z) - wx(Math.min(...lons), z) > W || wy(Math.min(...lats), z) - wy(Math.max(...lats), z) > H)) z -= 0.25;
     Object.assign(view, { z, lat: (Math.max(...lats) + Math.min(...lats)) / 2, lon: (Math.max(...lons) + Math.min(...lons)) / 2, focus: null });
   };
   const draw = () => {
     const W = el.clientWidth, H = el.clientHeight, z = view.z;
-    const cx = wx(view.lon, z), cy = wy(view.lat, z), x0 = cx - W / 2, y0 = cy - H / 2, n = 2 ** z;
+    const zt = Math.min(18, Math.floor(z)), size = TILE * 2 ** (z - zt), n = 2 ** zt;
+    const cx = wx(view.lon, z), cy = wy(view.lat, z), x0 = cx - W / 2, y0 = cy - H / 2;
     let tiles = "";
-    for (let tx = Math.floor(x0 / TILE); tx <= Math.floor((x0 + W) / TILE); tx++)
-      for (let ty = Math.floor(y0 / TILE); ty <= Math.floor((y0 + H) / TILE); ty++)
-        if (ty >= 0 && ty < n) tiles += `<img alt="" draggable="false" src="${GSI(z, ((tx % n) + n) % n, ty)}" style="left:${Math.round(tx * TILE - x0)}px;top:${Math.round(ty * TILE - y0)}px" onerror="this.remove()">`;
+    for (let tx = Math.floor(x0 / size); tx <= Math.floor((x0 + W) / size); tx++)
+      for (let ty = Math.floor(y0 / size); ty <= Math.floor((y0 + H) / size); ty++)
+        if (ty >= 0 && ty < n) tiles += `<img alt="" draggable="false" src="${GSI(zt, ((tx % n) + n) % n, ty)}" style="left:${Math.round(tx * size - x0)}px;top:${Math.round(ty * size - y0)}px;width:${Math.ceil(size)}px;height:${Math.ceil(size)}px" onerror="this.remove()">`;
     const P = p => [wx(p[1], z) - x0, wy(p[0], z) - y0];
     el.querySelector(".tiles").innerHTML = tiles;
     el.querySelector("svg").innerHTML = overlay(P, view);
@@ -923,8 +925,8 @@ function makeMap(el, bounds, overlay, onPick) {
     requestAnimationFrame(draw);
   });
   el.addEventListener("pointerup", () => { if (drag && !drag.moved && onPick) onPick(drag.target); drag = null; });
-  el.querySelector("[data-z='+']").addEventListener("click", () => { view.z = Math.min(18, view.z + 1); draw(); });
-  el.querySelector("[data-z='-']").addEventListener("click", () => { view.z = Math.max(5, view.z - 1); draw(); });
+  el.querySelector("[data-z='+']").addEventListener("click", () => { view.z = Math.min(18, Math.floor(view.z) + 1); draw(); });
+  el.querySelector("[data-z='-']").addEventListener("click", () => { view.z = Math.max(5, Math.ceil(view.z) - 1); draw(); });
   el.querySelector("[data-z='all']").addEventListener("click", () => { fit(); draw(); });
   fit(); draw();
   return { view, draw, focus: (lat, lon, z, id) => { Object.assign(view, { z, lat, lon, focus: id }); draw(); } };
