@@ -43,6 +43,8 @@
     "geometry_diverge_m": 50,
     "geometry_sample_m": 20,
     "geometry_tolerance_m": 10,
+    "irregular_max": 50,
+    "irregular_spans_max": 20,
     "other_details_max": 200
   },
   "schema": "gtfs-jp-semantic-config/1",

@@ -197,7 +197,7 @@
     "service_days": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["day_types", "periods", "special_days", "date_changes"],
+      "required": ["day_types", "periods", "special_days", "date_changes", "irregular"],
       "properties": {
         "day_types": {
           "type": "object",
@@ -225,6 +225,16 @@
           "properties": {
             "old": { "$ref": "#/$defs/date_list" },
             "new": { "$ref": "#/$defs/date_list" }
+          }
+        },
+        "irregular": {
+          "description": "Per publication, services that are part of no regular timetable (they run on fewer than special_max_days non-special dates): their dates, trips, and whether they run besides the regular services (adds), instead of them (replaces) or both (mixed). At most report.irregular_max per side.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["old", "new"],
+          "properties": {
+            "old": { "type": "array", "items": { "$ref": "#/$defs/irregular" } },
+            "new": { "type": "array", "items": { "$ref": "#/$defs/irregular" } }
           }
         },
         "date_changes": {
@@ -621,6 +631,19 @@
     "nullable_line_side": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/line_side" }] },
     "line_ref": { "type": "string", "minLength": 1, "description": "The key of a line in `lines`." },
     "place_ref": { "type": "integer", "minimum": 0, "description": "Index into `places`." },
+    "irregular": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["service_id", "dates", "date_count", "trips", "mode"],
+      "properties": {
+        "service_id": { "type": "string" },
+        "dates": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["start", "end"],
+                   "properties": { "start": { "$ref": "generation.schema.json#/$defs/iso_date" }, "end": { "$ref": "generation.schema.json#/$defs/iso_date" } } } },
+        "date_count": { "type": "integer", "minimum": 1 },
+        "trips": { "$ref": "#/$defs/count" },
+        "mode": { "enum": ["adds", "replaces", "mixed"] }
+      }
+    },
     "route": {
       "type": "object",
       "additionalProperties": false,

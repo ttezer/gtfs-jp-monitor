@@ -21,7 +21,7 @@ from .geometry import compare as compare_geometry, encode, length_m, load_shapes
 from .rawdiff import diff_feeds
 from .reader import Config, Feed, read_feed
 from .report_check import check_report
-from .service import build_calendar, choose_comparison, day_type_order
+from .service import build_calendar, choose_comparison, day_type_order, irregular_services
 from .trips import Trip, TripPair, build_trips, dominant_pattern, match_moved_trips, match_trips, pattern_edits
 
 SCHEMA = "gtfs-jp-semantic-report/1"
@@ -156,6 +156,14 @@ def _column_pairs(table, a: str, b: str) -> list[tuple[str, str]]:
         return []
     i, j = table.header.index(a), table.header.index(b)
     return [(r[i], r[j]) for r in table.rows]
+
+
+def _irregular(cal, tables: dict, config: Config) -> list[dict]:
+    """Irregular services of one publication, with their dates and trips (03-report.md §2)."""
+    trips = collections.Counter(sid for _, sid in _column_pairs(tables.get("trips.txt"), "trip_id", "service_id"))
+    return [{"service_id": x.service_id, "dates": _spans(list(x.dates))[:config.report["irregular_spans_max"]],
+             "date_count": len(x.dates), "trips": trips[x.service_id], "mode": x.mode}
+            for x in irregular_services(cal, config.special_max_days)][:config.report["irregular_max"]]
 
 
 def _sort_trips(trips: list[Trip]) -> list[Trip]:
@@ -720,6 +728,7 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
                                for p in cal.periods] for side, cal in (("old", old_cal), ("new", new_cal))},
             "special_days": {side: sorted(d.isoformat() for d in cal.special) for side, cal in (("old", old_cal), ("new", new_cal))},
             "date_changes": date_changes,
+            "irregular": {side: _irregular(cal, tables, config) for side, cal, tables in (("old", old_cal, ot), ("new", new_cal, nt))},
         },
         "places": place_docs,
         "lines": line_docs,

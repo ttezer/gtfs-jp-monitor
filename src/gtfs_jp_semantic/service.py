@@ -62,6 +62,7 @@ class ServiceCalendar:
     special: set[date]
     periods: list[Period]
     notes: list[str] = field(default_factory=list)
+    service_dates: dict[str, frozenset[date]] = field(default_factory=dict)  # clipped to the window
 
     @property
     def day_types(self) -> dict[date, str]:
@@ -142,7 +143,9 @@ def build_calendar(tables: dict[str, Table], holidays: HolidayTable, config: Con
     groups = _day_groups(days, categories, config.matching["day_group_min_agreement"])
     day_types = {d: groups[c] for d, c in categories.items()}
     special = _special_days(days, day_types, config.special_max_days)
-    return ServiceCalendar((start, end), days, categories, groups, special, _periods(days, day_types, special), notes)
+    service_dates = {sid: frozenset(d for d in ds if start <= d <= end) for sid, ds in services.items()}
+    return ServiceCalendar((start, end), days, categories, groups, special, _periods(days, day_types, special), notes,
+                           {sid: ds for sid, ds in service_dates.items() if ds})
 
 
 def _day_groups(days: dict[date, frozenset[str]], categories: dict[date, str], min_agreement: float) -> dict[str, str]:
@@ -231,6 +234,34 @@ def _periods(days: dict[date, frozenset[str]], day_types: dict[date, str], speci
         if current is not None:
             periods.append(current)
     return sorted(periods, key=lambda p: (day_type_order(p.day_type), p.start))
+
+
+@dataclass(frozen=True)
+class Irregular:
+    service_id: str
+    dates: frozenset[date]
+    mode: str  # adds | replaces | mixed: runs besides regular services, instead of them, or both
+
+
+def irregular_services(cal: ServiceCalendar, min_days: int) -> list[Irregular]:
+    """Services that are part of no regular timetable: no period (a run of dates of one day
+    type with the same services) containing them lasts `min_days` dates. Services on scattered
+    dates stay irregular even when they add up to many days. Whether they add to the regular
+    services or replace them is judged on their own dates."""
+    day_types = cal.day_types
+    regular: set[str] = set()
+    for p in cal.periods:
+        n = sum(1 for d in cal.days if p.start <= d <= p.end and day_types[d] == p.day_type and d not in cal.special)
+        if n >= min_days:
+            regular |= p.services
+    out = []
+    for sid, dates in sorted(cal.service_dates.items()):
+        if sid in regular:
+            continue
+        beside = sum(1 for d in dates if cal.days.get(d, frozenset()) & regular)
+        mode = "adds" if beside == len(dates) else "replaces" if beside == 0 else "mixed"
+        out.append(Irregular(sid, dates, mode))
+    return sorted(out, key=lambda x: (min(x.dates), x.service_id))
 
 
 @dataclass(frozen=True)

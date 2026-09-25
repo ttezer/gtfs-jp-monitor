@@ -43,6 +43,11 @@ Counts a planner can scan in seconds:
 Per day type: compared dates, number of active days in each publication's validity, and the
 periods of both publications (with their date ranges). Special days are listed with their dates.
 
+**Irregular services.** Per publication, services that belong to no regular period (no run
+of dates of one day type with the same services containing them lasts `special_max_days`
+dates): their dates, trips and whether they run besides the regular services, instead of them,
+or both. Services on scattered dates stay irregular however many days they add up to.
+
 **Changes by date.** Every date both publications cover is also compared on its own, trip by
 trip (a trip is its line, place sequence and times). The change of a date is compared with the
 change of the typical day it follows: the typical day whose services it also runs, else the

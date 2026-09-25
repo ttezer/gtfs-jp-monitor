@@ -133,6 +133,12 @@ class ReportTest(unittest.TestCase):
                          [("inserted", ["新団地"]), ("removed", ["旧団地"])])
         self.assertEqual({e["trips"] for e in pattern["edits"]}, {1})  # seen on one paired trip
 
+    def test_irregular_services(self):
+        irr = self.report["service_days"]["irregular"]
+        self.assertEqual([(x["service_id"], x["dates"], x["trips"], x["mode"]) for x in irr["old"]],
+                         [("HOL", [{"start": "2026-05-15", "end": "2026-05-15"}], 1, "adds")])
+        self.assertEqual(irr["new"], [])
+
     def test_route_geometry(self):
         (g1,) = self.line("1")["geometry"]
         self.assertTrue(g1["identical"])  # the dominant stop sequence is the same
