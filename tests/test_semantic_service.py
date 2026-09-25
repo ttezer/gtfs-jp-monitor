@@ -98,6 +98,18 @@ class DayGroupTest(unittest.TestCase):
         # 2026-07-20 (Marine Day) is a Monday running the Monday service, so it joins Monday.
         self.assertEqual(sorted(set(cal.groups.values())), ["mon,hol", "sat,sun", "tue,wed,thu,fri"])
 
+    def test_same_trips_under_other_service_ids(self):
+        # Every weekday has its own service id but the same trip: one day type.
+        cal = "".join(f"{d},{','.join('1' if i == k else '0' for i in range(7))},20260601,20260731\n" for k, d in enumerate(["M", "T", "W", "R", "F"]))
+        trips = "".join(f"R1,{d},T{d}\n" for d in "MTWRF")
+        tables = feed(self.dir, "s.zip", cal, trips=trips)
+        path = self.dir / "s.zip"
+        with zipfile.ZipFile(path, "a") as zf:
+            zf.writestr("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n" +
+                        "".join(f"T{d},08:00:00,08:00:00,A,1\nT{d},08:10:00,08:10:00,B,2\n" for d in "MTWRF"))
+        cal_ = build_calendar(read_feed(path, CONFIG).tables, HOL, CONFIG)
+        self.assertEqual(cal_.groups["mon"], "mon,tue,wed,thu,fri,hol")
+
     def test_common_refinement(self):
         old = build_calendar(feed(self.dir, "o.zip", "WK,1,1,1,1,1,0,0,20260601,20260731\n"), HOL, CONFIG)
         new = build_calendar(feed(self.dir, "n.zip", "MO,1,0,0,0,0,0,0,20260601,20260731\nTF,0,1,1,1,1,0,0,20260601,20260731\n"),

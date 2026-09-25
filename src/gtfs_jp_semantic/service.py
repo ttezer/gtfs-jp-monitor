@@ -140,7 +140,7 @@ def build_calendar(tables: dict[str, Table], holidays: HolidayTable, config: Con
         categories[d] = holidays.category(d)
         d += timedelta(days=1)
 
-    groups = _day_groups(days, categories, config.matching["day_group_min_agreement"])
+    groups = _day_groups(_contents(tables, days), categories, config.matching["day_group_min_agreement"])
     day_types = {d: groups[c] for d, c in categories.items()}
     special = _special_days(days, day_types, config.special_max_days)
     service_dates = {sid: frozenset(d for d in ds if start <= d <= end) for sid, ds in services.items()}
@@ -148,12 +148,54 @@ def build_calendar(tables: dict[str, Table], holidays: HolidayTable, config: Con
                            {sid: ds for sid, ds in service_dates.items() if ds})
 
 
-def _day_groups(days: dict[date, frozenset[str]], categories: dict[date, str], min_agreement: float) -> dict[str, str]:
+def _contents(tables: dict[str, Table], days: dict[date, frozenset[str]]) -> dict[date, object]:
+    """What runs on each date, independent of service ids: the sorted trips of its services,
+    each as route, first and last stop with their times, and number of stops. Feeds that give
+    every weekday its own service id for the same trips thus get the same content."""
+    trip_info = {t.get("trip_id", ""): (t.get("service_id", ""), t.get("route_id", "")) for t in _rows(tables.get("trips.txt"))}
+    ends: dict[str, list] = {}
+    st = tables.get("stop_times.txt")
+    if st is not None and st.status == "ok" and {"trip_id", "stop_sequence", "stop_id"} <= set(st.header):
+        h = st.header
+        ti, si, pi = h.index("trip_id"), h.index("stop_sequence"), h.index("stop_id")
+        ai = h.index("arrival_time") if "arrival_time" in h else None
+        di = h.index("departure_time") if "departure_time" in h else None
+        for r in st.rows:
+            try:
+                seq = int(r[si])
+            except ValueError:
+                continue
+            time = (r[di] if di is not None else "") or (r[ai] if ai is not None else "")
+            e = ends.get(r[ti])
+            if e is None:
+                ends[r[ti]] = [seq, r[pi], time, seq, r[pi], time, 1]
+            else:
+                e[6] += 1
+                if seq < e[0]:
+                    e[0:3] = [seq, r[pi], time]
+                if seq > e[3]:
+                    e[3:6] = [seq, r[pi], time]
+    by_service: dict[str, list] = collections.defaultdict(list)
+    for tid, (sid, route) in trip_info.items():
+        e = ends.get(tid)
+        if e is not None:
+            by_service[sid].append((route, e[1], e[2], e[4], e[5], e[6]))
+    cache: dict[frozenset, object] = {}
+    out = {}
+    for d, services in days.items():
+        if services not in cache:
+            # A service without readable trips stands for itself.
+            cache[services] = tuple(sorted(x for sid in services for x in by_service.get(sid, [("service", sid)])))
+        out[d] = cache[services]
+    return out
+
+
+def _day_groups(days: dict[date, object], categories: dict[date, str], min_agreement: float) -> dict[str, str]:
     """category -> day type id.
 
-    Each date is compared with the nearest date (at most 7 days away) of every other category;
-    two categories join when at least `min_agreement` of these comparisons find the same
-    services. A holiday is thus compared with the weekday it replaced one week before or after.
+    `days` holds what runs on each date (see _contents). Each date is compared with the
+    nearest date (at most 7 days away) of every other category; two categories join when at
+    least `min_agreement` of these comparisons find the same trips. A holiday is thus compared with the weekday it replaced one week before or after.
     Isolated exceptions (a date whose services differ from both neighbouring dates of its own
     category) take no part; they are special days. Two dates without service say nothing;
     categories that never run form one day type. Joins are transitive.
