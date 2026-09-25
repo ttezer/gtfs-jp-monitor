@@ -54,6 +54,42 @@ class WebPageTest(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertEqual(json.loads(proc.stdout), [{"n": 0, "fatal": 0}, {"n": 2, "fatal": 1}, {"n": 0, "fatal": 0}])
 
+    def functions(self, *names):
+        """Source of top-level page functions, to run them in node without a browser."""
+        out = []
+        for name in names:
+            start = self.html.index(f"function {name}(")
+            out.append(self.html[start:self.html.index("\n}\n", start) + 3])
+        return "\n".join(out)
+
+    @unittest.skipUnless(shutil.which("node"), "node is not installed")
+    def test_links(self):
+        source = ("const TABS = [\"overview\", \"history\", \"reports\", \"gtfsjp\"], VIEWS = [\"report\", \"verify\"];\n"
+                  "const key = f => `${f.org_id}/${f.feed_id}`;\n" + self.functions("parseLink", "resolveLink", "linkHash"))
+        cases = """
+        const gens = ["a", "b", "c", "d", "e"].map(uid => ({ uid }));
+        const merged = [["a"], ["b", "c"], ["d"], ["e"]].map(ids => ({ rep: { uid: ids[ids.length - 1] }, members: ids.map(uid => ({ uid })) }));
+        const single = gens.map(g => ({ rep: g, members: [g] }));
+        const f = { org_id: "org", feed_id: "feed-1" };
+        console.log(JSON.stringify([
+          parseLink("#feed=org/feed-1&old=a&new=d&tab=reports&view=verify"),
+          parseLink("#feed=org%2Ffeed-1&tab=nope&view=x"),
+          resolveLink(gens, merged, "a", "d"), resolveLink(gens, merged, "d", "a"),   // reversed link
+          resolveLink(gens, merged, "c", "e"), resolveLink(gens, single, "c", "e"),  // uid inside a merged group
+          resolveLink(gens, merged, "a", "zz"),
+          linkHash(f, merged, 3, 1, "reports", "verify"), linkHash(f, merged, 0, 1, "overview", "report"), linkHash(null, null, null, null, "overview", "report"),
+        ]));
+        """
+        proc = subprocess.run(["node", "-e", source + cases], capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(json.loads(proc.stdout), [
+            {"feed": "org/feed-1", "old": "a", "new": "d", "tab": "reports", "view": "verify"},
+            {"feed": "org/feed-1", "old": None, "new": None, "tab": None, "view": None},
+            [0, 2], [0, 2], [1, 3], [2, 4], None,
+            "#feed=org/feed-1&old=c&new=e&tab=reports&view=verify",  # old side is the last uid of its group
+            "#feed=org/feed-1&old=a&new=b", "",
+        ])
+
 
 if __name__ == "__main__":
     unittest.main()

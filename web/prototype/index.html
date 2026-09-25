@@ -273,6 +273,7 @@ const PREFS = [["北海道","Hokkaido"],["青森県","Aomori"],["岩手県","Iwa
 const T = {
   tr: {
     tagline: "Feed kalitesi, yayına hazırlık ve değişiklik geçmişi",
+    linkMissing: "Bağlantıdaki feed ya da yayın bu sayfada yok; bağlantı yok sayıldı.",
     notice: (f, g, rel, prof) => `<b>Önizleme.</b> ${f} feed, ${g} yayın; GTFS Analyzer ${rel} (${prof} profili). Yayınlar en yeniden eskiye doğru analiz ediliyor; henüz analiz edilmemiş eski yayınlar her gün arka planda ekleniyor. Semantic değişiklik raporları her gün en yeni yayın çiftlerinden başlayarak ekleniyor (Diff Raporları sekmesi).`,
     overview: "Genel Bakış", history: "Feed Geçmişi", reports: "Diff Raporları", gtfsjp: "GTFS-JP",
     search: "Feed ara", prefecture: "İl", readiness: "Yayın durumu", sort: "Sırala", all: "Tümü",
@@ -304,6 +305,7 @@ const T = {
   },
   en: {
     tagline: "Feed quality, publication readiness and change history",
+    linkMissing: "The feed or publication in the link is not on this page; the link was ignored.",
     notice: (f, g, rel, prof) => `<b>Preview.</b> ${f} feeds, ${g} publications; GTFS Analyzer ${rel} (${prof} profile). Publications are analysed newest first; older ones not analysed yet are added daily in the background. Semantic change reports are added daily, newest publication pairs first (Diff reports tab).`,
     overview: "Overview", history: "Feed history", reports: "Diff reports", gtfsjp: "GTFS-JP",
     search: "Search feeds", prefecture: "Prefecture", readiness: "Readiness", sort: "Sort", all: "All",
@@ -335,6 +337,7 @@ const T = {
   },
   ja: {
     tagline: "フィードの品質・公開準備・変更履歴",
+    linkMissing: "リンクのフィードまたは公開はこのページにありません。リンクは無視されました。",
     notice: (f, g, rel, prof) => `<b>プレビュー。</b>${f}フィード・${g}公開分、GTFS Analyzer ${rel}（${prof}プロファイル）。公開は新しいものから順に解析しており、未解析の古い公開は毎日バックグラウンドで追加されます。セマンティック変更レポートは新しい公開ペアから毎日追加されています（差分レポートタブ）。`,
     overview: "概要", history: "フィード履歴", reports: "差分レポート", gtfsjp: "GTFS-JP",
     search: "フィード検索", prefecture: "都道府県", readiness: "公開状態", sort: "並び替え", all: "すべて",
@@ -870,6 +873,62 @@ function pairIndices(gs, pairKey) {
   const ni = at(newUid), oi = at(oldUid);
   return [oi >= 0 && oi !== ni ? oi : ni - 1, ni];
 }
+// ---- Shareable links: #feed=<org>/<feed>&old=<uid>&new=<uid>&tab=<tab>&view=<report|verify> ----
+// Links hold publication uids, never group indices, so they survive merging and changes in grouping.
+const TABS = ["overview", "history", "reports", "gtfsjp"], VIEWS = ["report", "verify"];
+function parseLink(hash) {
+  const p = new URLSearchParams(String(hash || "").replace(/^#/, ""));
+  const get = k => p.get(k) || null;
+  return { feed: get("feed"), old: get("old"), new: get("new"), tab: TABS.includes(get("tab")) ? get("tab") : null,
+           view: VIEWS.includes(get("view")) ? get("view") : null };
+}
+// Group indices for a link's publications, old before new (a reversed link is turned round);
+// null when either uid is not a publication of the feed.
+function resolveLink(gens, gs, oldUid, newUid) {
+  const pos = uid => gens.findIndex(g => g.uid === uid);
+  let a = pos(oldUid), b = pos(newUid);
+  if (a < 0 || b < 0) return null;
+  if (a > b) [a, b] = [b, a];
+  const at = uid => gs.findIndex(g => g.members.some(m => m.uid === uid));
+  return [at(gens[a].uid), at(gens[b].uid)];
+}
+function linkHash(feed, gs, oldIdx, newIdx, tab, view) {
+  const p = new URLSearchParams();
+  if (feed) {
+    p.set("feed", key(feed));
+    if (gs && oldIdx != null && newIdx != null && gs[oldIdx] && gs[newIdx]) {
+      const [lo, hi] = oldIdx <= newIdx ? [oldIdx, newIdx] : [newIdx, oldIdx];
+      p.set("old", gs[lo].rep.uid); p.set("new", gs[hi].members[0].uid);  // as pairReport names the pair
+    }
+  }
+  if (tab && tab !== "overview") p.set("tab", tab);
+  if (view && view !== "report") p.set("view", view);
+  const s = p.toString();
+  return s ? "#" + s.replace(/%2F/g, "/") : "";
+}
+function writeLink() {
+  const f = DATA.feeds.find(x => key(x) === state.selected);
+  const h = linkHash(f, f ? groups(f) : null, state.oldIdx, state.newIdx, state.tab, state.rview);
+  if (h !== location.hash && !(h === "" && !location.hash)) {
+    state.linkMissing = false;  // the view has moved on from the link
+    try { history.replaceState(null, "", h || location.pathname + location.search); } catch (e) { /* ignore */ }
+  }
+}
+function readLink() {
+  const l = parseLink(location.hash);
+  state.linkMissing = false;
+  if (l.tab) state.tab = l.tab;
+  if (l.view) state.rview = l.view;
+  if (!l.feed) return;
+  const f = DATA.feeds.find(x => key(x) === l.feed);
+  if (!f) { state.linkMissing = true; return; }
+  if (f.is_discontinued) $("showdisc").checked = true;
+  state.selected = key(f); state.oldIdx = state.newIdx = null;
+  if (l.old && l.new) {
+    const r = resolveLink(f.generations, groups(f), l.old, l.new);
+    if (r) [state.oldIdx, state.newIdx] = r; else state.linkMissing = true;
+  }
+}
 function openPair(pairKey) {
   const e = REPORTS[pairKey];
   const f = DATA.feeds.find(x => x.org_id === e.feed[0] && x.feed_id === e.feed[1]);
@@ -1063,6 +1122,7 @@ function selfCheck(rep) {
 }
 
 function renderReport() {
+  writeLink();
   const box = $("reports");
   const { pair, entry, backwards } = selectedReport();
   if (!entry) {
@@ -1529,7 +1589,7 @@ function renderStatic() {
   document.documentElement.lang = state.lang;
   $("tagline").textContent = t("tagline");
   const [rel, prof] = (DATA.analysis_key || "").split("__");
-  $("notice").innerHTML = `<span>${t("notice", DATA.feeds.length, DATA.feeds.reduce((n, f) => n + f.generations.length, 0), esc(rel || ""), esc(prof || ""))}</span>`;
+  $("notice").innerHTML = `<span>${t("notice", DATA.feeds.length, DATA.feeds.reduce((n, f) => n + f.generations.length, 0), esc(rel || ""), esc(prof || ""))}</span>${state.linkMissing ? `<span> ${esc(t("linkMissing"))}</span>` : ""}`;
   document.querySelectorAll("[data-t]").forEach(el => { el.textContent = t(el.dataset.t); });
   document.querySelectorAll("nav.tabs button").forEach(b => { b.textContent = t(b.dataset.tab); b.setAttribute("aria-selected", String(b.dataset.tab === state.tab)); });
   document.querySelectorAll(".langs button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.lang === state.lang)));
@@ -1561,14 +1621,16 @@ function renderStatic() {
   $("merge-note").textContent = state.merge ? t("mergeNote") : "";
 }
 
-function renderAll() { renderStatic(); renderGrid(); renderPanel(); renderHistory(); renderReport(); }
+function renderAll() { renderStatic(); renderGrid(); renderPanel(); renderHistory(); renderReport(); writeLink(); }
 
 document.querySelectorAll(".langs button").forEach(b => b.addEventListener("click", () => {
   state.lang = b.dataset.lang;
   try { localStorage.setItem("gjm-lang", state.lang); } catch (e) { /* ignore */ }
   renderAll();
 }));
-document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => { state.tab = b.dataset.tab; renderStatic(); if (state.tab === "reports") renderReport(); }));
+document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => { state.tab = b.dataset.tab; renderStatic(); if (state.tab === "reports") renderReport(); writeLink(); }));
+// replaceState fires no hashchange, so this runs only for a link typed or followed by the user.
+window.addEventListener("hashchange", () => { readLink(); renderAll(); });
 ["q", "pub", "sort", "showdisc"].forEach(id => $(id).addEventListener("input", () => { renderGrid(); renderPanel(); renderHistory(); renderReport(); }));
 ["pref", "org", "feedsel"].forEach(id => $(id).addEventListener("change", () => {
   if (id === "pref") { $("org").value = ""; $("feedsel").value = ""; }
@@ -1578,6 +1640,7 @@ document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("cl
 }));
 $("merge").addEventListener("change", e => { state.merge = e.target.checked; state.oldIdx = state.newIdx = null; renderAll(); });
 
+readLink();
 renderAll();
 })();
 </script>

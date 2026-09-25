@@ -165,6 +165,22 @@ After the data commit the job rebuilds the public web site from the data reposit
 (`export-web`, report bundles gzip-compressed) and a second job deploys it to GitHub Pages;
 only that job has `pages: write` and `id-token: write`.
 
+### §10.1 Page links
+
+The page keeps its view in the URL fragment, so a comparison can be shared:
+`#feed=<org_id>/<feed_id>&old=<uid>&new=<uid>&tab=<overview|history|reports|gtfsjp>&view=<report|verify>`.
+Every part is optional; defaults (`overview`, `report`) are left out. Links hold publication
+uids, never positions, so they keep working when publications are merged or regrouped:
+
+- the old publication is written as the last one of its group and the new one as the first of
+  its group, as a report names its pair (§11);
+- a link whose `old` is newer than `new` is turned round;
+- a uid inside a merged group opens that group;
+- a feed or uid the page does not have leaves the view unchanged and says the link was ignored.
+
+The page rewrites the fragment with `history.replaceState` as the view changes, so browsing adds
+no history entries. Changing this format breaks shared links.
+
 ## §11 Semantic change reports
 
 - One report per pair of neighbouring publications as the web page shows them: analysed for
