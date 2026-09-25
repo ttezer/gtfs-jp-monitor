@@ -273,7 +273,7 @@ const PREFS = [["北海道","Hokkaido"],["青森県","Aomori"],["岩手県","Iwa
 const T = {
   tr: {
     tagline: "Feed kalitesi, yayına hazırlık ve değişiklik geçmişi",
-    notice: (f, g, rel, prof) => `<b>Önizleme.</b> ${f} feed, ${g} yayın; GTFS Analyzer ${rel} (${prof} profili). Şimdilik her feed'in son 4 yayını analiz edildi; daha eski yayınlar her gün arka planda ekleniyor. Semantic değişiklik raporları her gün en yeni yayın çiftlerinden başlayarak ekleniyor (Diff Raporları sekmesi).`,
+    notice: (f, g, rel, prof) => `<b>Önizleme.</b> ${f} feed, ${g} yayın; GTFS Analyzer ${rel} (${prof} profili). Yayınlar en yeniden eskiye doğru analiz ediliyor; henüz analiz edilmemiş eski yayınlar her gün arka planda ekleniyor. Semantic değişiklik raporları her gün en yeni yayın çiftlerinden başlayarak ekleniyor (Diff Raporları sekmesi).`,
     overview: "Genel Bakış", history: "Feed Geçmişi", reports: "Diff Raporları", gtfsjp: "GTFS-JP",
     search: "Feed ara", prefecture: "İl", readiness: "Yayın durumu", sort: "Sırala", all: "Tümü",
     ready: "Yayınlanmaya hazır", notReady: "Hazır değil", merge: "Eşdeğer yayınları birleştir",
@@ -287,7 +287,6 @@ const T = {
     pickOld: "Eski", pickNew: "Yeni", backwards: "Eski taraf yeniden sonra seçildi; fark geriye doğru gösteriliyor.",
     singlePub: "Bu feed'in karşılaştırılabilecek tek yayını var; aşağıda bu yayının kendi durumu gösteriliyor.", snap1: "Skorlar", snap2: "Yapı", snap3: "Kural ihlalleri", snapCount: "Sayı", snapNoRules: "Kural ihlali yok.", snapSemantic: "Semantic değişiklik raporu iki yayın gerektirir. Bu feed'in yeni bir yayını çıktığında ilk rapor otomatik üretilir.",
     s1: "Skor değişimi", s2: "Yapı değişimi", s3: "Kural farkı", s4: "Semantic değişiklikler",
-    semanticTodo: "Semantic motorun ilk sürümü hazır olduğunda burada durak, hat, sefer ve ilk/son sefer değişiklikleri listelenecek.",
     publish: "Publish", overall: "Overall", spec: "Spec", interop: "Interop", quality: "Quality", analytics: "Analytics",
     mRoutes: "Hat", mStops: "Durak", mTrips: "Sefer", mShapes: "Güzergâh şekli", mDays: "Aktif hizmet günü", mAvg: "Günlük ort. sefer",
     before: "Önce", after: "Sonra", rule: "Kural", title: "Açıklama",
@@ -295,7 +294,6 @@ const T = {
     showSame: n => `Değişmeyen ${n} kuralı göster`, hideSame: "Değişmeyenleri gizle", noRuleChange: "Kural sayılarında değişiklik yok.",
     histIntro: "Seçili feed'in tüm yayınları, eskiden yeniye. Birleştirme açıkken içeriği aynı ardışık yayınlar tek satırda gösterilir.",
     period: "Geçerlilik", published: "Yayın", memo: "Not", status: "Durum", rid: "API konumu",
-    reportsText: "<p>Bu sekme her ardışık yayın çifti için semantic değişiklik raporunu gösterecek: hangi hat eklendi ya da kalktı, hangi durak taşındı ya da adı değişti, gün tipine göre sefer sayısı ve ilk/son sefer saatleri nasıl değişti, ve tüm ham farkların ne kadarının açıklanabildiği.</p><p>Semantic motorun yalnız ilk katmanı (ham fark) hazır; rapor içeriği ve depolama biçimi henüz kararlaştırılıyor.</p>",
     gtfsjpText: p => `<p>Analizler GTFS Analyzer ile <b>${p}</b> profiliyle yapıldı. Profil seçilebilir (auto, v3, v4); farklı profille yapılan analizler ayrı tutulur ve birbiriyle karşılaştırılmaz.</p><p>Doğrulama tarihi her yayının geçerlilik başlangıcıdır (from_date); böylece her yayın hizmete girdiği gündeki hâliyle değerlendirilir.</p>`,
     footer: "Veri kaynağı: gtfs-data.jp ve ilgili işletmeciler. Skorlar ve değişiklik raporları bu verilerden türetilmiştir; her feed'in lisansı feed panelinde yazar. Feed ve durak adları kaynaktaki hâliyle gösterilir. Harita: 地理院タイル. Skor rengi eşikleri geçicidir (≥95 / ≥85).",
     mergeNote: "Birleştirilmiş yayınlar \"×N yayın\" ile gösterilir: analiz özeti (skorlar, metrikler, kural ve dosya satır sayıları) bir öncekiyle birebir aynı olan yayınlar tek sütunda toplanır. ZIP dosyaları farklı olabilir; hiçbir yayın silinmez, tamamı Feed Geçmişi sekmesinde listelenir.",
@@ -306,7 +304,7 @@ const T = {
   },
   en: {
     tagline: "Feed quality, publication readiness and change history",
-    notice: (f, g, rel, prof) => `<b>Preview.</b> ${f} feeds, ${g} publications; GTFS Analyzer ${rel} (${prof} profile). For now the latest 4 publications of each feed are analysed; older ones are added daily in the background. Semantic change reports are added daily, newest publication pairs first (Diff reports tab).`,
+    notice: (f, g, rel, prof) => `<b>Preview.</b> ${f} feeds, ${g} publications; GTFS Analyzer ${rel} (${prof} profile). Publications are analysed newest first; older ones not analysed yet are added daily in the background. Semantic change reports are added daily, newest publication pairs first (Diff reports tab).`,
     overview: "Overview", history: "Feed history", reports: "Diff reports", gtfsjp: "GTFS-JP",
     search: "Search feeds", prefecture: "Prefecture", readiness: "Readiness", sort: "Sort", all: "All",
     ready: "Ready to publish", notReady: "Not ready", merge: "Merge equivalent publications",
@@ -320,7 +318,6 @@ const T = {
     pickOld: "Old", pickNew: "New", backwards: "The old side is newer; the difference is shown backwards.",
     singlePub: "This feed has only one comparable publication; its own state is shown below.", snap1: "Scores", snap2: "Structure", snap3: "Rule violations", snapCount: "Count", snapNoRules: "No rule violations.", snapSemantic: "A semantic change report needs two publications. The first report is built automatically when this feed publishes again.",
     s1: "Score change", s2: "Structure change", s3: "Rule delta", s4: "Semantic changes",
-    semanticTodo: "Once the first version of the semantic engine is ready, stop, route, trip and first/last departure changes will be listed here.",
     publish: "Publish", overall: "Overall", spec: "Spec", interop: "Interop", quality: "Quality", analytics: "Analytics",
     mRoutes: "Routes", mStops: "Stops", mTrips: "Trips", mShapes: "Shapes", mDays: "Active service days", mAvg: "Avg. daily trips",
     before: "Before", after: "After", rule: "Rule", title: "Description",
@@ -328,7 +325,6 @@ const T = {
     showSame: n => `Show ${n} unchanged rules`, hideSame: "Hide unchanged", noRuleChange: "No change in rule counts.",
     histIntro: "All publications of the selected feed, oldest first. With merging on, consecutive publications with identical content share one row.",
     period: "Validity", published: "Published", memo: "Note", status: "Status", rid: "API position",
-    reportsText: "<p>This tab will show the semantic change report of each consecutive pair: routes added or discontinued, stops moved or renamed, trips per day type, first and last departures, and how much of the raw difference is explained.</p><p>Only the first layer of the semantic engine (raw diff) is ready; report content and storage are still being decided.</p>",
     gtfsjpText: p => `<p>Analyses were made with GTFS Analyzer using the <b>${p}</b> profile. The profile is selectable (auto, v3, v4); analyses with different profiles are kept apart and never compared.</p><p>Each publication is validated as of its first valid day (from_date), so it is judged as it was when it entered service.</p>`,
     footer: "Data: gtfs-data.jp and the transit operators. Scores and change reports are derived from these data; each feed's license is shown in its panel. Feed and stop names are shown as published. Map: 地理院タイル (GSI Tiles). Score colour thresholds are provisional (≥95 / ≥85).",
     mergeNote: "Merged publications are marked \"×N publications\": publications whose analysis summary (scores, metrics, rule and file row counts) is identical to the previous one share a column. Their ZIP files may differ; none is removed, and all are listed under Feed history.",
@@ -339,7 +335,7 @@ const T = {
   },
   ja: {
     tagline: "フィードの品質・公開準備・変更履歴",
-    notice: (f, g, rel, prof) => `<b>プレビュー。</b>${f}フィード・${g}公開分、GTFS Analyzer ${rel}（${prof}プロファイル）。現在は各フィードの最新4公開のみ解析済みで、それ以前の公開は毎日バックグラウンドで追加されます。セマンティック変更レポートは新しい公開ペアから毎日追加されています（差分レポートタブ）。`,
+    notice: (f, g, rel, prof) => `<b>プレビュー。</b>${f}フィード・${g}公開分、GTFS Analyzer ${rel}（${prof}プロファイル）。公開は新しいものから順に解析しており、未解析の古い公開は毎日バックグラウンドで追加されます。セマンティック変更レポートは新しい公開ペアから毎日追加されています（差分レポートタブ）。`,
     overview: "概要", history: "フィード履歴", reports: "差分レポート", gtfsjp: "GTFS-JP",
     search: "フィード検索", prefecture: "都道府県", readiness: "公開状態", sort: "並び替え", all: "すべて",
     ready: "公開準備完了", notReady: "未準備", merge: "同一内容の公開をまとめる",
@@ -353,7 +349,6 @@ const T = {
     pickOld: "旧", pickNew: "新", backwards: "旧側の方が新しいため、差分を逆方向に表示しています。",
     singlePub: "このフィードで比較できる公開は1つだけです。以下はその公開自体の状態です。", snap1: "スコア", snap2: "構成", snap3: "ルール違反", snapCount: "件数", snapNoRules: "ルール違反はありません。", snapSemantic: "セマンティック変更レポートには2つの公開が必要です。このフィードが次に公開されたとき、最初のレポートが自動で作成されます。",
     s1: "スコアの変化", s2: "構成の変化", s3: "ルール差分", s4: "意味的な変更",
-    semanticTodo: "セマンティックエンジンの初版が完成すると、停留所・路線・便・始発/終発の変更がここに表示されます。",
     publish: "Publish", overall: "Overall", spec: "Spec", interop: "Interop", quality: "Quality", analytics: "Analytics",
     mRoutes: "路線", mStops: "停留所", mTrips: "便", mShapes: "形状", mDays: "運行日数", mAvg: "1日平均便数",
     before: "前", after: "後", rule: "ルール", title: "説明",
@@ -361,7 +356,6 @@ const T = {
     showSame: n => `変化のない${n}件を表示`, hideSame: "変化のないものを隠す", noRuleChange: "ルール件数に変化はありません。",
     histIntro: "選択したフィードの全公開（古い順）。まとめる設定では、内容が同一の連続した公開を1行で表示します。",
     period: "有効期間", published: "公開", memo: "メモ", status: "状態", rid: "APIの位置",
-    reportsText: "<p>このタブでは、連続する各公開ペアの意味的な変更レポートを表示します：路線の新設・廃止、停留所の移設・改称、曜日区分ごとの便数、始発・終発、そして生の差分のうち説明できた割合。</p><p>現在はセマンティックエンジンの第1層（生の差分）のみ完成しており、レポート内容と保存方法は検討中です。</p>",
     gtfsjpText: p => `<p>解析はGTFS Analyzerの<b>${p}</b>プロファイルで行いました。プロファイルは選択可能（auto・v3・v4）で、異なるプロファイルの結果は別に保持し、比較しません。</p><p>各公開は有効期間の開始日（from_date）時点で検証されます。</p>`,
     footer: "データ：gtfs-data.jpおよび各事業者。スコアと変更レポートはこれらのデータから作成したもので、各フィードのライセンスはフィードのパネルに表示します。フィード名・停留所名は公開時のまま表示します。地図：地理院タイル。スコアの色の閾値は暫定です（≥95 / ≥85）。",
     mergeNote: "まとめた公開は「×N回公開」と表示します：解析の要約（スコア・指標・ルール件数・ファイル行数）が直前と完全に同じ公開を1列にまとめています。ZIPファイル自体は異なる場合があり、どの公開も削除せず、すべてフィード履歴に一覧表示します。",
@@ -422,6 +416,7 @@ const R = {
     panelPlaces: s => `Durak: ${s.added} eklendi · ${s.removed} kaldırıldı · ${s.renamed} adı değişti · ${s.moved} taşındı`,
     panelCov: p => `Değişen satırların %${p}'i açıklandı`,
     backward: "Seçim geriye doğru; rapor eskiden yeniye gösteriliyor.",
+    skipped: (n, k) => `Ardışık olmayan karşılaştırma: aradaki ${n} yayın atlandı${k ? ` (${k} tanesi analiz edilemedi)` : ""}; rapor aradaki bütün değişikliklerin toplamını gösterir.`,
     pick: n => `Genel Bakış'ta bir feed seçip iki ardışık yayını karşılaştırın; o çiftin raporu burada açılır. Raporu olan ${n} çift:`,
     loading: "Rapor yükleniyor…", loadFailed: e => `Rapor yüklenemedi (${e}).`,
     metres: m => `${m} m`, others: "Raporu olan diğer çiftler",
@@ -476,6 +471,7 @@ const R = {
     panelPlaces: s => `Stops: ${s.added} added · ${s.removed} removed · ${s.renamed} renamed · ${s.moved} moved`,
     panelCov: p => `${p}% of changed rows explained`,
     backward: "The selection is backwards; the report is shown old to new.",
+    skipped: (n, k) => `Non-neighbouring comparison: ${n} publication${n === 1 ? "" : "s"} in between skipped${k ? ` (${k} could not be analysed)` : ""}; the report shows all changes between them combined.`,
     pick: n => `Select a feed in Overview and compare two consecutive publications; the report of that pair opens here. ${n} pairs with a report:`,
     loading: "Loading report…", loadFailed: e => `The report could not be loaded (${e}).`,
     metres: m => `${m} m`, others: "Other pairs with a report",
@@ -530,6 +526,7 @@ const R = {
     panelPlaces: s => `停留所：新設${s.added}・廃止${s.removed}・改称${s.renamed}・移設${s.moved}`,
     panelCov: p => `変更行の${p}%を説明済み`,
     backward: "選択が逆順です。レポートは旧→新で表示します。",
+    skipped: (n, k) => `隣り合わない比較：間の${n}公開を飛ばしています${k ? `（うち${k}件は解析不可）` : ""}。レポートは間のすべての変更をまとめて示します。`,
     pick: n => `概要タブでフィードを選び、連続する2つの公開を比較すると、そのレポートがここに表示されます。レポートのあるペア（${n}）：`,
     loading: "レポートを読み込み中…", loadFailed: e => `レポートを読み込めませんでした（${e}）。`,
     metres: m => `${m} m`, others: "レポートのある他のペア",
@@ -860,6 +857,12 @@ function reportList(intro = true) {
   return `${intro ? `<p>${esc(rt("pick", items.length))}</p>` : ""}<ul>${items.map(({ pair, e, f }) => `<li><button type="button" class="linkbtn" data-pick="${esc(pair)}">${esc(f.organization_name)} — ${esc(f.name)} · ${esc(e.dates[0])} → ${esc(e.dates[1])}</button></li>`).join("")}</ul>`;
 }
 
+// Publications between a report's two (analysed ones only, as the page lists them) and how many of them are FATAL.
+function skippedBetween(f, oldUid, newUid) {
+  const uids = f.generations.map(g => g.uid), a = uids.indexOf(oldUid), b = uids.indexOf(newUid);
+  const mid = a >= 0 && b > a ? f.generations.slice(a + 1, b) : [];
+  return { n: mid.length, fatal: mid.filter(g => g.status === "FATAL").length };
+}
 // Group indices of a report's two publications; the pair need not be neighbours.
 function pairIndices(gs, pairKey) {
   const [oldUid, newUid] = pairKey.split("__");
@@ -1082,6 +1085,7 @@ function renderReport() {
   state.flShift = (rep.header.engine.config.matching || {}).first_last_min_shift ?? "?";
   const h = rep.header, s = rep.summary, sd = rep.service_days;
   const f = DATA.feeds.find(x => x.org_id === h.feed.org_id && x.feed_id === h.feed.feed_id);
+  const skip = f ? skippedBetween(f, h.old.uid, h.new.uid) : { n: 0, fatal: 0 };
   const c = h.coverage, w = x => c.raw_total ? (x / c.raw_total * 100).toFixed(2) : 0;
   const notes = h.notes.map(n => `<p class="fmt">${esc(rt("notes")[n.code](n))}</p>`).join("");
   const dayRows = dayTypes(h.comparison.day_types).map(d => {
@@ -1153,6 +1157,7 @@ function renderReport() {
     <details><summary class="hint">${esc(rt("others"))}</summary>${reportList(false)}</details>
     <div><h2>${esc(rt("title"))} · ${esc(f ? f.name : h.feed.feed_id)}</h2><p class="hint">${esc(f ? f.organization_name : "")} · <span class="num">${esc(h.feed.org_id)}/${esc(h.feed.feed_id)}</span></p>
       ${backwards ? `<p class="hint">${esc(rt("backward"))}</p>` : ""}
+      ${skip.n ? `<p class="fmt">${esc(rt("skipped", skip.n, skip.fatal))}</p>` : ""}
       <div class="pubs">${pubBox(rt("old"), h.old)}${pubBox(rt("new"), h.new)}</div></div>
     ${notes}
     <div class="seg rview">${[["report", "rvReport"], ["verify", "rvVerify"]].map(([v, k]) => `<button type="button" data-rview="${v}" aria-pressed="${state.rview === v}">${esc(rt(k))}</button>`).join("")}</div>

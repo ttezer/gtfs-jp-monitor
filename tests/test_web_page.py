@@ -42,6 +42,18 @@ class WebPageTest(unittest.TestCase):
         # neighbours; non-neighbours; old inside a merged group; unknown old uid falls back to the previous group
         self.assertEqual(json.loads(proc.stdout), [[1, 2], [0, 3], [0, 1], [2, 3]])
 
+    @unittest.skipUnless(shutil.which("node"), "node is not installed")
+    def test_skipped_between(self):
+        start = self.html.index("function skippedBetween(")
+        source = self.html[start:self.html.index("\n}\n", start) + 3]
+        cases = """
+        const f = { generations: ["a", "b", "c", "d"].map((uid, i) => ({ uid, status: i === 2 ? "FATAL" : "COMPLETE" })) };
+        console.log(JSON.stringify([skippedBetween(f, "a", "b"), skippedBetween(f, "a", "d"), skippedBetween(f, "x", "d")]));
+        """
+        proc = subprocess.run(["node", "-e", source + cases], capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(json.loads(proc.stdout), [{"n": 0, "fatal": 0}, {"n": 2, "fatal": 1}, {"n": 0, "fatal": 0}])
+
 
 if __name__ == "__main__":
     unittest.main()
