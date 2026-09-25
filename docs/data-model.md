@@ -158,6 +158,10 @@ only that job has `pages: write` and `id-token: write`.
   result); unanalysed publications are passed over, a `FATAL` one breaks the chain, and
   equivalent pairs (§4.2) get no report. `report_pairs` in `src/gtfs_jp_monitor/changes.py`
   is the reference.
+- Pairs the page can compare beyond neighbours are reported as well: among the publications the
+  page shows (grouped as it groups them, from three groups before the current one to the newest),
+  every non-neighbouring pair without a `FATAL` side (`page_pairs`). They are queued after the
+  two newest rounds of neighbour pairs.
 - Both ZIPs are downloaded again and must match the analysed SHA-256; reports are produced on
   the production platform only, like analyses (§6.2).
 - A pair that cannot be reported (source unavailable or changed, engine error) gets an

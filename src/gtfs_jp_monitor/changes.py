@@ -84,15 +84,47 @@ def report_pairs(feed_index: dict, key: str) -> list[tuple[str, str]]:
     return pairs
 
 
-def find_pending_reports(root: Path, feeds: list[FeedKey], key: str, engine_version: str = ENGINE_VERSION) -> list[PendingReport]:
+PAGE_BACK = 3  # the page shows the current publication and three before it
+
+
+def page_pairs(feed_index: dict, key: str, entries: dict[str, dict]) -> list[tuple[str, str]]:
+    """Non-neighbouring pairs among the publications the page shows, so any two of them can be
+    compared: publications grouped as the page groups them (analysed; an equivalent one joins
+    the previous group), from PAGE_BACK groups before the current one to the newest. A pair is
+    (last uid of the older group, first uid of the newer one); FATAL groups take no part."""
+    groups: list[list] = []  # [first uid, last uid, fatal]
+    for entry in feed_index["generations"]:
+        if entry["source_status"] == "ORDERING_UNKNOWN":
+            continue
+        analysis = next((a for a in entry["analyses"] if f"{a['release_tag']}__{a['gtfs_jp_profile']}" == key), None)
+        if analysis is None:
+            continue
+        fatal = analysis["validation_status"] == "FATAL"
+        if groups and not fatal and not groups[-1][2] and analysis.get("equivalent_to_previous"):
+            groups[-1][1] = entry["uid"]
+            continue
+        groups.append([entry["uid"], entry["uid"], fatal])
+    rid = lambda uid: (entries.get(uid) or {}).get("rid_observed") or ""
+    current = next((i for i in range(len(groups) - 1, -1, -1) if rid(groups[i][0]) == "current" or rid(groups[i][1]) == "current"),
+                   next((i for i in range(len(groups) - 1, -1, -1) if not rid(groups[i][1]).startswith("next_")), len(groups) - 1))
+    window = [g for g in groups[max(0, current - PAGE_BACK):] if not g[2]]
+    idx = {id(g): i for i, g in enumerate(groups)}
+    return [(a[1], b[0]) for i, a in enumerate(window) for b in window[i + 1:] if idx[id(b)] - idx[id(a)] > 1]
+
+
+def find_pending_reports(root: Path, feeds: list[FeedKey], key: str, engine_version: str = ENGINE_VERSION,
+                         catalog_gens: dict | None = None) -> list[PendingReport]:
     build = engine_build()
     pending = []
     for fk in feeds:
         index = load_feed_index(root, *fk)
         if index is None:
             continue
-        pairs = report_pairs(index, key)
-        for depth, (old_uid, new_uid) in enumerate(reversed(pairs)):
+        pairs = list(reversed(report_pairs(index, key)))
+        # Pairs the page can compare beyond neighbours come after the two newest neighbour rounds.
+        extra = page_pairs(index, key, (catalog_gens or {}).get(fk, {}))
+        ranked = [(depth, pair) for depth, pair in enumerate(pairs)] + [(2, pair) for pair in extra]
+        for depth, (old_uid, new_uid) in ranked:
             if change_path(root, *fk, engine_version, old_uid, new_uid).exists():
                 continue
             marker = change_path(root, *fk, engine_version, old_uid, new_uid, ".error.json")
@@ -115,7 +147,7 @@ def run_reports(data_dir: Path, key: str, limit: int | None = None, only: set[Fe
     split_key(key)
     _, catalog_gens = load_catalog(root)
     feeds = [fk for fk in sorted(catalog_gens) if all(is_path_id(x) for x in fk) and (only is None or fk in only)]
-    pending = find_pending_reports(root, feeds, key, engine_version)
+    pending = find_pending_reports(root, feeds, key, engine_version, catalog_gens)
     selected = pending if limit is None else pending[:limit]
     run = ReportRun()
     run.counts.update(pending=len(pending), selected=len(selected))

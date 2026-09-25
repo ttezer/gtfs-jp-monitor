@@ -9,7 +9,7 @@ from pathlib import Path
 
 from gtfs_jp_monitor.canonical import write_json
 from gtfs_jp_monitor.catalog import load_catalog, sync_catalog
-from gtfs_jp_monitor.changes import find_pending_reports, report_pairs, run_reports
+from gtfs_jp_monitor.changes import find_pending_reports, page_pairs, report_pairs, run_reports
 from gtfs_jp_monitor.download import DownloadError, Downloaded
 from gtfs_jp_monitor.pipeline import _catalog_order
 from gtfs_jp_monitor.store import analysis_digests, build_feed_index, change_path, generation_path, list_analyses, write_feed_index
@@ -92,6 +92,18 @@ class ReportRunTest(unittest.TestCase):
                               ("e", "FATAL", False), ("f", "COMPLETE", False), ("g", "COMPLETE", False)]]}
         # b unanalysed (passed over), d equivalent to c, e FATAL breaks the chain
         self.assertEqual(report_pairs(index, KEY), [("a", "c"), ("f", "g")])
+
+    def test_page_pairs_beyond_neighbours(self):
+        gens = lambda specs: {"generations": [
+            {"uid": u, "source_status": "AVAILABLE", "analyses": [
+                {"release_tag": "v0.14.0", "gtfs_jp_profile": "auto", "validation_status": st, "equivalent_to_previous": eq}]}
+            for u, st, eq in specs]}
+        # a b c d e(current) f(next); c2 equivalent to c; only c..f... is the window: e-3 = b
+        index = gens([("a", "COMPLETE", False), ("b", "COMPLETE", False), ("c", "COMPLETE", False), ("c2", "COMPLETE", True),
+                      ("d", "FATAL", False), ("e", "COMPLETE", False), ("f", "COMPLETE", False)])
+        entries = {"e": {"rid_observed": "current"}, "f": {"rid_observed": "next_1"}}
+        # groups: a, b, c+c2, d(FATAL), e, f; window from e-3 = b: b, c+c2, e, f (d FATAL left out)
+        self.assertEqual(sorted(page_pairs(index, KEY, entries)), sorted([("b", "e"), ("b", "f"), ("c2", "e"), ("c2", "f")]))
 
     def test_new_engine_version_rebuilds(self):
         run_reports(self.root, KEY, downloader=FakeDownloader(self.blobs), engine_version="0.1.0")
