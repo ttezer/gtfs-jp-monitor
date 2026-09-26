@@ -265,3 +265,39 @@ catches a monitoring workflow that fails and one that does not start at all.
 - Each report is built in its own process, with a time limit (15 min) and, on Linux, a memory
   limit (8 GiB): memory is returned after every pair, and a pair beyond the limits fails alone
   with an engine-error marker instead of ending the run. The step logs one line per pair.
+
+## §12 Pair classification
+
+Every exported publication after the first carries the class of the pair it forms with the
+publication before it (`pair` in the page data; `src/gtfs_jp_monitor/classify.py`):
+
+| Code | Class | When |
+|---|---|---|
+| `E` | `EQUIVALENT` | Same analysis summary and content signature (§4.2); no report is built |
+| `M` | `MEANINGFUL_SERVICE_CHANGE` | The report has at least one passenger-facing change |
+| `T` | `TECHNICAL_OR_METADATA_ONLY` | The report has changes, none passenger-facing |
+| `U/<reason>` | `UNKNOWN` | No report says what changed: `U/FATAL` (either side failed validation), `U/NOT_REPORTED` (outside the reported window, §11, or not built yet), or the report's error code (`U/SOURCE_UNAVAILABLE`, `U/SOURCE_CHANGED`, `U/ENGINE_ERROR`) |
+
+The first publication of a feed forms no pair, so rates over pairs use one fewer than the
+number of publications. `format_transition: true` marks a pair whose GTFS-JP extension files
+differ; validation results across it are not like for like. Results under different analysis
+keys are never compared (§4).
+
+Which report changes are passenger-facing is set in `src/gtfs_jp_monitor/classification.json`:
+
+- every change of lines and places, trips per day type, first and last departures, trips moved
+  between lines, date changes and fares;
+- the topics fares, translations, transfers, agency, office and other files; the calendar
+  change `service_dates_changed`;
+- non-core columns listed as passenger-facing (for example `stop_headsign`, `pickup_type`,
+  `drop_off_type`, `trip_headsign`, `route_color`).
+
+Technical are `feed_info`, formatting, `shapes` (a route that runs elsewhere already counts as a
+changed line), the calendar changes outside the period both publications share (usually a
+longer validity), unused or ineffective calendar entries, and non-core columns listed as
+technical (`shape_id`, `block_id`, `timepoint`, `shape_dist_traveled`, ...). Anything the file does
+not list, and unclassified report rows, count as passenger-facing, so an unknown change is never
+hidden as technical; a test fails when the engine can emit a topic, summary item or calendar
+kind the file does not place. The rules are applied to stored reports when the site is built,
+so changing them needs no new reports. The report index carries each report's class with its
+reasons, the rule codes that decided it.

@@ -17,6 +17,7 @@ from pathlib import Path
 from gtfs_jp_semantic import ENGINE_VERSION
 
 from .catalog import load_catalog
+from .classify import EQUIVALENT, MEANINGFUL, TECHNICAL, classify_report, load_rules
 from .ids import feed_dir
 from .ordering import GenerationRef, order_generations
 from .store import content_digest, generation_path, list_analyses, load_content
@@ -72,6 +73,7 @@ def report_files(root: Path, feeds: list[dict], engine_version: str) -> tuple[di
     index: dict[str, dict] = {}
     files: dict[str, dict] = {}
     limit = _version(engine_version)
+    rules = load_rules()
     for f in feeds:
         base = feed_dir(root, f["org_id"], f["feed_id"]) / "changes"
         if not base.is_dir():
@@ -88,8 +90,39 @@ def report_files(root: Path, feeds: list[dict], engine_version: str) -> tuple[di
             files[f"{f['org_id']}/{f['feed_id']}/{pair}"] = doc
             index[pair] = {"feed": [f["org_id"], f["feed_id"]],
                            "dates": [h["old"]["from_date"], h["new"]["from_date"]],
-                           "summary": doc["summary"], "coverage": h["coverage"]}
+                           "summary": doc["summary"], "coverage": h["coverage"],
+                           "classification": classify_report(doc, rules)}
     return index, files
+
+
+PAIR_CODES = {MEANINGFUL: "M", TECHNICAL: "T", EQUIVALENT: "E"}
+
+
+def classify_pairs(root: Path, feeds: list[dict], index: dict[str, dict], engine_version: str) -> None:
+    """Give every exported publication after the first the class of the pair it forms with the
+    publication before it (data-model §12) as a short code in `pair`: "M" meaningful, "T"
+    technical, "E" equivalent, or "U/<reason>" unknown ("U/FATAL", "U/NOT_REPORTED" or an error
+    code of the report such as "U/SOURCE_UNAVAILABLE"). `format_transition` is true where the
+    GTFS-JP extension files differ."""
+    for f in feeds:
+        gens = f["generations"]
+        for prev, g in zip(gens, gens[1:]):
+            key = f"{prev['uid']}__{g['uid']}"
+            if "FATAL" in (prev["status"], g["status"]):
+                code = "U/FATAL"
+            elif g["equivalent_to_previous"]:
+                code = PAIR_CODES[EQUIVALENT]
+            elif key in index:
+                code = PAIR_CODES[index[key]["classification"]["class"]]
+            else:
+                marker = feed_dir(root, f["org_id"], f["feed_id"]) / "changes" / engine_version / f"{key}.error.json"
+                if marker.is_file():
+                    code = "U/" + (json.loads(marker.read_text(encoding="utf-8")).get("code") or "ERROR")
+                else:  # outside the reported window (§11) or not built yet
+                    code = "U/NOT_REPORTED"
+            g["pair"] = code
+            if prev["jp_files"] != g["jp_files"]:
+                g["format_transition"] = True
 
 
 def _bytes(paths) -> tuple[int, int, int]:
@@ -187,6 +220,7 @@ def build_export(data_dir: Path, key: str, analyzer: Path | None = None) -> tupl
             "generations": gens,  # oldest first (data-model §2)
         })
     report_index, files = report_files(root, feeds, ENGINE_VERSION)
+    classify_pairs(root, feeds, report_index, ENGINE_VERSION)
     return {
         "schema": SCHEMA,
         "analysis_key": key,

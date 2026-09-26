@@ -34,6 +34,8 @@ class WebExportTest(unittest.TestCase):
         self.assertEqual([g["uid"] for g in feed["generations"]], [uid(1), uid(3)])
         g = feed["generations"][1]
         self.assertEqual(g["rid"], "current")
+        self.assertNotIn("pair", feed["generations"][0])  # the first publication forms no pair
+        self.assertEqual(g["pair"], "U/NOT_REPORTED")
         self.assertEqual((g["rules"]["JPN_030"], export["rule_meta"]["JPN_030"]), (4, ["MEDIUM", "QUALITY"]))
         self.assertEqual(export["rule_titles"], {"tr": {}, "en": {}, "ja": {}})
         self.assertEqual((export["report_index"], files), ({}, {}))
@@ -61,6 +63,7 @@ class WebExportTest(unittest.TestCase):
         entry = export["report_index"][pair]
         self.assertEqual(entry["feed"], [ORG, FEED])
         self.assertEqual(entry["summary"], report["summary"])
+        self.assertIn(entry["classification"]["class"], ("MEANINGFUL_SERVICE_CHANGE", "TECHNICAL_OR_METADATA_ONLY"))
         self.assertEqual(files, {f"{ORG}/{FEED}/{pair}": report})
 
     def test_newest_stored_engine_version_wins(self):

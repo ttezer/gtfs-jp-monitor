@@ -18,3 +18,4 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 gtfs_jp_semantic = ["default_config.json", "data/*.json"]
+gtfs_jp_monitor = ["classification.json"]

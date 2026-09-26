@@ -56,6 +56,8 @@ header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20p
 .langs button { border: 0; background: transparent; padding: 4px 12px; border-radius: 999px; cursor: pointer; color: var(--muted); }
 .langs button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgb(0 0 0 / .08); }
 
+.cls { margin: 6px 0; padding: 4px 8px; border-left: 3px solid var(--faint); }
+.cls.meaningful { border-left-color: var(--warn); }
 .rsearch { width: 100%; max-width: 420px; margin: 6px 0; padding: 6px 8px; font: inherit; }
 .notice .fresh { font-weight: 500; }
 .notice .stale { color: var(--bad); }
@@ -443,6 +445,7 @@ const R = {
     pick: n => `Genel Bakış'ta bir feed seçip iki ardışık yayını karşılaştırın; o çiftin raporu burada açılır. Raporu olan ${n} çift:`,
     loading: "Rapor yükleniyor…", loadFailed: e => `Rapor yüklenemedi (${e}).`,
     rsearch: "Feed, işletmeci ya da tarih ara…", rmore: (n, all) => `${all} çiftten ${n} tanesi gösteriliyor; aramayı daraltın.`, rnone: "Eşleşen çift yok.",
+    cls: { MEANINGFUL_SERVICE_CHANGE: "Anlamlı hizmet değişikliği", TECHNICAL_OR_METADATA_ONLY: "Yalnız teknik / meta veri değişikliği" }, clsWhy: "Gerekçe", clsTech: "Teknik",
     metres: m => `${m} m`, others: "Raporu olan diğer çiftler",
     tripChanges: "Sefer değişiklikleri",
     tcCols: ["Yön", "Gün tipi", "Değişiklik", "Eski kalkış", "Yeni kalkış", "Fark (dk)", "Eski varış", "Yeni varış", "Not"],
@@ -499,6 +502,7 @@ const R = {
     pick: n => `Select a feed in Overview and compare two consecutive publications; the report of that pair opens here. ${n} pairs with a report:`,
     loading: "Loading report…", loadFailed: e => `The report could not be loaded (${e}).`,
     rsearch: "Search feed, operator or date…", rmore: (n, all) => `Showing ${n} of ${all} pairs; narrow the search.`, rnone: "No matching pair.",
+    cls: { MEANINGFUL_SERVICE_CHANGE: "Meaningful service change", TECHNICAL_OR_METADATA_ONLY: "Technical or metadata change only" }, clsWhy: "Because of", clsTech: "Technical",
     metres: m => `${m} m`, others: "Other pairs with a report",
     tripChanges: "Trip changes",
     tcCols: ["Direction", "Day type", "Change", "Old departure", "New departure", "Δ (min)", "Old arrival", "New arrival", "Note"],
@@ -555,6 +559,7 @@ const R = {
     pick: n => `概要タブでフィードを選び、連続する2つの公開を比較すると、そのレポートがここに表示されます。レポートのあるペア（${n}）：`,
     loading: "レポートを読み込み中…", loadFailed: e => `レポートを読み込めませんでした（${e}）。`,
     rsearch: "フィード・事業者・日付で検索…", rmore: (n, all) => `${all}件中${n}件を表示しています。検索を絞り込んでください。`, rnone: "該当するペアはありません。",
+    cls: { MEANINGFUL_SERVICE_CHANGE: "意味のあるサービス変更", TECHNICAL_OR_METADATA_ONLY: "技術的・メタデータのみの変更" }, clsWhy: "理由", clsTech: "技術的",
     metres: m => `${m} m`, others: "レポートのある他のペア",
     tripChanges: "便の変更",
     tcCols: ["方向", "曜日区分", "変更", "旧発車", "新発車", "差（分）", "旧到着", "新到着", "備考"],
@@ -632,6 +637,15 @@ function selectedReport() {
   return { f, backwards: state.oldIdx > state.newIdx, ...pairReport(gs, state.oldIdx, state.newIdx) };
 }
 
+// Class of a reported pair with its reasons (data-model §12); reasons are the rule codes.
+function classLine(cl, full) {
+  if (!cl) return "";
+  const why = cl.passenger_facing.length ? cl.passenger_facing : cl.technical;
+  const shown = full ? why : why.slice(0, 4);
+  const more = why.length - shown.length;
+  const tech = full && cl.passenger_facing.length && cl.technical.length ? `<br>${esc(rt("clsTech"))}: <span class="num">${esc(cl.technical.join(", "))}</span>` : "";
+  return `<p class="cls ${cl.class === "MEANINGFUL_SERVICE_CHANGE" ? "meaningful" : "technical"}"><b>${esc(rt("cls")[cl.class] || cl.class)}</b>${why.length ? ` · ${esc(rt("clsWhy"))}: <span class="num">${esc(shown.join(", "))}${more > 0 ? ` +${more}` : ""}</span>` : ""}${tech}</p>`;
+}
 function panelSemantic() {
   const { adjacent, entry } = selectedReport();
   if (!reportsReady) return `<div class="empty">${esc(rt("loading"))}</div>`;
@@ -642,7 +656,7 @@ function panelSemantic() {
     const x = s.trips_by_day_type[d], dv = x.after - x.before;
     return `<tr><td>${esc(dtLabel(d))}</td><td class="r">${x.before}</td><td class="r">${x.after}</td><td class="r ${dv > 0 ? "up" : dv < 0 ? "down" : "flat"}">${signed(dv)}</td></tr>`;
   }).join("");
-  return `<p class="hint">${esc(rt("panelLines", s.lines))}<br>${esc(rt("panelPlaces", s.places))}${s.date_changes ? `<br>${esc(rt("dcCard", s.date_changes))}` : ""}<br>${esc(rt("panelCov", pct))}</p>
+  return `${classLine(entry.classification, false)}<p class="hint">${esc(rt("panelLines", s.lines))}<br>${esc(rt("panelPlaces", s.places))}${s.date_changes ? `<br>${esc(rt("dcCard", s.date_changes))}` : ""}<br>${esc(rt("panelCov", pct))}</p>
     <table class="mini"><thead><tr><th>${esc(rt("trips"))}</th><th class="r">${esc(t("before"))}</th><th class="r">${esc(t("after"))}</th><th class="r">Δ</th></tr></thead><tbody>${trips}</tbody></table>
     <p><button type="button" class="linkbtn" id="open-report">${esc(rt("panelOpen"))}</button></p>`;
 }
@@ -1273,6 +1287,7 @@ function renderReport() {
     <div><h2>${esc(rt("title"))} · ${esc(f ? f.name : h.feed.feed_id)}</h2><p class="hint">${esc(f ? f.organization_name : "")} · <span class="num">${esc(h.feed.org_id)}/${esc(h.feed.feed_id)}</span></p>
       ${backwards ? `<p class="hint">${esc(rt("backward"))}</p>` : ""}
       ${skip.n ? `<p class="fmt">${esc(rt("skipped", skip.n, skip.fatal))}</p>` : ""}
+      ${classLine(entry.classification, true)}
       <div class="pubs">${pubBox(rt("old"), h.old)}${pubBox(rt("new"), h.new)}</div></div>
     ${notes}
     <div class="seg rview">${[["report", "rvReport"], ["verify", "rvVerify"]].map(([v, k]) => `<button type="button" data-rview="${v}" aria-pressed="${state.rview === v}">${esc(rt(k))}</button>`).join("")}</div>

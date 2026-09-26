@@ -1,0 +1,39 @@
+{
+  "schema": "gtfs-jp-monitor-classification/1",
+  "description": "Which changes of a semantic report are passenger-facing (data-model §12). Anything not listed here counts as passenger-facing.",
+  "summary": {
+    "lines": ["added", "discontinued", "renamed", "merged", "split", "restructured", "changed"],
+    "places": ["added", "removed", "renamed", "moved"],
+    "counts": ["first_last_changed", "trip_moves", "date_changes"]
+  },
+  "topics": {
+    "passenger_facing": ["fares", "translations", "transfers", "agency", "office", "other_files"],
+    "technical": ["feed_info", "formatting", "shapes"],
+    "by_kind": ["calendar_exceptions"],
+    "by_column": ["attributes"]
+  },
+  "kinds": {
+    "calendar_exceptions": {
+      "passenger_facing": ["service_dates_changed"],
+      "technical": ["calendar_outside_shared", "calendar_no_effect", "calendar_unused_service"]
+    }
+  },
+  "columns": {
+    "stops.txt": {
+      "passenger_facing": ["stop_desc", "stop_code", "platform_code", "zone_id", "stop_url", "wheelchair_boarding", "stop_timezone"],
+      "technical": []
+    },
+    "routes.txt": {
+      "passenger_facing": ["route_desc", "route_type", "route_url", "route_color", "route_text_color"],
+      "technical": ["agency_id", "route_sort_order", "jp_parent_route_id"]
+    },
+    "trips.txt": {
+      "passenger_facing": ["trip_headsign", "trip_short_name", "jp_trip_desc", "jp_trip_desc_symbol", "wheelchair_accessible", "bikes_allowed"],
+      "technical": ["shape_id", "block_id", "jp_pattern_id", "jp_office_id"]
+    },
+    "stop_times.txt": {
+      "passenger_facing": ["stop_headsign", "pickup_type", "drop_off_type", "continuous_pickup", "continuous_drop_off"],
+      "technical": ["shape_dist_traveled", "timepoint"]
+    }
+  }
+}
