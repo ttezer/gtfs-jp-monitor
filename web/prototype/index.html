@@ -586,21 +586,25 @@ const hm = m => m == null ? "" : `${Math.floor(m / 60)}:${String(m % 60).padStar
 state.openLines = new Set(); state.tt = {}; state.rview = "report";
 
 // Report of two neighbouring groups: old = last member of the older group, new = first member of the newer one.
-// Reports are indexed in the page and loaded one file per pair when first needed.
-const REPORTS = DATA.report_index || {};
+// The report index (reports/index) is loaded after the page, and each report from its own file
+// when first needed. An export with the index embedded (report_index) needs no request.
+async function fetchJson(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const buf = new Uint8Array(await r.arrayBuffer());
+  // Some servers already decode gzip (Content-Encoding); only decompress real gzip bytes.
+  const text = buf[0] === 0x1f && buf[1] === 0x8b
+    ? await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"))).text()
+    : new TextDecoder().decode(buf);
+  return JSON.parse(text);
+}
+const EXT = DATA.report_bundle_ext || ".json.gz";
+let REPORTS = DATA.report_index || {}, reportsReady = !!DATA.report_index;
 const loadedReports = new Map();
 function loadReport(pair) {
   if (!loadedReports.has(pair)) {
     const [org, feed] = REPORTS[pair].feed;
-    const p = fetch(`reports/${org}/${feed}/${pair}${DATA.report_bundle_ext || ".json.gz"}`).then(async r => {
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const buf = new Uint8Array(await r.arrayBuffer());
-      // Some servers already decode gzip (Content-Encoding); only decompress real gzip bytes.
-      const text = buf[0] === 0x1f && buf[1] === 0x8b
-        ? await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"))).text()
-        : new TextDecoder().decode(buf);
-      return JSON.parse(text);
-    });
+    const p = fetchJson(`reports/${org}/${feed}/${pair}${EXT}`);
     p.catch(() => loadedReports.delete(pair));
     loadedReports.set(pair, p);
   }
@@ -621,6 +625,7 @@ function selectedReport() {
 
 function panelSemantic() {
   const { adjacent, entry } = selectedReport();
+  if (!reportsReady) return `<div class="empty">${esc(rt("loading"))}</div>`;
   if (!entry) return `<div class="empty">${esc(rt(adjacent ? "panelNone" : "panelNotAdjacent"))}</div>`;
   const s = entry.summary, c = entry.coverage;
   const pct = c.raw_total ? Math.floor(c.explained / c.raw_total * 1000) / 10 : 100;
@@ -1140,6 +1145,7 @@ function renderReport() {
   writeLink();
   const box = $("reports");
   const { pair, entry, backwards } = selectedReport();
+  if (!reportsReady) { box.innerHTML = `<p class="hint">${esc(rt("loading"))}</p>`; return; }
   if (!entry) {
     box.innerHTML = reportList();
     box.querySelectorAll("button[data-pick]").forEach(b => b.addEventListener("click", () => openPair(b.dataset.pick)));
@@ -1668,5 +1674,9 @@ $("merge").addEventListener("change", e => { state.merge = e.target.checked; sta
 
 readLink();
 renderAll();
+if (!reportsReady) {
+  fetchJson(`reports/index${EXT}`).then(index => { REPORTS = index; reportsReady = true; renderAll(); })
+    .catch(err => { reportsReady = true; console.error("report index", err); renderAll(); });
+}
 })();
 </script>

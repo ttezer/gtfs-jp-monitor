@@ -142,8 +142,8 @@ Timetables are the largest part. To keep them compact:
   removed);
 - unchanged combinations store no timetable.
 
-Pilot reports are 3–180 KB compressed. The web export indexes every report in the page and
-writes each report to its own file, `reports/<org_id>/<feed_id>/<old_uid>__<new_uid>.json.gz`,
+Pilot reports are 3–180 KB compressed. The web export writes an index of all reports
+(`reports/index.json.gz`, loaded after the page) and each report to its own file, `reports/<org_id>/<feed_id>/<old_uid>__<new_uid>.json.gz`,
 which the page loads when the pair is opened; these files are also the machine-readable form of
 the reports.
 

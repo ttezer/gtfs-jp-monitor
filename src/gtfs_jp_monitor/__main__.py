@@ -166,7 +166,9 @@ def _cmd_export_web(args: argparse.Namespace) -> int:
         from .canonical import write_json
         write_json(Path(args.json), export)
     if args.html:
-        payload = json.dumps(export, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+        # The report index is written next to the page and loaded after it, which keeps the page small.
+        page = {k: v for k, v in export.items() if k != "report_index"}
+        payload = json.dumps(page, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
         template = Path(args.template).read_text(encoding="utf-8")
         if template.count("/*__EXPORT__*/") != 1:
             raise SystemExit("template must contain exactly one /*__EXPORT__*/ placeholder")
@@ -180,6 +182,8 @@ def _cmd_export_web(args: argparse.Namespace) -> int:
         out.mkdir(parents=True, exist_ok=True)
         for old in [*out.rglob("*.json.gz"), *out.rglob("*.json")]:  # reports of an earlier export
             old.unlink()
+        index = export["report_index"]
+        (out / f"index{ext}").write_bytes(gzip_bytes(index) if ext == ".json.gz" else dumps(index).encode("utf-8"))
         for name, doc in files.items():  # reports/<org_id>/<feed_id>/<old_uid>__<new_uid><ext>
             path = out / f"{name}{ext}"
             path.parent.mkdir(parents=True, exist_ok=True)
