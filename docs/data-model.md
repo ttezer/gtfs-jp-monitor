@@ -188,6 +188,7 @@ only that job has `pages: write` and `id-token: write`.
 ```text
 index.html                                          the page with its data embedded
 status.json                                         status and sizes (§10.2)
+metrics.json                                        metrics of the last 365 days (§13), loaded after the page
 reports/index.json.gz                               summary of every report, loaded after the page
 reports/<org_id>/<feed_id>/<old_uid>__<new_uid>.json.gz   one semantic report (§11)
 ```
@@ -301,3 +302,23 @@ hidden as technical; a test fails when the engine can emit a topic, summary item
 kind the file does not place. The rules are applied to stored reports when the site is built,
 so changing them needs no new reports. The report index carries each report's class with its
 reasons, the rule codes that decided it.
+
+## §13 Metrics over time
+
+`export-web` writes `metrics.json` (`src/gtfs_jp_monitor/metrics.py`) per feed and in total, over
+the last 365 days by publication date. It carries its window (`from`, `to`), the analysis key
+and the engine version. Pairs are those of §12 whose newer publication falls in the window.
+
+| Metric | Definition |
+|---|---|
+| `publication_frequency` | Publications in the catalog per 30 days, analysed or not |
+| `meaningful_update_frequency` | `M` pairs per 30 days |
+| `equivalent_republication_ratio` | `E` / pairs with a known class (`M`, `T`, `E`) |
+| `technical_only_change_ratio` | `T` / pairs with a known class |
+| `unknown_classification_ratio` | `U` / all pairs; `coverage` is known / all pairs |
+| `validation_regression_count` | Pairs whose publish score fell or where a CRITICAL or HIGH rule appeared; pairs with a `FATAL` side or a format transition are not compared (`counts.compared`) |
+| `unclassified_diff_ratio` | Unclassified report rows / all raw differences of the reported pairs |
+| `source_availability_rate` | Publications still listed by the source / all publications |
+
+Unknown pairs are never guessed: a rate over known pairs is shown with its coverage. Changes of
+identifiers (renumbering) are not counted yet; the report summary does not separate them.

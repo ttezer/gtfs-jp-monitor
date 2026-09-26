@@ -58,6 +58,8 @@ header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20p
 
 .cls { margin: 6px 0; padding: 4px 8px; border-left: 3px solid var(--faint); }
 .cls.meaningful { border-left-color: var(--warn); }
+#totals { margin: 10px 0; } #totals summary { cursor: pointer; font-weight: 500; }
+#totals table { max-width: 560px; }
 .rsearch { width: 100%; max-width: 420px; margin: 6px 0; padding: 6px 8px; font: inherit; }
 .notice .fresh { font-weight: 500; }
 .notice .stale { color: var(--bad); }
@@ -240,6 +242,7 @@ details.other > summary { cursor: pointer; }
   </nav>
 
   <section id="tab-overview">
+    <details id="totals"></details>
     <div class="filters">
       <div class="field grow"><label for="q" data-t="search"></label><input id="q" type="search" autocomplete="off"></div>
       <div class="field"><label for="pref" data-t="prefecture"></label><select id="pref"></select></div>
@@ -288,6 +291,13 @@ const T = {
     backlog: (a, r) => `Analiz bekleyen ${a} eski yayın, rapor bekleyen ${r} çift.`,
     ago: { m: n => `${n} dakika`, h: n => `${n} saat`, d: n => `${n} gün` },
     linkMissing: "Bağlantıdaki feed ya da yayın bu sayfada yok; bağlantı yok sayıldı.",
+    s5: "Son 365 gün", mTotal: "Son 365 gün, bütün feed'ler",
+    mRows: { pubs: "Yayın (30 günde)", meaningful: "Anlamlı güncelleme (30 günde)", pairs: "Çiftler", coverage: "Sınıfı bilinen çift (kapsam)",
+             equivalent: "Eşdeğer yeniden yayın", technical: "Yalnız teknik değişiklik", regressions: "Doğrulama gerilemesi",
+             unclassified: "Sınıflandırılmamış fark", availability: "Kaynağı indirilebilen yayın" },
+    mPairs: (m, t, e, u) => `${m} anlamlı · ${t} teknik · ${e} eşdeğer · ${u} bilinmiyor`,
+    mOf: (n, d) => `${n} / ${d} çift`,
+    mNote: (from, to, key, eng) => `${from} – ${to} · ${key} · motor ${eng}. Oranlar sınıfı bilinen çiftler üzerinden; bilinmeyen çiftler tahmin edilmez.`,
     notice: (f, g, rel, prof) => `<b>Önizleme.</b> ${f} feed, ${g} yayın; GTFS Analyzer ${rel} (${prof} profili). Yayınlar en yeniden eskiye doğru analiz ediliyor; henüz analiz edilmemiş eski yayınlar her gün arka planda ekleniyor. Semantic değişiklik raporları her gün en yeni yayın çiftlerinden başlayarak ekleniyor (Diff Raporları sekmesi).`,
     overview: "Genel Bakış", history: "Feed Geçmişi", reports: "Diff Raporları", gtfsjp: "GTFS-JP",
     search: "Feed ara", prefecture: "İl", readiness: "Yayın durumu", sort: "Sırala", all: "Tümü",
@@ -324,6 +334,13 @@ const T = {
     backlog: (a, r) => `${a} older publications waiting for analysis, ${r} pairs waiting for a report.`,
     ago: { m: n => `${n} minute${n === 1 ? "" : "s"}`, h: n => `${n} hour${n === 1 ? "" : "s"}`, d: n => `${n} day${n === 1 ? "" : "s"}` },
     linkMissing: "The feed or publication in the link is not on this page; the link was ignored.",
+    s5: "Last 365 days", mTotal: "Last 365 days, all feeds",
+    mRows: { pubs: "Publications (per 30 days)", meaningful: "Meaningful updates (per 30 days)", pairs: "Pairs", coverage: "Pairs with a known class (coverage)",
+             equivalent: "Equivalent republications", technical: "Technical-only changes", regressions: "Validation regressions",
+             unclassified: "Unclassified differences", availability: "Publications still downloadable" },
+    mPairs: (m, t, e, u) => `${m} meaningful · ${t} technical · ${e} equivalent · ${u} unknown`,
+    mOf: (n, d) => `${n} of ${d} pairs`,
+    mNote: (from, to, key, eng) => `${from} – ${to} · ${key} · engine ${eng}. Ratios are over pairs with a known class; unknown pairs are not guessed.`,
     notice: (f, g, rel, prof) => `<b>Preview.</b> ${f} feeds, ${g} publications; GTFS Analyzer ${rel} (${prof} profile). Publications are analysed newest first; older ones not analysed yet are added daily in the background. Semantic change reports are added daily, newest publication pairs first (Diff reports tab).`,
     overview: "Overview", history: "Feed history", reports: "Diff reports", gtfsjp: "GTFS-JP",
     search: "Search feeds", prefecture: "Prefecture", readiness: "Readiness", sort: "Sort", all: "All",
@@ -360,6 +377,13 @@ const T = {
     backlog: (a, r) => `解析待ちの古い公開 ${a} 件、レポート待ちのペア ${r} 件。`,
     ago: { m: n => `${n}分`, h: n => `${n}時間`, d: n => `${n}日` },
     linkMissing: "リンクのフィードまたは公開はこのページにありません。リンクは無視されました。",
+    s5: "過去365日", mTotal: "過去365日・全フィード",
+    mRows: { pubs: "公開（30日あたり）", meaningful: "意味のある更新（30日あたり）", pairs: "ペア", coverage: "分類が判明したペア（カバー率）",
+             equivalent: "同等の再公開", technical: "技術的変更のみ", regressions: "検証結果の悪化",
+             unclassified: "未分類の差分", availability: "取得可能な公開" },
+    mPairs: (m, t, e, u) => `意味のある変更 ${m} · 技術的 ${t} · 同等 ${e} · 不明 ${u}`,
+    mOf: (n, d) => `${d}ペア中 ${n}`,
+    mNote: (from, to, key, eng) => `${from} – ${to} · ${key} · エンジン ${eng}。割合は分類が判明したペアに対する値で、不明なペアは推定しません。`,
     notice: (f, g, rel, prof) => `<b>プレビュー。</b>${f}フィード・${g}公開分、GTFS Analyzer ${rel}（${prof}プロファイル）。公開は新しいものから順に解析しており、未解析の古い公開は毎日バックグラウンドで追加されます。セマンティック変更レポートは新しい公開ペアから毎日追加されています（差分レポートタブ）。`,
     overview: "概要", history: "フィード履歴", reports: "差分レポート", gtfsjp: "GTFS-JP",
     search: "フィード検索", prefecture: "都道府県", readiness: "公開状態", sort: "並び替え", all: "すべて",
@@ -1593,7 +1617,8 @@ function renderPanel() {
       <div><h3>1. ${esc(t("s1"))}</h3><div class="cards">${cards}</div></div>
       <div><h3>2. ${esc(t("s2"))}</h3><table class="mini"><thead><tr><th></th><th class="r">${esc(t("before"))}</th><th class="r">${esc(t("after"))}</th><th class="r">Δ</th></tr></thead><tbody>${metricRows}</tbody></table></div>
       <div><h3>3. ${esc(t("s3"))}</h3>${ruleTable}${sameBtn}</div>
-      <div><h3>4. ${esc(t("s4"))}</h3>${panelSemantic()}</div>`;
+      <div><h3>4. ${esc(t("s4"))}</h3>${panelSemantic()}</div>
+      <div><h3>5. ${esc(t("s5"))}</h3>${metricsBlock(TIMELINE && TIMELINE.feeds[key(f)], TIMELINE)}</div>`;
   }
   panel.innerHTML = `<div class="ph"><h2>${esc(f.name)}</h2>
       <div class="meta"><span>${esc(f.organization_name)}</span><span>${esc(prefName(f.pref_id))}</span><span>${esc(t("license"))}: ${esc(f.license)}</span></div>
@@ -1655,6 +1680,21 @@ function renderHistory() {
     <th class="r">Publish</th><th class="r">Overall</th><th>${esc(t("rid"))}</th><th>${esc(t("jpFiles"))}</th><th>${esc(t("memo"))}</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
+// Metrics of the last 365 days (data-model §13), from metrics.json loaded after the page.
+let TIMELINE = DATA.metrics || null;
+const pct = (x, d = 1) => x == null ? "—" : `${(x * 100).toFixed(d)}%`;
+function metricsBlock(m, M) {
+  if (!M) return `<p class="hint">${esc(rt("loading"))}</p>`;
+  if (!m) return "";
+  const r = T[state.lang].mRows, c = m.counts;
+  const rows = [[r.pubs, m.publication_frequency], [r.meaningful, m.meaningful_update_frequency],
+    [r.pairs, T[state.lang].mPairs(c.meaningful, c.technical, c.equivalent, c.unknown)], [r.coverage, pct(m.coverage)],
+    [r.equivalent, pct(m.equivalent_republication_ratio)], [r.technical, pct(m.technical_only_change_ratio)],
+    [r.regressions, T[state.lang].mOf(c.regressions, c.compared)], [r.unclassified, pct(m.unclassified_diff_ratio, 3)],
+    [r.availability, pct(m.source_availability_rate)]];
+  return `<table class="mini">${rows.map(([k, v]) => `<tr><td>${esc(k)}</td><td class="r num">${esc(String(v))}</td></tr>`).join("")}</table>
+    <p class="hint">${esc(T[state.lang].mNote(M.from, M.to, M.analysis_key, M.engine_version))}</p>`;
+}
 const STALE_HOURS = 36;
 // Freshness and pending work from the export's status block (data-model §10.2).
 function statusNote(st, lang, nowMs) {
@@ -1702,7 +1742,10 @@ function renderStatic() {
   $("merge-note").textContent = state.merge ? t("mergeNote") : "";
 }
 
-function renderAll() { renderStatic(); renderGrid(); renderPanel(); renderHistory(); renderReport(); writeLink(); }
+function renderTotals() {
+  $("totals").innerHTML = `<summary>${esc(t("mTotal"))}</summary>${metricsBlock(TIMELINE && TIMELINE.total, TIMELINE)}`;
+}
+function renderAll() { renderStatic(); renderTotals(); renderGrid(); renderPanel(); renderHistory(); renderReport(); writeLink(); }
 
 document.querySelectorAll(".langs button").forEach(b => b.addEventListener("click", () => {
   state.lang = b.dataset.lang;
@@ -1723,6 +1766,10 @@ $("merge").addEventListener("change", e => { state.merge = e.target.checked; sta
 
 readLink();
 renderAll();
+if (!TIMELINE) {
+  fetchJson("metrics.json").then(m => { TIMELINE = m; renderTotals(); renderPanel(); })
+    .catch(err => console.error("metrics", err));
+}
 if (!reportsReady) {
   fetchJson(`reports/index${EXT}`).then(index => { REPORTS = index; reportsReady = true; renderAll(); })
     .catch(err => { reportsReady = true; console.error("report index", err); renderAll(); });

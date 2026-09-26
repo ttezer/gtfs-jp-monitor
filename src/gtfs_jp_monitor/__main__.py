@@ -167,7 +167,7 @@ def _cmd_export_web(args: argparse.Namespace) -> int:
         write_json(Path(args.json), export)
     if args.html:
         # The report index is written next to the page and loaded after it, which keeps the page small.
-        page = {k: v for k, v in export.items() if k != "report_index"}
+        page = {k: v for k, v in export.items() if k not in ("report_index", "metrics")}
         payload = json.dumps(page, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
         template = Path(args.template).read_text(encoding="utf-8")
         if template.count("/*__EXPORT__*/") != 1:
@@ -188,6 +188,7 @@ def _cmd_export_web(args: argparse.Namespace) -> int:
             path = out / f"{name}{ext}"
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(gzip_bytes(doc) if ext == ".json.gz" else dumps(doc).encode("utf-8"))
+        (Path(args.html).parent / "metrics.json").write_text(dumps(export["metrics"]) + "\n", encoding="utf-8")
         # Operational status for monitoring (watchdog, storage check): the export's status plus the
         # size of the site just written.
         site = Path(args.html).parent

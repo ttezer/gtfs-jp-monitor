@@ -19,6 +19,7 @@ from gtfs_jp_semantic import ENGINE_VERSION
 from .catalog import load_catalog
 from .classify import EQUIVALENT, MEANINGFUL, TECHNICAL, classify_report, load_rules
 from .ids import feed_dir
+from .metrics import build_metrics
 from .ordering import GenerationRef, order_generations
 from .store import content_digest, generation_path, list_analyses, load_content
 
@@ -221,6 +222,8 @@ def build_export(data_dir: Path, key: str, analyzer: Path | None = None) -> tupl
         })
     report_index, files = report_files(root, feeds, ENGINE_VERSION)
     classify_pairs(root, feeds, report_index, ENGINE_VERSION)
+    metrics = build_metrics(feeds, catalog_gens, report_index, key, ENGINE_VERSION,
+                            _dt.datetime.now(_dt.timezone.utc).date())  # before compact_rules
     return {
         "schema": SCHEMA,
         "analysis_key": key,
@@ -230,6 +233,7 @@ def build_export(data_dir: Path, key: str, analyzer: Path | None = None) -> tupl
         "engine_version": ENGINE_VERSION,
         "report_index": report_index,
         "status": build_status(root, key),
+        "metrics": metrics,
     }, files
 
 
