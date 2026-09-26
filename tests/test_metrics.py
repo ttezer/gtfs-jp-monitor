@@ -26,12 +26,20 @@ class MetricsTest(unittest.TestCase):
         self.assertEqual((m["from"], m["to"], m["analysis_key"], m["engine_version"]), ("2025-09-26", "2026-09-26", "v0.14.0__auto", "0.5.0"))
         f = m["feeds"]["o/f"]
         self.assertEqual(f["counts"], {"meaningful": 2, "technical": 1, "equivalent": 1, "unknown": 1,
+                                        "estimated_meaningful": 0, "estimated_technical": 0,
                                         "regressions": 2, "compared": 4})  # c: score fell; e: HIGH rule appeared; f skipped (format)
         self.assertEqual((f["publications"], f["pairs"], f["coverage"]), (6, 5, 0.8))
         self.assertEqual((f["equivalent_republication_ratio"], f["technical_only_change_ratio"]), (0.25, 0.25))
         self.assertEqual((f["unknown_classification_ratio"], f["unclassified_diff_ratio"]), (0.2, 0.005))
         self.assertEqual((f["source_availability_rate"], f["meaningful_update_frequency"]), (round(5 / 6, 4), round(2 / (365 / 30), 2)))
         self.assertEqual(m["total"]["counts"], f["counts"])
+
+    def test_estimates_count_as_known_but_apart(self):
+        gens = [gen("a", "01-10"), gen("b", "02-10", "~T"), gen("c", "03-10", "~M"), gen("d", "04-10", "M"), gen("e", "05-10", "U/NOT_REPORTED")]
+        m = build_metrics([{"org_id": "o", "feed_id": "f", "generations": gens}], {}, {}, "k", "0.5.0", dt.date(2026, 9, 26))["total"]
+        self.assertEqual((m["counts"]["estimated_technical"], m["counts"]["estimated_meaningful"], m["counts"]["meaningful"]), (1, 1, 1))
+        self.assertEqual((m["coverage"], m["exact_coverage"], m["technical_only_change_ratio"]), (0.75, 0.25, round(1 / 3, 4)))
+        self.assertEqual(m["meaningful_update_frequency"], round(2 / (365 / 30), 2))
 
     def test_window(self):
         gens = [gen("a", "01-10"), gen("b", "02-10", "M")]

@@ -8,7 +8,7 @@ from gtfs_jp_monitor.catalog import sync_catalog
 from gtfs_jp_monitor.store import change_path, generation_path
 from gtfs_jp_semantic import ENGINE_VERSION
 from gtfs_jp_semantic.rawdiff import gzip_bytes
-from gtfs_jp_monitor.webexport import build_export, compact_rules, storage_warnings
+from gtfs_jp_monitor.webexport import build_export, compact_rules, estimate_pair, storage_warnings
 
 from .schema_support import FIXTURES, load_json
 from .test_catalog import FEED, ORG, FakeClient, feed_record, gen, uid
@@ -87,6 +87,7 @@ class WebExportTest(unittest.TestCase):
         (doc,) = files.values()
         self.assertEqual(doc["header"]["old"]["memo"], "new")  # newest not above this engine
 
+
 class CompactRulesTest(unittest.TestCase):
     def test_counts_only_unless_a_publication_differs(self):
         feeds = [{"generations": [{"rules": {"A": [2, "INFO", "SPEC"], "B": [1, "LOW", "QUALITY"]}},
@@ -95,11 +96,26 @@ class CompactRulesTest(unittest.TestCase):
         self.assertEqual(compact_rules(feeds), {"A": ["INFO", "SPEC"], "B": ["LOW", "QUALITY"]})
         self.assertEqual([g["rules"] for g in feeds[0]["generations"]],
                          [{"A": 2, "B": 1}, {"A": 5}, {"A": [1, "CRITICAL", "SPEC"]}])
+
+
+class EstimateTest(unittest.TestCase):
+    def test_changed_files_decide(self):
+        rec = lambda files: {"files": {n: {"method": "canonical_csv", "hash": v} for n, v in files.items()}}
+        old = rec({"feed_info.txt": "a", "calendar.txt": "b", "stops.txt": "c"})
+        calendar_only = rec({"feed_info.txt": "x", "calendar.txt": "y", "stops.txt": "c"})
+        stops_too = rec({"feed_info.txt": "x", "calendar.txt": "b", "stops.txt": "z"})
+        new_file = rec({"feed_info.txt": "a", "calendar.txt": "b", "stops.txt": "c", "extra.txt": "q"})
+        self.assertEqual([estimate_pair(old, x) for x in (calendar_only, stops_too, new_file)], ["~T", "~M", "~M"])
+        self.assertIsNone(estimate_pair(old, {"files": None}))
+
+
+class StorageTest(unittest.TestCase):
     def test_warns_past_three_quarters_of_a_budget(self):
         self.assertEqual(storage_warnings({"site_bytes": 200 << 20}, 700 << 20), [])
         self.assertEqual(storage_warnings({"site_bytes": 800 << 20}, None),
                          ["web site is 800 MiB, 78% of its 1024 MiB budget"])
         self.assertEqual(len(storage_warnings({}, 900 << 20)), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

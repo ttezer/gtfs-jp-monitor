@@ -13,7 +13,8 @@ as raw bytes. File paths are part of the signature.
 
 The same pass counts how often selected optional fields are filled (`fields`, data-model §15):
 rows per file and, per field, the rows with a value. For accessibility fields, where "0" means
-"no information", only the values 1 and 2 count.
+"no information", only the values 1 and 2 count. Stops outside Japan, and those whose latitude and
+longitude look swapped, are counted as well.
 """
 
 from __future__ import annotations
@@ -34,6 +35,7 @@ FIELDS = {
     "trips.txt": ("wheelchair_accessible", "bikes_allowed", "trip_headsign", "trip_short_name", "shape_id"),
     "stop_times.txt": ("stop_headsign", "pickup_type", "drop_off_type", "timepoint"),
 }
+JAPAN = ((20.0, 46.0), (122.0, 154.0))  # latitude and longitude range of the stops check (data-model §15)
 INFO_ONLY = frozenset({"wheelchair_boarding", "wheelchair_accessible", "bikes_allowed"})  # "0" = no information
 _MOD = 1 << 256
 _CHUNK = 1 << 20
@@ -47,6 +49,19 @@ def _raw(zf: zipfile.ZipFile, info: zipfile.ZipInfo) -> str:
     return h.hexdigest()
 
 
+def _place(lat: str, lon: str) -> str | None:
+    """"swapped" when latitude and longitude only fit Japan the other way round, "outside" for
+    other coordinates outside it, None inside or when not numeric."""
+    try:
+        y, x = float(lat), float(lon)
+    except ValueError:
+        return None
+    (y0, y1), (x0, x1) = JAPAN
+    if y0 <= y <= y1 and x0 <= x <= x1:
+        return None
+    return "swapped" if y0 <= x <= y1 and x0 <= y <= x1 else "outside"
+
+
 def _csv(zf: zipfile.ZipFile, info: zipfile.ZipInfo, fields: dict | None = None) -> str:
     """Canonical hash; fills `fields` with {"rows", "filled": {field: rows with a value}} when the
     file has tracked fields."""
@@ -57,6 +72,9 @@ def _csv(zf: zipfile.ZipFile, info: zipfile.ZipInfo, fields: dict | None = None)
             raise ValueError("duplicate column")
         order = sorted(range(len(header)), key=lambda i: header[i])
         tracked = [(i, c) for i, c in enumerate(header) if c in FIELDS.get(info.filename, ())]
+        coords = (header.index("stop_lat"), header.index("stop_lon")) \
+            if info.filename == "stops.txt" and "stop_lat" in header and "stop_lon" in header else None
+        outside = swapped = 0
         filled = dict.fromkeys(FIELDS.get(info.filename, ()), 0)  # a missing column counts as never filled
         total, count = 0, 0
         for row in rows:
@@ -71,8 +89,14 @@ def _csv(zf: zipfile.ZipFile, info: zipfile.ZipInfo, fields: dict | None = None)
                 v = row[i].strip()
                 if v and not (c in INFO_ONLY and v == "0"):
                     filled[c] += 1
+            if coords:
+                where = _place(row[coords[0]], row[coords[1]])
+                outside += where == "outside"
+                swapped += where == "swapped"
     if fields is not None and info.filename in FIELDS:
         fields[info.filename] = {"rows": count, "filled": filled}
+        if coords:
+            fields[info.filename]["coordinates"] = {"outside_japan": outside, "swapped": swapped}
     key = json.dumps([[header[i] for i in order], count, format(total, "064x")], ensure_ascii=False)
     return hashlib.sha256(key.encode("utf-8")).hexdigest()
 

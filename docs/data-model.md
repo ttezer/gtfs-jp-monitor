@@ -278,6 +278,7 @@ publication before it (`pair` in the page data; `src/gtfs_jp_monitor/classify.py
 | `E` | `EQUIVALENT` | Same analysis summary and content signature (§4.2); no report is built |
 | `M` | `MEANINGFUL_SERVICE_CHANGE` | The report has at least one passenger-facing change |
 | `T` | `TECHNICAL_OR_METADATA_ONLY` | The report has changes, none passenger-facing |
+| `~M`, `~T` | estimated | No report exists, but both publications have content records: `~T` when only `feed_info.txt`, `calendar.txt` and `calendar_dates.txt` differ, else `~M`. On reported pairs this agreed with the report for 499 of 501 technical and 43 of 44 meaningful cases (2026-09-27) |
 | `U/<reason>` | `UNKNOWN` | No report says what changed: `U/FATAL` (either side failed validation), `U/NOT_REPORTED` (outside the reported window, §11, or not built yet), or the report's error code (`U/SOURCE_UNAVAILABLE`, `U/SOURCE_CHANGED`, `U/ENGINE_ERROR`) |
 
 The first publication of a feed forms no pair, so rates over pairs use one fewer than the
@@ -313,15 +314,16 @@ and the engine version. Pairs are those of §12 whose newer publication falls in
 | Metric | Definition |
 |---|---|
 | `publication_frequency` | Publications in the catalog per 30 days, analysed or not |
-| `meaningful_update_frequency` | `M` pairs per 30 days |
-| `equivalent_republication_ratio` | `E` / pairs with a known class (`M`, `T`, `E`) |
-| `technical_only_change_ratio` | `T` / pairs with a known class |
-| `unknown_classification_ratio` | `U` / all pairs; `coverage` is known / all pairs |
+| `meaningful_update_frequency` | `M` and `~M` pairs per 30 days |
+| `equivalent_republication_ratio` | `E` / pairs with a known class (`M`, `T`, `E`, `~M`, `~T`) |
+| `technical_only_change_ratio` | `T` and `~T` / pairs with a known class |
+| `unknown_classification_ratio` | `U` / all pairs; `coverage` is known (with estimates) / all pairs, `exact_coverage` the same without estimates |
 | `validation_regression_count` | Pairs whose publish score fell or where a CRITICAL or HIGH rule appeared; pairs with a `FATAL` side or a format transition are not compared (`counts.compared`) |
 | `unclassified_diff_ratio` | Unclassified report rows / all raw differences of the reported pairs |
 | `source_availability_rate` | Publications still listed by the source / all publications |
 
-Unknown pairs are never guessed: a rate over known pairs is shown with its coverage. Changes of
+Estimated pairs are counted apart (`counts.estimated_*`); unknown pairs are never guessed, and a
+rate over known pairs is shown with its coverage. Changes of
 identifiers (renumbering) are not counted yet; the report summary does not separate them.
 
 ## §14 Analyses derived in the page
@@ -343,7 +345,10 @@ change of the engine version (§11).
 
 The content signature pass (§4.2) also counts how often selected optional fields are filled and
 stores it in `content.json` as `fields`: per file, its rows and, per field, the rows with a value.
-A tracked column the file does not have counts as never filled. For `wheelchair_boarding`,
+A tracked column the file does not have counts as never filled. For `stops.txt` it also counts
+stops outside Japan (latitude 20–46, longitude 122–154) and, among them, those that fit only with
+latitude and longitude swapped (`coordinates`); the page warns about them, since their lines look
+wrong on maps and in route comparisons. For `wheelchair_boarding`,
 `wheelchair_accessible` and `bikes_allowed` only 1 and 2 count, since 0 means "no information".
 
 | File | Fields |

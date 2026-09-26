@@ -295,10 +295,11 @@ const T = {
     mRows: { pubs: "Yayın (30 günde)", meaningful: "Anlamlı güncelleme (30 günde)", pairs: "Çiftler", coverage: "Sınıfı bilinen çift (kapsam)",
              equivalent: "Eşdeğer yeniden yayın", technical: "Yalnız teknik değişiklik", regressions: "Doğrulama gerilemesi",
              unclassified: "Sınıflandırılmamış fark", availability: "Kaynağı indirilebilen yayın" },
-    mPairs: (m, t, e, u) => `${m} anlamlı · ${t} teknik · ${e} eşdeğer · ${u} bilinmiyor`,
+    mPairs: (m, t, e, u, em, et) => `${m} anlamlı · ${t} teknik · ${e} eşdeğer · ${u} bilinmiyor${em + et ? ` · tahmini ${em} anlamlı, ${et} teknik` : ""}`, mExact: "Kesin kapsam (raporlu)",
     mOf: (n, d) => `${n} / ${d} çift`,
     mNote: (from, to, key, eng) => `${from} – ${to} · ${key} · motor ${eng}. Oranlar sınıfı bilinen çiftler üzerinden; bilinmeyen çiftler tahmin edilmez.`,
     s6: "Veri alanları", fieldCols: ["Alan", "Eski", "Yeni", "Δ"],
+    coordWarn: (side, o, w) => `${side}da ${o + w} durak Japonya sınırlarının dışında${w ? ` (${w} tanesinde enlem ve boylam yer değiştirmiş görünüyor)` : ""}; bu durakların hatları haritada ve güzergâh karşılaştırmasında yanlış görünebilir.`,
     fieldNone: "Bu yayınlar için alan doluluğu henüz ölçülmedi; sayfada görünen yayınlar gece gece dolduruluyor.",
     fieldNote: "Dolu satırların yüzdesi. Tekerlekli sandalye ve bisiklet alanlarında yalnız 1 ve 2 değerleri sayılır (0 = bilgi yok).",
     notice: (f, g, rel, prof) => `<b>Önizleme.</b> ${f} feed, ${g} yayın; GTFS Analyzer ${rel} (${prof} profili). Yayınlar en yeniden eskiye doğru analiz ediliyor; henüz analiz edilmemiş eski yayınlar her gün arka planda ekleniyor. Semantic değişiklik raporları her gün en yeni yayın çiftlerinden başlayarak ekleniyor (Diff Raporları sekmesi).`,
@@ -341,10 +342,11 @@ const T = {
     mRows: { pubs: "Publications (per 30 days)", meaningful: "Meaningful updates (per 30 days)", pairs: "Pairs", coverage: "Pairs with a known class (coverage)",
              equivalent: "Equivalent republications", technical: "Technical-only changes", regressions: "Validation regressions",
              unclassified: "Unclassified differences", availability: "Publications still downloadable" },
-    mPairs: (m, t, e, u) => `${m} meaningful · ${t} technical · ${e} equivalent · ${u} unknown`,
+    mPairs: (m, t, e, u, em, et) => `${m} meaningful · ${t} technical · ${e} equivalent · ${u} unknown${em + et ? ` · estimated ${em} meaningful, ${et} technical` : ""}`, mExact: "Exact coverage (reported)",
     mOf: (n, d) => `${n} of ${d} pairs`,
     mNote: (from, to, key, eng) => `${from} – ${to} · ${key} · engine ${eng}. Ratios are over pairs with a known class; unknown pairs are not guessed.`,
     s6: "Data fields", fieldCols: ["Field", "Old", "New", "Δ"],
+    coordWarn: (side, o, w) => `The ${side.toLowerCase()} has ${o + w} stops outside Japan${w ? ` (${w} with latitude and longitude apparently swapped)` : ""}; their lines may look wrong on maps and in route comparisons.`,
     fieldNone: "Field filling has not been measured for these publications yet; the publications the page shows are filled in night by night.",
     fieldNote: "Share of rows with a value. For wheelchair and bike fields only 1 and 2 count (0 = no information).",
     notice: (f, g, rel, prof) => `<b>Preview.</b> ${f} feeds, ${g} publications; GTFS Analyzer ${rel} (${prof} profile). Publications are analysed newest first; older ones not analysed yet are added daily in the background. Semantic change reports are added daily, newest publication pairs first (Diff reports tab).`,
@@ -387,10 +389,11 @@ const T = {
     mRows: { pubs: "公開（30日あたり）", meaningful: "意味のある更新（30日あたり）", pairs: "ペア", coverage: "分類が判明したペア（カバー率）",
              equivalent: "同等の再公開", technical: "技術的変更のみ", regressions: "検証結果の悪化",
              unclassified: "未分類の差分", availability: "取得可能な公開" },
-    mPairs: (m, t, e, u) => `意味のある変更 ${m} · 技術的 ${t} · 同等 ${e} · 不明 ${u}`,
+    mPairs: (m, t, e, u, em, et) => `意味のある変更 ${m} · 技術的 ${t} · 同等 ${e} · 不明 ${u}${em + et ? ` · 推定 意味あり ${em}・技術的 ${et}` : ""}`, mExact: "確定カバー率（レポートあり）",
     mOf: (n, d) => `${d}ペア中 ${n}`,
     mNote: (from, to, key, eng) => `${from} – ${to} · ${key} · エンジン ${eng}。割合は分類が判明したペアに対する値で、不明なペアは推定しません。`,
     s6: "データ項目", fieldCols: ["項目", "旧", "新", "Δ"],
+    coordWarn: (side, o, w) => `${side}に日本の範囲外の停留所が ${o + w} 件あります${w ? `（うち ${w} 件は緯度と経度が入れ替わっている可能性）` : ""}。地図や経路比較で該当路線が正しく表示されない場合があります。`,
     fieldNone: "これらの公開の項目充足率はまだ測定されていません。ページに表示される公開から毎晩順に測定しています。",
     fieldNote: "値が入っている行の割合。車椅子・自転車の項目は 1 と 2 のみを数えます（0 = 情報なし）。",
     notice: (f, g, rel, prof) => `<b>プレビュー。</b>${f}フィード・${g}公開分、GTFS Analyzer ${rel}（${prof}プロファイル）。公開は新しいものから順に解析しており、未解析の古い公開は毎日バックグラウンドで追加されます。セマンティック変更レポートは新しい公開ペアから毎日追加されています（差分レポートタブ）。`,
@@ -482,6 +485,8 @@ const R = {
     pick: n => `Genel Bakış'ta bir feed seçip iki ardışık yayını karşılaştırın; o çiftin raporu burada açılır. Raporu olan ${n} çift:`,
     loading: "Rapor yükleniyor…", loadFailed: e => `Rapor yüklenemedi (${e}).`,
     rsearch: "Feed, işletmeci ya da tarih ara…", rmore: (n, all) => `${all} çiftten ${n} tanesi gösteriliyor; aramayı daraltın.`, rnone: "Eşleşen çift yok.",
+    est: { "~M": "Tahmini: anlamlı hizmet değişikliği", "~T": "Tahmini: yalnız teknik / meta veri değişikliği" },
+    estNote: "Bu çiftin raporu yok; sınıf, iki yayında hangi dosyaların değiştiğinden tahmin edildi (yalnız takvim ve feed_info değiştiyse teknik).",
     cls: { MEANINGFUL_SERVICE_CHANGE: "Anlamlı hizmet değişikliği", TECHNICAL_OR_METADATA_ONLY: "Yalnız teknik / meta veri değişikliği" }, clsWhy: "Gerekçe", clsTech: "Teknik",
     metres: m => `${m} m`, others: "Raporu olan diğer çiftler",
     tripChanges: "Sefer değişiklikleri",
@@ -543,6 +548,8 @@ const R = {
     pick: n => `Select a feed in Overview and compare two consecutive publications; the report of that pair opens here. ${n} pairs with a report:`,
     loading: "Loading report…", loadFailed: e => `The report could not be loaded (${e}).`,
     rsearch: "Search feed, operator or date…", rmore: (n, all) => `Showing ${n} of ${all} pairs; narrow the search.`, rnone: "No matching pair.",
+    est: { "~M": "Estimated: meaningful service change", "~T": "Estimated: technical or metadata change only" },
+    estNote: "This pair has no report; its class is estimated from which files changed (technical when only calendar and feed_info changed).",
     cls: { MEANINGFUL_SERVICE_CHANGE: "Meaningful service change", TECHNICAL_OR_METADATA_ONLY: "Technical or metadata change only" }, clsWhy: "Because of", clsTech: "Technical",
     metres: m => `${m} m`, others: "Other pairs with a report",
     tripChanges: "Trip changes",
@@ -604,6 +611,8 @@ const R = {
     pick: n => `概要タブでフィードを選び、連続する2つの公開を比較すると、そのレポートがここに表示されます。レポートのあるペア（${n}）：`,
     loading: "レポートを読み込み中…", loadFailed: e => `レポートを読み込めませんでした（${e}）。`,
     rsearch: "フィード・事業者・日付で検索…", rmore: (n, all) => `${all}件中${n}件を表示しています。検索を絞り込んでください。`, rnone: "該当するペアはありません。",
+    est: { "~M": "推定：意味のあるサービス変更", "~T": "推定：技術的・メタデータのみの変更" },
+    estNote: "このペアにはレポートがありません。変更されたファイルから分類を推定しました（カレンダーと feed_info のみの変更は技術的）。",
     cls: { MEANINGFUL_SERVICE_CHANGE: "意味のあるサービス変更", TECHNICAL_OR_METADATA_ONLY: "技術的・メタデータのみの変更" }, clsWhy: "理由", clsTech: "技術的",
     metres: m => `${m} m`, others: "レポートのある他のペア",
     tripChanges: "便の変更",
@@ -692,8 +701,10 @@ function classLine(cl, full) {
   return `<p class="cls ${cl.class === "MEANINGFUL_SERVICE_CHANGE" ? "meaningful" : "technical"}"><b>${esc(rt("cls")[cl.class] || cl.class)}</b>${why.length ? ` · ${esc(rt("clsWhy"))}: <span class="num">${esc(shown.join(", "))}${more > 0 ? ` +${more}` : ""}</span>` : ""}${tech}</p>`;
 }
 function panelSemantic() {
-  const { adjacent, entry } = selectedReport();
+  const { f, adjacent, entry, pair } = selectedReport();
   if (!reportsReady) return `<div class="empty">${esc(rt("loading"))}</div>`;
+  const code = !entry && adjacent && pair ? ((f.generations.find(g => g.uid === pair.split("__")[1]) || {}).pair || "") : "";
+  if (code.startsWith("~")) return `<p class="cls ${code === "~M" ? "meaningful" : "technical"}"><b>${esc(rt("est")[code])}</b></p><p class="hint">${esc(rt("estNote"))}</p>`;
   if (!entry) return `<div class="empty">${esc(rt(adjacent ? "panelNone" : "panelNotAdjacent"))}</div>`;
   const s = entry.summary, c = entry.coverage;
   const pct = c.raw_total ? Math.floor(c.explained / c.raw_total * 1000) / 10 : 100;
@@ -1751,7 +1762,8 @@ function metricsBlock(m, M) {
   if (!m) return "";
   const r = T[state.lang].mRows, c = m.counts;
   const rows = [[r.pubs, m.publication_frequency], [r.meaningful, m.meaningful_update_frequency],
-    [r.pairs, T[state.lang].mPairs(c.meaningful, c.technical, c.equivalent, c.unknown)], [r.coverage, pct(m.coverage)],
+    [r.pairs, T[state.lang].mPairs(c.meaningful, c.technical, c.equivalent, c.unknown, c.estimated_meaningful || 0, c.estimated_technical || 0)],
+    [r.coverage, pct(m.coverage)], [T[state.lang].mExact, pct(m.exact_coverage)],
     [r.equivalent, pct(m.equivalent_republication_ratio)], [r.technical, pct(m.technical_only_change_ratio)],
     [r.regressions, T[state.lang].mOf(c.regressions, c.compared)], [r.unclassified, pct(m.unclassified_diff_ratio, 3)],
     [r.availability, pct(m.source_availability_rate)]];
@@ -1764,14 +1776,18 @@ function fieldsBlock(a, b) {
   if (!FIELDS) return `<p class="hint">${esc(rt("loading"))}</p>`;
   const x = FIELDS[a.uid], y = FIELDS[b.uid];
   if (!x && !y) return `<p class="hint">${esc(t("fieldNone"))}</p>`;
+  const warn = [[x, rt("old")], [y, rt("new")]].map(([v, side]) => {
+    const c = v && v["stops.txt"] && v["stops.txt"].coordinates;
+    return c && (c.outside_japan || c.swapped) ? `<p class="fmt">${esc(t("coordWarn", side, c.outside_japan, c.swapped))}</p>` : "";
+  }).join("");
   const rows = [];
   for (const file of [...new Set([...Object.keys(x || {}), ...Object.keys(y || {})])].sort())
-    for (const c of [...new Set([...Object.keys((x || {})[file] || {}), ...Object.keys((y || {})[file] || {})])].filter(c => c !== "rows").sort()) {
+    for (const c of [...new Set([...Object.keys((x || {})[file] || {}), ...Object.keys((y || {})[file] || {})])].filter(c => c !== "rows" && c !== "coordinates").sort()) {
       const p = x && x[file] ? x[file][c] ?? null : null, q = y && y[file] ? y[file][c] ?? null : null;
       const d = p != null && q != null ? q - p : null;
       rows.push(`<tr><td class="num">${esc(file.replace(".txt", ""))}.${esc(c)}</td><td class="r">${p == null ? "—" : p + "%"}</td><td class="r">${q == null ? "—" : q + "%"}</td><td class="r ${d > 0 ? "up" : d < 0 ? "down" : "flat"}">${d == null ? "" : signed(d)}</td></tr>`);
     }
-  return `<table class="mini"><thead><tr>${t("fieldCols").map((c, i) => `<th${i ? ' class="r"' : ""}>${esc(c)}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table><p class="hint">${esc(t("fieldNote"))}</p>`;
+  return `${warn}<table class="mini"><thead><tr>${t("fieldCols").map((c, i) => `<th${i ? ' class="r"' : ""}>${esc(c)}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table><p class="hint">${esc(t("fieldNote"))}</p>`;
 }
 const STALE_HOURS = 36;
 // Freshness and pending work from the export's status block (data-model §10.2).

@@ -3,7 +3,8 @@
 Computed at export time over the last WINDOW_DAYS days, by publication date, from the catalog,
 the exported publications with their pair classes (§12) and the report index. Every metric
 comes with its window, analysis key, engine version and coverage (the share of pairs whose class
-is known); unknown pairs are never guessed.
+is known, `exact_coverage` without estimates); estimated pairs (§12) are counted apart and count
+as known, unknown pairs are never guessed.
 """
 
 from __future__ import annotations
@@ -35,18 +36,21 @@ def _ratio(n: int, d: int, digits: int = 4) -> float | None:
 
 
 def _finish(c: dict) -> dict:
-    known = c["M"] + c["T"] + c["E"]
+    exact = c["M"] + c["T"] + c["E"]
+    known = exact + c["~M"] + c["~T"]
     per = WINDOW_DAYS / PER_DAYS
     return {
         "publications": c["publications"],
         "pairs": c["pairs"],
         "counts": {"meaningful": c["M"], "technical": c["T"], "equivalent": c["E"], "unknown": c["U"],
+                   "estimated_meaningful": c["~M"], "estimated_technical": c["~T"],
                    "regressions": c["regressions"], "compared": c["compared"]},
         "coverage": _ratio(known, c["pairs"]),
+        "exact_coverage": _ratio(exact, c["pairs"]),
         "publication_frequency": round(c["publications"] / per, 2),
-        "meaningful_update_frequency": round(c["M"] / per, 2),
+        "meaningful_update_frequency": round((c["M"] + c["~M"]) / per, 2),
         "equivalent_republication_ratio": _ratio(c["E"], known),
-        "technical_only_change_ratio": _ratio(c["T"], known),
+        "technical_only_change_ratio": _ratio(c["T"] + c["~T"], known),
         "unknown_classification_ratio": _ratio(c["U"], c["pairs"]),
         "validation_regression_count": c["regressions"],
         "unclassified_diff_ratio": _ratio(c["unclassified"], c["raw"], 6),  # tiny: keep precision
@@ -61,7 +65,7 @@ def build_metrics(feeds: list[dict], catalog_gens: dict, report_index: dict, key
     `feeds` are the exported feeds with `pair` codes and full rule tuples (before compaction)."""
     start = today - _dt.timedelta(days=WINDOW_DAYS)
     inside = lambda value: (d := _date(value)) is not None and start < d <= today
-    fields = ("publications", "available", "pairs", "M", "T", "E", "U", "regressions", "compared", "unclassified", "raw")
+    fields = ("publications", "available", "pairs", "M", "T", "E", "~M", "~T", "U", "regressions", "compared", "unclassified", "raw")
     total = dict.fromkeys(fields, 0)
     out = {}
     for f in feeds:
@@ -76,7 +80,8 @@ def build_metrics(feeds: list[dict], catalog_gens: dict, report_index: dict, key
             if not inside(g.get("published_at")) or "pair" not in g:
                 continue
             c["pairs"] += 1
-            c[g["pair"][0]] += 1
+            code = g["pair"]
+            c[code if code.startswith("~") else code[0]] += 1
             if "FATAL" not in (prev["status"], g["status"]) and not g.get("format_transition"):
                 c["compared"] += 1
                 c["regressions"] += _regression(prev, g)

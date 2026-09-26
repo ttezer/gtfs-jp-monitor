@@ -66,6 +66,11 @@ class SignatureTest(unittest.TestCase):
             "wheelchair_boarding": 1, "platform_code": 1, "stop_code": 0, "stop_desc": 0, "parent_station": 0}}})
         self.assertEqual(self.sig({"stops.txt": stops})["signature"], self.sig({"stops.txt": stops})["signature"])
 
+    def test_stops_outside_japan(self):
+        stops = "stop_id,stop_name,stop_lat,stop_lon\nA,x,35.1,135.1\nB,y,134.98,34.58\nC,z,0,0\nD,w,,\n"
+        coords = self.sig({"stops.txt": stops})["fields"]["stops.txt"]["coordinates"]
+        self.assertEqual(coords, {"outside_japan": 1, "swapped": 1})
+
     def test_unreadable_zip_uses_the_zip_digest(self):
         doc = self.sig({}, raw=b"not a zip")
         self.assertEqual((doc["files"], doc["fields"], doc["signature"]), (None, None, "0" * 64))
