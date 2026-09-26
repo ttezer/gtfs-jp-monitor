@@ -10,7 +10,9 @@ diffs and semantic change reports (stops, lines, routes, timetables, service day
 Status: early development. Pipeline contracts are described in [docs/data-model.md](docs/data-model.md).
 
 The results are published daily at <https://ttezer.github.io/gtfs-jp-monitor/> (Turkish,
-English, Japanese). A comparison can be shared by its link (data-model §10.1).
+English, Japanese). A comparison can be shared by its link (data-model §10.1); each semantic
+report is also published as JSON at `reports/<org_id>/<feed_id>/<old_uid>__<new_uid>.json.gz`
+(data-model §10.0), and `status.json` tells when the site was last updated.
 
 ## Layout
 

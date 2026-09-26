@@ -181,6 +181,21 @@ After the data commit the job rebuilds the public web site from the data reposit
 (`export-web`, one gzip-compressed file per report) and a second job deploys it to GitHub Pages;
 only that job has `pages: write` and `id-token: write`.
 
+### §10.0 Site files
+
+`export-web` writes the public site:
+
+```text
+index.html                                          the page with its data embedded
+status.json                                         status and sizes (§10.2)
+reports/index.json.gz                               summary of every report, loaded after the page
+reports/<org_id>/<feed_id>/<old_uid>__<new_uid>.json.gz   one semantic report (§11)
+```
+
+The embedded data keeps per publication only the count of each rule; the rule's severity and
+class are stored once in `rule_meta`, and a publication repeats them only where they differ.
+Report files are the machine-readable form of the reports, at a stable address per pair.
+
 ### §10.1 Page links
 
 The page keeps its view in the URL fragment, so a comparison can be shared:
