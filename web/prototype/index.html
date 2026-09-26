@@ -56,6 +56,8 @@ header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20p
 .langs button { border: 0; background: transparent; padding: 4px 12px; border-radius: 999px; cursor: pointer; color: var(--muted); }
 .langs button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgb(0 0 0 / .08); }
 
+.notice .fresh { font-weight: 500; }
+.notice .stale { color: var(--bad); }
 .notice { margin-top: 12px; display: flex; gap: 10px; align-items: flex-start; background: var(--warn-soft); color: var(--ink);
   border-radius: var(--r); padding: 10px 14px; font-size: 13px; }
 .notice b { color: var(--warn); }
@@ -273,6 +275,10 @@ const PREFS = [["北海道","Hokkaido"],["青森県","Aomori"],["岩手県","Iwa
 const T = {
   tr: {
     tagline: "Feed kalitesi, yayına hazırlık ve değişiklik geçmişi",
+    updated: (ago, when) => `Son güncelleme: ${ago} önce (${when} JST).`,
+    stale: h => `Veriler ${h} saattir güncellenmedi; günlük koşu aksamış olabilir.`,
+    backlog: (a, r) => `Analiz bekleyen ${a} eski yayın, rapor bekleyen ${r} çift.`,
+    ago: { m: n => `${n} dakika`, h: n => `${n} saat`, d: n => `${n} gün` },
     linkMissing: "Bağlantıdaki feed ya da yayın bu sayfada yok; bağlantı yok sayıldı.",
     notice: (f, g, rel, prof) => `<b>Önizleme.</b> ${f} feed, ${g} yayın; GTFS Analyzer ${rel} (${prof} profili). Yayınlar en yeniden eskiye doğru analiz ediliyor; henüz analiz edilmemiş eski yayınlar her gün arka planda ekleniyor. Semantic değişiklik raporları her gün en yeni yayın çiftlerinden başlayarak ekleniyor (Diff Raporları sekmesi).`,
     overview: "Genel Bakış", history: "Feed Geçmişi", reports: "Diff Raporları", gtfsjp: "GTFS-JP",
@@ -305,6 +311,10 @@ const T = {
   },
   en: {
     tagline: "Feed quality, publication readiness and change history",
+    updated: (ago, when) => `Last updated ${ago} ago (${when} JST).`,
+    stale: h => `No update for ${h} hours; the daily run may have stopped.`,
+    backlog: (a, r) => `${a} older publications waiting for analysis, ${r} pairs waiting for a report.`,
+    ago: { m: n => `${n} minute${n === 1 ? "" : "s"}`, h: n => `${n} hour${n === 1 ? "" : "s"}`, d: n => `${n} day${n === 1 ? "" : "s"}` },
     linkMissing: "The feed or publication in the link is not on this page; the link was ignored.",
     notice: (f, g, rel, prof) => `<b>Preview.</b> ${f} feeds, ${g} publications; GTFS Analyzer ${rel} (${prof} profile). Publications are analysed newest first; older ones not analysed yet are added daily in the background. Semantic change reports are added daily, newest publication pairs first (Diff reports tab).`,
     overview: "Overview", history: "Feed history", reports: "Diff reports", gtfsjp: "GTFS-JP",
@@ -337,6 +347,10 @@ const T = {
   },
   ja: {
     tagline: "フィードの品質・公開準備・変更履歴",
+    updated: (ago, when) => `最終更新：${ago}前（${when} JST）。`,
+    stale: h => `${h}時間更新がありません。毎日の実行が止まっている可能性があります。`,
+    backlog: (a, r) => `解析待ちの古い公開 ${a} 件、レポート待ちのペア ${r} 件。`,
+    ago: { m: n => `${n}分`, h: n => `${n}時間`, d: n => `${n}日` },
     linkMissing: "リンクのフィードまたは公開はこのページにありません。リンクは無視されました。",
     notice: (f, g, rel, prof) => `<b>プレビュー。</b>${f}フィード・${g}公開分、GTFS Analyzer ${rel}（${prof}プロファイル）。公開は新しいものから順に解析しており、未解析の古い公開は毎日バックグラウンドで追加されます。セマンティック変更レポートは新しい公開ペアから毎日追加されています（差分レポートタブ）。`,
     overview: "概要", history: "フィード履歴", reports: "差分レポート", gtfsjp: "GTFS-JP",
@@ -1585,11 +1599,22 @@ function renderHistory() {
     <th class="r">Publish</th><th class="r">Overall</th><th>${esc(t("rid"))}</th><th>${esc(t("jpFiles"))}</th><th>${esc(t("memo"))}</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
+const STALE_HOURS = 36;
+// Freshness and pending work from the export's status block (data-model §10.2).
+function statusNote(st, lang, nowMs) {
+  if (!st || !st.built_at) return "";
+  const built = Date.parse(st.built_at), mins = Math.max(0, Math.floor((nowMs - built) / 60000));
+  const units = T[lang].ago, ago = mins < 60 ? units.m(mins) : mins < 48 * 60 ? units.h(Math.floor(mins / 60)) : units.d(Math.floor(mins / 1440));
+  const when = new Date(built).toLocaleString("sv-SE", { timeZone: "Asia/Tokyo" }).slice(0, 16);
+  const b = st.backlog || {};
+  return [T[lang].updated(ago, when), mins >= STALE_HOURS * 60 ? T[lang].stale(Math.floor(mins / 60)) : "",
+          b.unanalysed || b.reports_pending ? T[lang].backlog(b.unanalysed || 0, b.reports_pending || 0) : ""].filter(Boolean).join(" ");
+}
 function renderStatic() {
   document.documentElement.lang = state.lang;
   $("tagline").textContent = t("tagline");
   const [rel, prof] = (DATA.analysis_key || "").split("__");
-  $("notice").innerHTML = `<span>${t("notice", DATA.feeds.length, DATA.feeds.reduce((n, f) => n + f.generations.length, 0), esc(rel || ""), esc(prof || ""))}</span>${state.linkMissing ? `<span> ${esc(t("linkMissing"))}</span>` : ""}`;
+  $("notice").innerHTML = `<span>${t("notice", DATA.feeds.length, DATA.feeds.reduce((n, f) => n + f.generations.length, 0), esc(rel || ""), esc(prof || ""))}${state.linkMissing ? ` ${esc(t("linkMissing"))}` : ""}<br><b class="${DATA.status && Date.now() - Date.parse(DATA.status.built_at) >= STALE_HOURS * 3600000 ? "stale" : "fresh"}">${esc(statusNote(DATA.status, state.lang, Date.now()))}</b></span>`;
   document.querySelectorAll("[data-t]").forEach(el => { el.textContent = t(el.dataset.t); });
   document.querySelectorAll("nav.tabs button").forEach(b => { b.textContent = t(b.dataset.tab); b.setAttribute("aria-selected", String(b.dataset.tab === state.tab)); });
   document.querySelectorAll(".langs button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.lang === state.lang)));

@@ -183,9 +183,31 @@ def _cmd_export_web(args: argparse.Namespace) -> int:
         for name, docs in bundles.items():
             data = gzip_bytes(docs) if ext == ".json.gz" else dumps(docs).encode("utf-8")
             (out / f"{name}{ext}").write_bytes(data)
+        # Operational status for monitoring (watchdog, storage check): the export's status plus the
+        # size of the site just written.
+        site = Path(args.html).parent
+        status = dict(export["status"], site_bytes=sum(p.stat().st_size for p in site.rglob("*") if p.is_file()))
+        (site / "status.json").write_text(json.dumps(status, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"feeds": len(export["feeds"]),
                       "generations": sum(len(f["generations"]) for f in export["feeds"]),
                       "reports": len(export["report_index"]), "bundles": len(bundles)}, indent=2))
+    return 0
+
+
+def _cmd_check_storage(args: argparse.Namespace) -> int:
+    from .webexport import storage_warnings
+
+    status = json.loads(Path(args.status).read_text(encoding="utf-8"))
+    repo = args.repo_kb * 1024 if args.repo_kb is not None else None
+    st = status["storage"]
+    mib = lambda b: f"{b / 2**20:.1f} MiB" if b is not None else "unknown"
+    lines = [f"| data repository (with history) | {mib(repo)} |", f"| data working tree | {mib(st['data_bytes'])} |",
+             f"| reports ({st['reports']['count']}, avg {st['reports']['avg_bytes'] // 1024} KiB, "
+             f"max {st['reports']['max_bytes'] // 1024} KiB) | {mib(st['reports']['bytes'])} |",
+             f"| web site | {mib(status.get('site_bytes'))} |"]
+    print("| Storage | Size |\n|---|---|\n" + "\n".join(lines))
+    for w in storage_warnings(status, repo):
+        print(f"::warning::{w}")
     return 0
 
 
@@ -260,6 +282,11 @@ def main(argv: list[str] | None = None) -> int:
     web.add_argument("--bundle-format", choices=("gz", "json"), default="gz",
                      help="report bundles next to the page: gzip (default) or plain JSON for hosts that do not serve .gz")
     web.set_defaults(func=_cmd_export_web)
+
+    chk = sub.add_parser("check-storage", help="print storage sizes and warn past 75%% of a budget (data-model §10.2)")
+    chk.add_argument("--status", required=True, help="status.json written by export-web")
+    chk.add_argument("--repo-kb", type=int, help="size of the data repository with history, in KiB (GitHub API)")
+    chk.set_defaults(func=_cmd_check_storage)
 
     args = parser.parse_args(argv)
     if getattr(args, "min_interval", 1.0) < 0.5:

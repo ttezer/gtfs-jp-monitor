@@ -90,6 +90,27 @@ class WebPageTest(unittest.TestCase):
             "#feed=org/feed-1&old=a&new=b", "",
         ])
 
+    @unittest.skipUnless(shutil.which("node"), "node is not installed")
+    def test_status_note(self):
+        start = self.html.index("const T = {")
+        texts = self.html[start:self.html.index("\n};\n", start) + 3]
+        source = texts + "const STALE_HOURS = 36;\n" + self.functions("statusNote")
+        cases = """
+        const built = Date.parse("2026-09-26T19:30:00Z");
+        const st = { built_at: "2026-09-26T19:30:00Z", backlog: { unanalysed: 12, reports_pending: 0 } };
+        console.log(JSON.stringify([
+          statusNote(st, "en", built + 5 * 3600000), statusNote({ ...st, backlog: {} }, "tr", built + 40 * 3600000),
+          statusNote(st, "ja", built + 3 * 86400000), statusNote(null, "en", built)]));
+        """
+        proc = subprocess.run(["node", "-e", source + cases], capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(json.loads(proc.stdout), [
+            "Last updated 5 hours ago (2026-09-27 04:30 JST). 12 older publications waiting for analysis, 0 pairs waiting for a report.",
+            "Son güncelleme: 40 saat önce (2026-09-27 04:30 JST). Veriler 40 saattir güncellenmedi; günlük koşu aksamış olabilir.",
+            "最終更新：3日前（2026-09-27 04:30 JST）。 72時間更新がありません。毎日の実行が止まっている可能性があります。 解析待ちの古い公開 12 件、レポート待ちのペア 0 件。",
+            "",
+        ])
+
 
 if __name__ == "__main__":
     unittest.main()

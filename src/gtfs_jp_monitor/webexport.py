@@ -8,6 +8,7 @@ export and written as per-prefecture bundles the page loads on demand.
 
 from __future__ import annotations
 
+import datetime as _dt
 import gzip
 import json
 import subprocess
@@ -93,6 +94,47 @@ def report_bundles(root: Path, feeds: list[dict], engine_version: str) -> tuple[
     return index, bundles
 
 
+def _bytes(paths) -> tuple[int, int, int]:
+    sizes = [p.stat().st_size for p in paths]
+    return len(sizes), sum(sizes), max(sizes, default=0)
+
+
+def build_status(root: Path, key: str, now: _dt.datetime | None = None) -> dict:
+    """Operational status for the page and status.json: when the site was built, the last analysis
+    run record, work still to do, and the size of the stored data (the working tree; the git
+    history of the data repository is measured separately by the workflow)."""
+    from .changes import find_pending_reports
+    from .ids import is_path_id
+    from .pipeline import find_pending
+
+    now = now or _dt.datetime.now(_dt.timezone.utc)
+    _, catalog_gens = load_catalog(root)
+    feeds = [fk for fk in sorted(catalog_gens) if all(is_path_id(x) for x in fk)]
+    stored = {fk: list_analyses(root, *fk) for fk in feeds}
+    runs = sorted((root / "runs").glob("*/*.json"))
+    last_run = None
+    if runs:
+        doc = json.loads(runs[-1].read_text(encoding="utf-8"))
+        last_run = {k: doc.get(k) for k in ("run_id", "started_at", "finished_at", "trigger")}
+    base = root / "feeds"
+    n_reports, report_bytes, report_max = _bytes(base.glob("*/*/changes/*/*.report.json.gz"))
+    storage = {
+        "reports": {"count": n_reports, "bytes": report_bytes, "max_bytes": report_max,
+                    "avg_bytes": report_bytes // n_reports if n_reports else 0},
+        "analyses_bytes": _bytes(p for p in base.glob("*/*/generations/*/*.json") if p.name != "content.json")[1],
+        "signatures_bytes": _bytes(base.glob("*/*/generations/*/content.json"))[1],
+        "diffs_bytes": _bytes(base.glob("*/*/diffs/*/*.json"))[1],
+        "data_bytes": _bytes(p for p in root.rglob("*") if p.is_file() and ".git" not in p.relative_to(root).parts)[1],
+    }
+    return {
+        "built_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "last_run": last_run,
+        "backlog": {"unanalysed": len(find_pending(catalog_gens, stored, key)),
+                    "reports_pending": len(find_pending_reports(root, feeds, key, ENGINE_VERSION, catalog_gens))},
+        "storage": storage,
+    }
+
+
 def build_export(data_dir: Path, key: str, analyzer: Path | None = None) -> tuple[dict, dict[str, dict]]:
     """(export for the page, report bundles to write next to it)."""
     root = Path(data_dir)
@@ -137,4 +179,22 @@ def build_export(data_dir: Path, key: str, analyzer: Path | None = None) -> tupl
         "rule_titles": rule_titles(analyzer, rule_ids) if analyzer else {lang: {} for lang in LANGS},
         "engine_version": ENGINE_VERSION,
         "report_index": report_index,
+        "status": build_status(root, key),
     }, bundles
+
+
+# Storage budgets (data-model §10.2). The repository budget is the project's own limit, not
+# GitHub's; the site limit is the GitHub Pages limit for a published site.
+REPO_BUDGET_BYTES = 1 << 30
+SITE_LIMIT_BYTES = 1 << 30
+WARN_SHARE = 0.75
+
+
+def storage_warnings(status: dict, repo_bytes: int | None) -> list[str]:
+    """Warnings for sizes past WARN_SHARE of their budget."""
+    out = []
+    for name, size, budget in (("data repository (with history)", repo_bytes, REPO_BUDGET_BYTES),
+                               ("web site", status.get("site_bytes"), SITE_LIMIT_BYTES)):
+        if size is not None and size >= WARN_SHARE * budget:
+            out.append(f"{name} is {size / 2**20:.0f} MiB, {size / budget:.0%} of its {budget / 2**20:.0f} MiB budget")
+    return out

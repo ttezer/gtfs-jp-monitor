@@ -181,6 +181,29 @@ uids, never positions, so they keep working when publications are merged or regr
 The page rewrites the fragment with `history.replaceState` as the view changes, so browsing adds
 no history entries. Changing this format breaks shared links.
 
+### §10.2 Status and storage
+
+`export-web` embeds a `status` block in the page and writes the same as `status.json` next to
+it, plus `site_bytes`:
+
+- `built_at`: when the site was built. The site is rebuilt after every run, so this is the
+  heartbeat; run records (§4.1) are written only when data changed and cannot serve as one.
+  `last_run` is the newest run record.
+- `backlog`: publications not analysed yet for the key and report pairs still pending (§11).
+- `storage`: sizes of the data working tree, reports (count, total, average, largest),
+  analyses, content signatures and diffs.
+
+The page shows how long ago the site was built and marks it stale after 36 hours.
+`check-storage` writes the sizes to the job summary and warns past 75% of a budget: the
+project's own budget of 1 GiB for the data repository with its history (read from the GitHub
+API; a shallow checkout cannot measure it) and the 1 GiB GitHub Pages limit for the site.
+Deleting files does not shrink the history, so stored data is budgeted by its growth.
+
+A watchdog workflow in the data repository (private, and committed to every night, so it is not
+disabled for inactivity like a public repository's schedule) reads the published `status.json`
+daily and fails when `built_at` is more than 30 hours old; GitHub then notifies by e-mail. It
+catches a monitoring workflow that fails and one that does not start at all.
+
 ## §11 Semantic change reports
 
 - Reports cover only the publications the page shows: grouped as the page groups them, from

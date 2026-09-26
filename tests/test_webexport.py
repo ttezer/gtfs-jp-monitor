@@ -8,7 +8,7 @@ from gtfs_jp_monitor.catalog import sync_catalog
 from gtfs_jp_monitor.store import change_path, generation_path
 from gtfs_jp_semantic import ENGINE_VERSION
 from gtfs_jp_semantic.rawdiff import gzip_bytes
-from gtfs_jp_monitor.webexport import build_export
+from gtfs_jp_monitor.webexport import build_export, storage_warnings
 
 from .schema_support import FIXTURES, load_json
 from .test_catalog import FEED, ORG, FakeClient, feed_record, gen, uid
@@ -37,6 +37,11 @@ class WebExportTest(unittest.TestCase):
         self.assertEqual(g["rules"]["JPN_030"], [4, "MEDIUM", "QUALITY"])
         self.assertEqual(export["rule_titles"], {"tr": {}, "en": {}, "ja": {}})
         self.assertEqual((export["report_index"], bundles), ({}, {}))
+        status = export["status"]
+        self.assertEqual((status["backlog"], status["last_run"]), ({"unanalysed": 1, "reports_pending": 0}, None))
+        self.assertEqual(status["storage"]["reports"], {"count": 0, "bytes": 0, "max_bytes": 0, "avg_bytes": 0})
+        self.assertGreater(status["storage"]["analyses_bytes"], 0)
+        self.assertRegex(status["built_at"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
 
     def test_indexes_and_bundles_stored_reports(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -78,6 +83,13 @@ class WebExportTest(unittest.TestCase):
             _, bundles = build_export(root, KEY)
         (doc,) = bundles["pref-10"].values()
         self.assertEqual(doc["header"]["old"]["memo"], "new")  # newest not above this engine
+
+class StorageTest(unittest.TestCase):
+    def test_warns_past_three_quarters_of_a_budget(self):
+        self.assertEqual(storage_warnings({"site_bytes": 200 << 20}, 700 << 20), [])
+        self.assertEqual(storage_warnings({"site_bytes": 800 << 20}, None),
+                         ["web site is 800 MiB, 78% of its 1024 MiB budget"])
+        self.assertEqual(len(storage_warnings({}, 900 << 20)), 1)
 
 if __name__ == "__main__":
     unittest.main()
