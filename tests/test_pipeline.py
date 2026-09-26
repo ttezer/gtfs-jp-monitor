@@ -161,7 +161,7 @@ class PipelineTest(unittest.TestCase):
         self.run_it(dl)
         for n in (1, 2, 3):  # as analysed before content signatures existed
             content_path(self.data, ORG, FEED, uid(n)).unlink()
-        result = self.run_it(dl, signature_limit=1)
+        result = self.run_it(dl, signature_limit=1, fields_limit=0)
         # All three have the same summary; newest first and one per run, and none is equivalent yet.
         self.assertEqual((result.counts["analyzed"], result.counts["signed"], dl.calls[3:]), (0, 1, [uid(3)]))
         self.assertTrue(content_path(self.data, ORG, FEED, uid(3)).exists())
@@ -170,6 +170,19 @@ class PipelineTest(unittest.TestCase):
         flags = {g["uid"]: g["analyses"][0]["equivalent_to_previous"] for g in index["generations"]}
         self.assertEqual(flags, {uid(1): False, uid(2): True, uid(3): False})
         self.assertEqual(self.run_it(dl).changed_files, [])  # nothing left to sign
+
+    def test_shown_publications_get_field_counts(self):
+        dl = FakeDownloader({uid(1): b"OK1", uid(2): b"OK2", uid(3): b"OK3"})
+        self.run_it(dl)
+        for n in (1, 2, 3):  # records from before field counts existed
+            path = content_path(self.data, ORG, FEED, uid(n))
+            doc = json.loads(path.read_text())
+            del doc["fields"]
+            path.write_text(json.dumps(doc))
+        result = self.run_it(dl, fields_limit=2)
+        self.assertEqual((result.counts["signed"], len(dl.calls)), (2, 5))  # two more downloads
+        self.run_it(dl)
+        self.assertTrue(all("fields" in json.loads(content_path(self.data, ORG, FEED, uid(n)).read_text()) for n in (1, 2, 3)))
 
     def test_unpinned_binary_refuses_unmarked_directory(self):
         (self.data / UNPINNED_MARKER).unlink()

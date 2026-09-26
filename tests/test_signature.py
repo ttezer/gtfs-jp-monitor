@@ -59,9 +59,16 @@ class SignatureTest(unittest.TestCase):
                          {"stops.txt": "raw_bytes", "shift.txt": "raw_bytes", "image.png": "raw_bytes"})
         self.differ({"shift.txt": b"a\n\x82\xa0\n"}, {"shift.txt": b"a\n\x82\xa1\n"})
 
+    def test_field_counts(self):
+        stops = "stop_id,stop_name,wheelchair_boarding,platform_code\nA,x,1,\nB,y,0,2\nC,z,,\n"
+        doc = self.sig({"stops.txt": stops, "agency.txt": "agency_id\n1\n"})
+        self.assertEqual(doc["fields"], {"stops.txt": {"rows": 3, "filled": {
+            "wheelchair_boarding": 1, "platform_code": 1, "stop_code": 0, "stop_desc": 0, "parent_station": 0}}})
+        self.assertEqual(self.sig({"stops.txt": stops})["signature"], self.sig({"stops.txt": stops})["signature"])
+
     def test_unreadable_zip_uses_the_zip_digest(self):
         doc = self.sig({}, raw=b"not a zip")
-        self.assertEqual((doc["files"], doc["signature"]), (None, "0" * 64))
+        self.assertEqual((doc["files"], doc["fields"], doc["signature"]), (None, None, "0" * 64))
 
 
 if __name__ == "__main__":

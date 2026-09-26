@@ -52,6 +52,9 @@ RUN_SCHEMA = "gtfs-jp-monitor-run/1"
 # Publications analysed before content signatures existed get one when they may be equivalent
 # (same analysis summary as a neighbour); at most this many downloads per run.
 SIGNATURE_LIMIT = 200
+# Publications the page shows get field counts (data-model §15) when their record predates them;
+# at most this many downloads per run.
+FIELDS_LIMIT = 200
 
 FeedKey = tuple[str, str]
 Downloader = Callable[[str, Path], object]
@@ -131,6 +134,7 @@ def run_analysis(
     now: Callable[[], _dt.datetime] = _utc_now,
     extra_warnings: list[dict] | None = None,
     signature_limit: int = SIGNATURE_LIMIT,
+    fields_limit: int = FIELDS_LIMIT,
 ) -> RunReport:
     root = Path(data_dir)
     check_writable(root, binary.is_pinned)
@@ -207,9 +211,13 @@ def run_analysis(
             finally:
                 zip_path.unlink(missing_ok=True)
 
-        candidates = [(fk, u) for fk in sorted(catalog_gens) if stored.get(fk) and all(is_path_id(x) for x in fk)
-                      for u in _signature_candidates(root, fk, catalog_gens[fk], stored[fk], key)]
-        for fk, uid in candidates[:signature_limit]:
+        feeds = [fk for fk in sorted(catalog_gens) if stored.get(fk) and all(is_path_id(x) for x in fk)]
+        candidates = [(fk, u) for fk in feeds for u in _signature_candidates(root, fk, catalog_gens[fk], stored[fk], key)]
+        candidates = candidates[:signature_limit]
+        seen = set(candidates)
+        extra = [(fk, u) for fk in feeds for u in _field_candidates(root, fk, catalog_gens[fk], stored[fk], key)]
+        candidates += [c for c in extra if c not in seen][:fields_limit]
+        for fk, uid in candidates:
             zip_path = work / f"{uid}.zip"
             try:
                 try:
@@ -261,7 +269,7 @@ def run_analysis(
 def _write_signature(root: Path, org_id: str, feed_id: str, uid: str, zip_path: Path, sha256: str) -> bool:
     """Write the content signature unless one exists for these ZIP bytes."""
     current = load_content(root, org_id, feed_id, uid)
-    if current is not None and current.get("zip_sha256") == sha256:
+    if current is not None and current.get("zip_sha256") == sha256 and "fields" in current:
         return False
     write_json(content_path(root, org_id, feed_id, uid), content_signature(zip_path, sha256))
     return True
@@ -288,6 +296,23 @@ def _signature_candidates(root: Path, fk: FeedKey, entries: dict[str, dict], ana
         if digest in neighbours and (content is None or content.get("zip_sha256") != sha) and entries[uid].get("present", True):
             wanted.append(uid)
     return list(reversed(wanted))
+
+
+def _field_candidates(root: Path, fk: FeedKey, entries: dict[str, dict], analyses: dict[str, dict[str, str]],
+                      key: str) -> list[str]:
+    """Publications the page shows (by the feed index of the previous run) whose content record has
+    no field counts yet."""
+    from .changes import window_uids
+
+    index = load_feed_index(root, *fk)
+    if index is None:
+        return []
+    out = []
+    for uid in sorted(window_uids(index, key, entries)):
+        content = load_content(root, *fk, uid)
+        if key in analyses.get(uid, {}) and entries.get(uid, {}).get("present", True) and (content is None or "fields" not in content):
+            out.append(uid)
+    return out
 
 
 def _catalog_order(by_uid: dict[str, dict]) -> list[dict]:

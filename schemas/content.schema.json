@@ -10,6 +10,24 @@
     "schema": { "const": "gtfs-jp-monitor-content/1" },
     "zip_sha256": { "$ref": "generation.schema.json#/$defs/sha256", "description": "The ZIP bytes the signature was computed from; it counts only when it equals the analysed ZIP." },
     "signature": { "$ref": "generation.schema.json#/$defs/sha256" },
+    "fields": {
+      "description": "How often selected optional fields are filled (data-model §15): per file, its rows and, per field, the rows with a value (for wheelchair and bike fields, 1 or 2). Null when the ZIP could not be read; absent in records written before it existed.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["rows", "filled"],
+            "properties": {
+              "rows": { "type": "integer", "minimum": 0 },
+              "filled": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } }
+            }
+          }
+        }
+      ]
+    },
     "files": {
       "description": "Per ZIP member; null when the ZIP could not be read, so the signature is the ZIP digest.",
       "oneOf": [

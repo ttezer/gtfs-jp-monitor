@@ -189,6 +189,7 @@ only that job has `pages: write` and `id-token: write`.
 index.html                                          the page with its data embedded
 status.json                                         status and sizes (§10.2)
 metrics.json                                        metrics of the last 365 days (§13), loaded after the page
+fields.json.gz                                      field filling per publication (§15), loaded after the page
 reports/index.json.gz                               summary of every report, loaded after the page
 reports/<org_id>/<feed_id>/<old_uid>__<new_uid>.json.gz   one semantic report (§11)
 ```
@@ -337,3 +338,23 @@ reports and no storage:
 
 Dwell times need arrival times at every stop, which reports do not store; they wait for a
 change of the engine version (§11).
+
+## §15 Field filling
+
+The content signature pass (§4.2) also counts how often selected optional fields are filled and
+stores it in `content.json` as `fields`: per file, its rows and, per field, the rows with a value.
+A tracked column the file does not have counts as never filled. For `wheelchair_boarding`,
+`wheelchair_accessible` and `bikes_allowed` only 1 and 2 count, since 0 means "no information".
+
+| File | Fields |
+|---|---|
+| `stops.txt` | `wheelchair_boarding`, `platform_code`, `stop_code`, `stop_desc`, `parent_station` |
+| `routes.txt` | `route_color`, `route_text_color`, `route_url`, `route_desc` |
+| `trips.txt` | `wheelchair_accessible`, `bikes_allowed`, `trip_headsign`, `trip_short_name`, `shape_id` |
+| `stop_times.txt` | `stop_headsign`, `pickup_type`, `drop_off_type`, `timepoint` |
+
+New publications get the counts when they are analysed. Publications the page shows whose
+record predates the counts are downloaded again and counted, at most 200 per run; there is no
+separate pipeline. `export-web` writes the shares as `fields.json.gz`, and the page compares the
+two selected publications. Whether a file such as `translations.txt` or `shapes.txt` exists is
+already in the record's `files`.

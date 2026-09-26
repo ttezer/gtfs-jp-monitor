@@ -298,6 +298,9 @@ const T = {
     mPairs: (m, t, e, u) => `${m} anlamlı · ${t} teknik · ${e} eşdeğer · ${u} bilinmiyor`,
     mOf: (n, d) => `${n} / ${d} çift`,
     mNote: (from, to, key, eng) => `${from} – ${to} · ${key} · motor ${eng}. Oranlar sınıfı bilinen çiftler üzerinden; bilinmeyen çiftler tahmin edilmez.`,
+    s6: "Veri alanları", fieldCols: ["Alan", "Eski", "Yeni", "Δ"],
+    fieldNone: "Bu yayınlar için alan doluluğu henüz ölçülmedi; sayfada görünen yayınlar gece gece dolduruluyor.",
+    fieldNote: "Dolu satırların yüzdesi. Tekerlekli sandalye ve bisiklet alanlarında yalnız 1 ve 2 değerleri sayılır (0 = bilgi yok).",
     notice: (f, g, rel, prof) => `<b>Önizleme.</b> ${f} feed, ${g} yayın; GTFS Analyzer ${rel} (${prof} profili). Yayınlar en yeniden eskiye doğru analiz ediliyor; henüz analiz edilmemiş eski yayınlar her gün arka planda ekleniyor. Semantic değişiklik raporları her gün en yeni yayın çiftlerinden başlayarak ekleniyor (Diff Raporları sekmesi).`,
     overview: "Genel Bakış", history: "Feed Geçmişi", reports: "Diff Raporları", gtfsjp: "GTFS-JP",
     search: "Feed ara", prefecture: "İl", readiness: "Yayın durumu", sort: "Sırala", all: "Tümü",
@@ -341,6 +344,9 @@ const T = {
     mPairs: (m, t, e, u) => `${m} meaningful · ${t} technical · ${e} equivalent · ${u} unknown`,
     mOf: (n, d) => `${n} of ${d} pairs`,
     mNote: (from, to, key, eng) => `${from} – ${to} · ${key} · engine ${eng}. Ratios are over pairs with a known class; unknown pairs are not guessed.`,
+    s6: "Data fields", fieldCols: ["Field", "Old", "New", "Δ"],
+    fieldNone: "Field filling has not been measured for these publications yet; the publications the page shows are filled in night by night.",
+    fieldNote: "Share of rows with a value. For wheelchair and bike fields only 1 and 2 count (0 = no information).",
     notice: (f, g, rel, prof) => `<b>Preview.</b> ${f} feeds, ${g} publications; GTFS Analyzer ${rel} (${prof} profile). Publications are analysed newest first; older ones not analysed yet are added daily in the background. Semantic change reports are added daily, newest publication pairs first (Diff reports tab).`,
     overview: "Overview", history: "Feed history", reports: "Diff reports", gtfsjp: "GTFS-JP",
     search: "Search feeds", prefecture: "Prefecture", readiness: "Readiness", sort: "Sort", all: "All",
@@ -384,6 +390,9 @@ const T = {
     mPairs: (m, t, e, u) => `意味のある変更 ${m} · 技術的 ${t} · 同等 ${e} · 不明 ${u}`,
     mOf: (n, d) => `${d}ペア中 ${n}`,
     mNote: (from, to, key, eng) => `${from} – ${to} · ${key} · エンジン ${eng}。割合は分類が判明したペアに対する値で、不明なペアは推定しません。`,
+    s6: "データ項目", fieldCols: ["項目", "旧", "新", "Δ"],
+    fieldNone: "これらの公開の項目充足率はまだ測定されていません。ページに表示される公開から毎晩順に測定しています。",
+    fieldNote: "値が入っている行の割合。車椅子・自転車の項目は 1 と 2 のみを数えます（0 = 情報なし）。",
     notice: (f, g, rel, prof) => `<b>プレビュー。</b>${f}フィード・${g}公開分、GTFS Analyzer ${rel}（${prof}プロファイル）。公開は新しいものから順に解析しており、未解析の古い公開は毎日バックグラウンドで追加されます。セマンティック変更レポートは新しい公開ペアから毎日追加されています（差分レポートタブ）。`,
     overview: "概要", history: "フィード履歴", reports: "差分レポート", gtfsjp: "GTFS-JP",
     search: "フィード検索", prefecture: "都道府県", readiness: "公開状態", sort: "並び替え", all: "すべて",
@@ -1671,7 +1680,8 @@ function renderPanel() {
       <div><h3>2. ${esc(t("s2"))}</h3><table class="mini"><thead><tr><th></th><th class="r">${esc(t("before"))}</th><th class="r">${esc(t("after"))}</th><th class="r">Δ</th></tr></thead><tbody>${metricRows}</tbody></table></div>
       <div><h3>3. ${esc(t("s3"))}</h3>${ruleTable}${sameBtn}</div>
       <div><h3>4. ${esc(t("s4"))}</h3>${panelSemantic()}</div>
-      <div><h3>5. ${esc(t("s5"))}</h3>${metricsBlock(TIMELINE && TIMELINE.feeds[key(f)], TIMELINE)}</div>`;
+      <div><h3>5. ${esc(t("s5"))}</h3>${metricsBlock(TIMELINE && TIMELINE.feeds[key(f)], TIMELINE)}</div>
+      <div><h3>6. ${esc(t("s6"))}</h3>${fieldsBlock(a, b)}</div>`;
   }
   panel.innerHTML = `<div class="ph"><h2>${esc(f.name)}</h2>
       <div class="meta"><span>${esc(f.organization_name)}</span><span>${esc(prefName(f.pref_id))}</span><span>${esc(t("license"))}: ${esc(f.license)}</span></div>
@@ -1748,6 +1758,21 @@ function metricsBlock(m, M) {
   return `<table class="mini">${rows.map(([k, v]) => `<tr><td>${esc(k)}</td><td class="r num">${esc(String(v))}</td></tr>`).join("")}</table>
     <p class="hint">${esc(T[state.lang].mNote(M.from, M.to, M.analysis_key, M.engine_version))}</p>`;
 }
+// Field filling per publication (data-model §15), from fields<ext> loaded after the page.
+let FIELDS = null;
+function fieldsBlock(a, b) {
+  if (!FIELDS) return `<p class="hint">${esc(rt("loading"))}</p>`;
+  const x = FIELDS[a.uid], y = FIELDS[b.uid];
+  if (!x && !y) return `<p class="hint">${esc(t("fieldNone"))}</p>`;
+  const rows = [];
+  for (const file of [...new Set([...Object.keys(x || {}), ...Object.keys(y || {})])].sort())
+    for (const c of [...new Set([...Object.keys((x || {})[file] || {}), ...Object.keys((y || {})[file] || {})])].filter(c => c !== "rows").sort()) {
+      const p = x && x[file] ? x[file][c] ?? null : null, q = y && y[file] ? y[file][c] ?? null : null;
+      const d = p != null && q != null ? q - p : null;
+      rows.push(`<tr><td class="num">${esc(file.replace(".txt", ""))}.${esc(c)}</td><td class="r">${p == null ? "—" : p + "%"}</td><td class="r">${q == null ? "—" : q + "%"}</td><td class="r ${d > 0 ? "up" : d < 0 ? "down" : "flat"}">${d == null ? "" : signed(d)}</td></tr>`);
+    }
+  return `<table class="mini"><thead><tr>${t("fieldCols").map((c, i) => `<th${i ? ' class="r"' : ""}>${esc(c)}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table><p class="hint">${esc(t("fieldNote"))}</p>`;
+}
 const STALE_HOURS = 36;
 // Freshness and pending work from the export's status block (data-model §10.2).
 function statusNote(st, lang, nowMs) {
@@ -1819,6 +1844,7 @@ $("merge").addEventListener("change", e => { state.merge = e.target.checked; sta
 
 readLink();
 renderAll();
+fetchJson(`fields${EXT}`).then(x => { FIELDS = x; renderPanel(); }).catch(err => { FIELDS = {}; console.error("fields", err); renderPanel(); });
 if (!TIMELINE) {
   fetchJson("metrics.json").then(m => { TIMELINE = m; renderTotals(); renderPanel(); })
     .catch(err => console.error("metrics", err));

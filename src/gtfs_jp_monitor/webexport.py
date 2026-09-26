@@ -184,11 +184,18 @@ def compact_rules(feeds: list[dict]) -> dict[str, list[str]]:
     return meta
 
 
+def field_shares(fields: dict) -> dict:
+    """{file: {"rows": n, field: percent of rows filled}} (data-model §15)."""
+    return {name: dict({"rows": v["rows"]}, **{c: round(100 * n / v["rows"]) if v["rows"] else 0 for c, n in sorted(v["filled"].items())})
+            for name, v in sorted(fields.items())}
+
+
 def build_export(data_dir: Path, key: str, analyzer: Path | None = None) -> tuple[dict, dict[str, dict]]:
     """(export for the page, report files to write next to it)."""
     root = Path(data_dir)
     catalog_feeds, catalog_gens = load_catalog(root)
     feeds = []
+    fields: dict[str, dict] = {}  # uid -> field shares, written as fields.json
     rule_ids: set[str] = set()
     for fk in sorted(catalog_gens):
         analyses = list_analyses(root, *fk)
@@ -201,7 +208,10 @@ def build_export(data_dir: Path, key: str, analyzer: Path | None = None) -> tupl
                 continue
             doc = json.loads(generation_path(root, *fk, ref.uid, key).read_text(encoding="utf-8"))
             gens.append(_summary(entries[ref.uid], doc))
-            digest = content_digest(doc, load_content(root, *fk, ref.uid)) if doc["validation_status"] != "FATAL" else None
+            content = load_content(root, *fk, ref.uid)
+            if content and content.get("fields"):
+                fields[ref.uid] = field_shares(content["fields"])
+            digest = content_digest(doc, content) if doc["validation_status"] != "FATAL" else None
             gens[-1]["equivalent_to_previous"] = digest is not None and digest == last_digest  # data-model §4.2
             last_digest = digest
             rule_ids.update(gens[-1]["rules"])
@@ -234,6 +244,7 @@ def build_export(data_dir: Path, key: str, analyzer: Path | None = None) -> tupl
         "report_index": report_index,
         "status": build_status(root, key),
         "metrics": metrics,
+        "fields": fields,
     }, files
 
 
