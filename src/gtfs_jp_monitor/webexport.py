@@ -133,6 +133,23 @@ def build_status(root: Path, key: str, now: _dt.datetime | None = None) -> dict:
     }
 
 
+def compact_rules(feeds: list[dict]) -> dict[str, list[str]]:
+    """Move each rule's severity and class out of the publications: returns {rule_id: [severity,
+    class]} (the most common pair) and leaves in each publication only the count, or the full
+    [count, severity, class] where that publication differs (some rules vary their severity)."""
+    seen: dict[str, dict[tuple, int]] = {}
+    for f in feeds:
+        for g in f["generations"]:
+            for rid, (_, sev, cls) in g["rules"].items():
+                seen.setdefault(rid, {}).setdefault((sev, cls), 0)
+                seen[rid][(sev, cls)] += 1
+    meta = {rid: list(max(sorted(c), key=c.get)) for rid, c in sorted(seen.items())}
+    for f in feeds:
+        for g in f["generations"]:
+            g["rules"] = {rid: v[0] if v[1:] == meta[rid] else v for rid, v in g["rules"].items()}
+    return meta
+
+
 def build_export(data_dir: Path, key: str, analyzer: Path | None = None) -> tuple[dict, dict[str, dict]]:
     """(export for the page, report files to write next to it)."""
     root = Path(data_dir)
@@ -175,6 +192,7 @@ def build_export(data_dir: Path, key: str, analyzer: Path | None = None) -> tupl
         "analysis_key": key,
         "feeds": feeds,
         "rule_titles": rule_titles(analyzer, rule_ids) if analyzer else {lang: {} for lang in LANGS},
+        "rule_meta": compact_rules(feeds),  # publications keep counts only (see compact_rules)
         "engine_version": ENGINE_VERSION,
         "report_index": report_index,
         "status": build_status(root, key),

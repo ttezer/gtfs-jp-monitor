@@ -8,7 +8,7 @@ from gtfs_jp_monitor.catalog import sync_catalog
 from gtfs_jp_monitor.store import change_path, generation_path
 from gtfs_jp_semantic import ENGINE_VERSION
 from gtfs_jp_semantic.rawdiff import gzip_bytes
-from gtfs_jp_monitor.webexport import build_export, storage_warnings
+from gtfs_jp_monitor.webexport import build_export, compact_rules, storage_warnings
 
 from .schema_support import FIXTURES, load_json
 from .test_catalog import FEED, ORG, FakeClient, feed_record, gen, uid
@@ -34,7 +34,7 @@ class WebExportTest(unittest.TestCase):
         self.assertEqual([g["uid"] for g in feed["generations"]], [uid(1), uid(3)])
         g = feed["generations"][1]
         self.assertEqual(g["rid"], "current")
-        self.assertEqual(g["rules"]["JPN_030"], [4, "MEDIUM", "QUALITY"])
+        self.assertEqual((g["rules"]["JPN_030"], export["rule_meta"]["JPN_030"]), (4, ["MEDIUM", "QUALITY"]))
         self.assertEqual(export["rule_titles"], {"tr": {}, "en": {}, "ja": {}})
         self.assertEqual((export["report_index"], files), ({}, {}))
         status = export["status"]
@@ -84,7 +84,14 @@ class WebExportTest(unittest.TestCase):
         (doc,) = files.values()
         self.assertEqual(doc["header"]["old"]["memo"], "new")  # newest not above this engine
 
-class StorageTest(unittest.TestCase):
+class CompactRulesTest(unittest.TestCase):
+    def test_counts_only_unless_a_publication_differs(self):
+        feeds = [{"generations": [{"rules": {"A": [2, "INFO", "SPEC"], "B": [1, "LOW", "QUALITY"]}},
+                                  {"rules": {"A": [5, "INFO", "SPEC"]}},
+                                  {"rules": {"A": [1, "CRITICAL", "SPEC"]}}]}]
+        self.assertEqual(compact_rules(feeds), {"A": ["INFO", "SPEC"], "B": ["LOW", "QUALITY"]})
+        self.assertEqual([g["rules"] for g in feeds[0]["generations"]],
+                         [{"A": 2, "B": 1}, {"A": 5}, {"A": [1, "CRITICAL", "SPEC"]}])
     def test_warns_past_three_quarters_of_a_budget(self):
         self.assertEqual(storage_warnings({"site_bytes": 200 << 20}, 700 << 20), [])
         self.assertEqual(storage_warnings({"site_bytes": 800 << 20}, None),
