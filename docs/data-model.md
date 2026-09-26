@@ -228,6 +228,11 @@ it, plus `site_bytes`:
   repository with its history, the working tree, the reports). Each run adds its sizes to
   `status/storage-history.json` in the data repository before the data commit (`record-storage`),
   one entry per day.
+- `determinism` (in `status.json` only): neighbouring publications with the same content
+  signature under the same analysis key should have the same analysis result. It counts such
+  pairs and those whose results differ, with up to 20 examples and the rules whose counts
+  differ; a difference points to rules that depend on the validation date or to a
+  nondeterministic analyzer. On 2026-09-27: 10 pairs, no difference.
 - `stages`: when each step of the run started and finished, and its minutes (catalog, analysis,
   reports, commit), from times the workflow writes around its steps.
 

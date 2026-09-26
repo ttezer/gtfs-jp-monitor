@@ -167,7 +167,7 @@ def _cmd_export_web(args: argparse.Namespace) -> int:
         write_json(Path(args.json), export)
     if args.html:
         # The report index is written next to the page and loaded after it, which keeps the page small.
-        page = {k: v for k, v in export.items() if k not in ("report_index", "metrics", "fields")}
+        page = {k: v for k, v in export.items() if k not in ("report_index", "metrics", "fields", "determinism")}
         payload = json.dumps(page, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
         template = Path(args.template).read_text(encoding="utf-8")
         if template.count("/*__EXPORT__*/") != 1:
@@ -194,7 +194,8 @@ def _cmd_export_web(args: argparse.Namespace) -> int:
         # Operational status for monitoring (watchdog, storage check): the export's status plus the
         # size of the site just written.
         site = Path(args.html).parent
-        status = dict(export["status"], site_bytes=sum(p.stat().st_size for p in site.rglob("*") if p.is_file()))
+        status = dict(export["status"], site_bytes=sum(p.stat().st_size for p in site.rglob("*") if p.is_file()),
+                      determinism=export["determinism"])
         if args.stages and Path(args.stages).is_file():
             from .webexport import read_stages
             status["stages"] = read_stages(Path(args.stages))
@@ -221,6 +222,9 @@ def _cmd_check_storage(args: argparse.Namespace) -> int:
         rate = lambda x: f"{x:+.2f} MiB/day" if x is not None else "unknown"
         lines += [f"| growth {g['from']} – {g['to']}: repository | {rate(g['repo_mb_per_day'])} |",
                   f"| growth: data working tree / reports | {rate(g['data_mb_per_day'])} / {rate(g['reports_mb_per_day'])} |"]
+    d = status.get("determinism")
+    if d:
+        lines.append(f"| same content, other analysis result | {d['different_results']} of {d['same_content_pairs']} pairs |")
     for name, v in (status.get("stages") or {}).items():
         lines.append(f"| stage {name} | {v.get('minutes', '?')} min |")
     print("| Storage | Size |\n|---|---|\n" + "\n".join(lines))

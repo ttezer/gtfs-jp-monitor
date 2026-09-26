@@ -42,6 +42,7 @@ class WebExportTest(unittest.TestCase):
         self.assertEqual((g["rules"]["JPN_030"], export["rule_meta"]["JPN_030"]), (4, ["MEDIUM", "QUALITY"]))
         self.assertEqual(export["rule_titles"], {"tr": {}, "en": {}, "ja": {}})
         self.assertEqual((export["report_index"], files), ({}, {}))
+        self.assertEqual(export["determinism"], {"same_content_pairs": 0, "different_results": 0, "examples": []})  # no content records
         status = export["status"]
         self.assertEqual((status["backlog"], status["last_run"]), ({"unanalysed": 1, "reports_pending": 0}, None))
         self.assertEqual(status["storage"]["reports"], {"count": 0, "bytes": 0, "max_bytes": 0, "avg_bytes": 0})

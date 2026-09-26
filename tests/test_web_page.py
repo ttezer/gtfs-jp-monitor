@@ -34,13 +34,15 @@ class WebPageTest(unittest.TestCase):
         source = self.html[start:self.html.index("\n}\n", start) + 3]
         cases = """
         const gs = [["a"], ["b", "c"], ["d"], ["e"]].map(ids => ({ members: ids.map(uid => ({ uid })) }));
-        const out = [pairIndices(gs, "c__d"), pairIndices(gs, "a__e"), pairIndices(gs, "a__b"), pairIndices(gs, "x__e")];
+        const withFatal = [["a"], ["F"], ["c"]].map(ids => ({ members: ids.map(uid => ({ uid, status: uid === "F" ? "FATAL" : "COMPLETE" })) }));
+        const out = [pairIndices(gs, "c__d"), pairIndices(gs, "a__e"), pairIndices(gs, "a__b"), pairIndices(gs, "x__e"), pairIndices(withFatal, "a__c")];
         console.log(JSON.stringify(out));
         """
         proc = subprocess.run(["node", "-e", source + cases], capture_output=True, text=True)
         self.assertEqual(proc.returncode, 0, proc.stderr)
         # neighbours; non-neighbours; old inside a merged group; unknown old uid falls back to the previous group
-        self.assertEqual(json.loads(proc.stdout), [[1, 2], [0, 3], [0, 1], [2, 3]])
+        # ...and a pair across a FATAL publication opens on its own two groups
+        self.assertEqual(json.loads(proc.stdout), [[1, 2], [0, 3], [0, 1], [2, 3], [0, 2]])
 
     @unittest.skipUnless(shutil.which("node"), "node is not installed")
     def test_skipped_between(self):

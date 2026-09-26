@@ -22,7 +22,7 @@ from .classify import EQUIVALENT, MEANINGFUL, TECHNICAL, classify_report, load_r
 from .ids import feed_dir
 from .metrics import build_metrics
 from .ordering import GenerationRef, order_generations
-from .store import content_digest, generation_path, list_analyses, load_content
+from .store import content_digest, generation_path, list_analyses, load_content, summary_digest
 
 SCHEMA = "gtfs-jp-monitor-web-export/1"
 LANGS = ("tr", "en", "ja")
@@ -267,6 +267,7 @@ def build_export(data_dir: Path, key: str, analyzer: Path | None = None) -> tupl
     catalog_feeds, catalog_gens = load_catalog(root)
     feeds = []
     fields: dict[str, dict] = {}  # uid -> field shares, written as fields.json
+    check = {"same_content_pairs": 0, "different_results": 0, "examples": []}  # analyzer determinism
     rule_ids: set[str] = set()
     for fk in sorted(catalog_gens):
         analyses = list_analyses(root, *fk)
@@ -274,6 +275,7 @@ def build_export(data_dir: Path, key: str, analyzer: Path | None = None) -> tupl
         ordered, _ = order_generations(GenerationRef(e["uid"], e["from_date"], e["published_at"]) for e in entries.values())
         gens = []
         last_digest = None
+        last = None  # (content signature, summary digest, rules, uid) of the previous publication
         for ref in ordered:
             if key not in analyses.get(ref.uid, {}):
                 continue
@@ -285,6 +287,17 @@ def build_export(data_dir: Path, key: str, analyzer: Path | None = None) -> tupl
             digest = content_digest(doc, content) if doc["validation_status"] != "FATAL" else None
             gens[-1]["equivalent_to_previous"] = digest is not None and digest == last_digest  # data-model §4.2
             last_digest = digest
+            sig = content["signature"] if content and content.get("zip_sha256") == doc["generation"]["sha256"] else None
+            here = (sig, summary_digest(doc), doc["rules"] or {}, ref.uid)
+            if sig is not None and last and last[0] == sig:
+                check["same_content_pairs"] += 1
+                if last[1] != here[1]:  # same content, same analysis key, other result (data-model §10.2)
+                    rules = sorted(r for r in set(last[2]) | set(here[2])
+                                   if (last[2].get(r) or {}).get("count") != (here[2].get(r) or {}).get("count"))
+                    check["different_results"] += 1
+                    if len(check["examples"]) < 20:
+                        check["examples"].append({"feed": f"{fk[0]}/{fk[1]}", "old": last[3], "new": ref.uid, "rules": rules})
+            last = here
             rule_ids.update(gens[-1]["rules"])
         if not gens:
             continue
@@ -316,6 +329,7 @@ def build_export(data_dir: Path, key: str, analyzer: Path | None = None) -> tupl
         "status": build_status(root, key),
         "metrics": metrics,
         "fields": fields,
+        "determinism": check,
     }, files
 
 
