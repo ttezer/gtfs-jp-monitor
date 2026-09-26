@@ -224,7 +224,12 @@ it, plus `site_bytes`:
   `last_run` is the newest run record.
 - `backlog`: publications not analysed yet for the key and report pairs still pending (§11).
 - `storage`: sizes of the data working tree, reports (count, total, average, largest),
-  analyses, content signatures and diffs.
+  analyses, content signatures and diffs, and `growth` in MiB per day over the last 30 days (the
+  repository with its history, the working tree, the reports). Each run adds its sizes to
+  `status/storage-history.json` in the data repository before the data commit (`record-storage`),
+  one entry per day.
+- `stages`: when each step of the run started and finished, and its minutes (catalog, analysis,
+  reports, commit), from times the workflow writes around its steps.
 
 The page shows how long ago the site was built and marks it stale after 36 hours.
 `check-storage` writes the sizes to the job summary and warns past 75% of a budget: the

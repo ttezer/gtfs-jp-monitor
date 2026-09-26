@@ -195,6 +195,9 @@ def _cmd_export_web(args: argparse.Namespace) -> int:
         # size of the site just written.
         site = Path(args.html).parent
         status = dict(export["status"], site_bytes=sum(p.stat().st_size for p in site.rglob("*") if p.is_file()))
+        if args.stages and Path(args.stages).is_file():
+            from .webexport import read_stages
+            status["stages"] = read_stages(Path(args.stages))
         (site / "status.json").write_text(json.dumps(status, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"feeds": len(export["feeds"]),
                       "generations": sum(len(f["generations"]) for f in export["feeds"]),
@@ -213,9 +216,26 @@ def _cmd_check_storage(args: argparse.Namespace) -> int:
              f"| reports ({st['reports']['count']}, avg {st['reports']['avg_bytes'] // 1024} KiB, "
              f"max {st['reports']['max_bytes'] // 1024} KiB) | {mib(st['reports']['bytes'])} |",
              f"| web site | {mib(status.get('site_bytes'))} |"]
+    g = st.get("growth")
+    if g:
+        rate = lambda x: f"{x:+.2f} MiB/day" if x is not None else "unknown"
+        lines += [f"| growth {g['from']} – {g['to']}: repository | {rate(g['repo_mb_per_day'])} |",
+                  f"| growth: data working tree / reports | {rate(g['data_mb_per_day'])} / {rate(g['reports_mb_per_day'])} |"]
+    for name, v in (status.get("stages") or {}).items():
+        lines.append(f"| stage {name} | {v.get('minutes', '?')} min |")
     print("| Storage | Size |\n|---|---|\n" + "\n".join(lines))
     for w in storage_warnings(status, repo):
         print(f"::warning::{w}")
+    return 0
+
+
+def _cmd_record_storage(args: argparse.Namespace) -> int:
+    import datetime as _dt
+
+    from .webexport import record_storage
+
+    entry = record_storage(Path(args.data_dir), args.repo_kb, _dt.datetime.now(_dt.timezone.utc).date())
+    print(json.dumps(entry))
     return 0
 
 
@@ -289,7 +309,13 @@ def main(argv: list[str] | None = None) -> int:
     web.add_argument("--template", default=str(DEFAULT_TEMPLATE))
     web.add_argument("--bundle-format", choices=("gz", "json"), default="gz",
                      help="report files next to the page: gzip (default) or plain JSON for hosts that do not serve .gz")
+    web.add_argument("--stages", help="stage times written by the workflow, added to status.json")
     web.set_defaults(func=_cmd_export_web)
+
+    rec = sub.add_parser("record-storage", help="add today's sizes to status/storage-history.json (data-model §10.2)")
+    rec.add_argument("--data-dir", required=True)
+    rec.add_argument("--repo-kb", type=int, help="size of the data repository with history, in KiB (GitHub API)")
+    rec.set_defaults(func=_cmd_record_storage)
 
     chk = sub.add_parser("check-storage", help="print storage sizes and warn past 75%% of a budget (data-model §10.2)")
     chk.add_argument("--status", required=True, help="status.json written by export-web")

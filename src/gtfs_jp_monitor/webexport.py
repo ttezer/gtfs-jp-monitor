@@ -16,6 +16,7 @@ from pathlib import Path
 
 from gtfs_jp_semantic import ENGINE_VERSION
 
+from .canonical import write_json
 from .catalog import load_catalog
 from .classify import EQUIVALENT, MEANINGFUL, TECHNICAL, classify_report, load_rules
 from .ids import feed_dir
@@ -146,6 +147,54 @@ def _bytes(paths) -> tuple[int, int, int]:
     return len(sizes), sum(sizes), max(sizes, default=0)
 
 
+HISTORY_PATH = Path("status") / "storage-history.json"
+GROWTH_DAYS = 30
+
+
+def record_storage(root: Path, repo_kb: int | None, day: _dt.date, engine_version: str = ENGINE_VERSION) -> dict:
+    """Add (or replace) today's sizes in status/storage-history.json of the data repository, the
+    base of the growth rates in status.json (data-model §10.2). Returns the entry."""
+    base = root / "feeds"
+    entry = {"date": day.isoformat(), "engine_version": engine_version, "repo_kb": repo_kb,
+             "data_bytes": _bytes(p for p in root.rglob("*") if p.is_file() and ".git" not in p.relative_to(root).parts)[1],
+             "reports_bytes": _bytes(base.glob("*/*/changes/*/*.report.json.gz"))[1]}
+    path = root / HISTORY_PATH
+    history = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else []
+    history = [h for h in history if h["date"] != entry["date"]] + [entry]
+    write_json(path, sorted(history, key=lambda h: h["date"]))
+    return entry
+
+
+def growth(history: list[dict], today: _dt.date, days: int = GROWTH_DAYS) -> dict | None:
+    """MB per day over the last `days` days of the storage history, from its first to its last
+    entry in that span; None with fewer than two entries."""
+    start = today - _dt.timedelta(days=days)
+    span = [h for h in history if _dt.date.fromisoformat(h["date"]) >= start]
+    if len(span) < 2:
+        return None
+    a, b = span[0], span[-1]
+    n = (_dt.date.fromisoformat(b["date"]) - _dt.date.fromisoformat(a["date"])).days or 1
+    rate = lambda k, unit: round((b[k] - a[k]) * unit / n / 2**20, 2) if a.get(k) is not None and b.get(k) is not None else None
+    return {"from": a["date"], "to": b["date"], "repo_mb_per_day": rate("repo_kb", 1024),
+            "data_mb_per_day": rate("data_bytes", 1), "reports_mb_per_day": rate("reports_bytes", 1)}
+
+
+def read_stages(path: Path) -> dict:
+    """{stage: {"started", "finished", "minutes"}} from lines "<stage> start|end <UTC time>" that the
+    workflow writes around its steps; a stage without an end has only "started"."""
+    stages: dict[str, dict] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        parts = line.split()
+        if len(parts) != 3 or parts[1] not in ("start", "end"):
+            continue
+        stages.setdefault(parts[0], {})["started" if parts[1] == "start" else "finished"] = parts[2]
+    for v in stages.values():
+        if "started" in v and "finished" in v:
+            t = lambda x: _dt.datetime.fromisoformat(x.replace("Z", "+00:00"))
+            v["minutes"] = round((t(v["finished"]) - t(v["started"])).total_seconds() / 60, 1)
+    return stages
+
+
 def build_status(root: Path, key: str, now: _dt.datetime | None = None) -> dict:
     """Operational status for the page and status.json: when the site was built, the last analysis
     run record, work still to do, and the size of the stored data (the working tree; the git
@@ -173,6 +222,9 @@ def build_status(root: Path, key: str, now: _dt.datetime | None = None) -> dict:
         "diffs_bytes": _bytes(base.glob("*/*/diffs/*/*.json"))[1],
         "data_bytes": _bytes(p for p in root.rglob("*") if p.is_file() and ".git" not in p.relative_to(root).parts)[1],
     }
+    path = root / HISTORY_PATH
+    history = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else []
+    storage["growth"] = growth(history, now.date())
     return {
         "built_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "last_run": last_run,

@@ -1,4 +1,6 @@
 import copy
+import datetime as dt
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -8,7 +10,8 @@ from gtfs_jp_monitor.catalog import sync_catalog
 from gtfs_jp_monitor.store import change_path, generation_path
 from gtfs_jp_semantic import ENGINE_VERSION
 from gtfs_jp_semantic.rawdiff import gzip_bytes
-from gtfs_jp_monitor.webexport import build_export, compact_rules, estimate_pair, storage_warnings
+from gtfs_jp_monitor.webexport import (build_export, compact_rules, estimate_pair, growth, read_stages, record_storage,
+                                       storage_warnings)
 
 from .schema_support import FIXTURES, load_json
 from .test_catalog import FEED, ORG, FakeClient, feed_record, gen, uid
@@ -110,6 +113,30 @@ class EstimateTest(unittest.TestCase):
 
 
 class StorageTest(unittest.TestCase):
+    def test_history_and_growth(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "feeds").mkdir()
+            (root / "feeds" / "a.bin").write_bytes(b"x" * 1000)
+            record_storage(root, 100, dt.date(2026, 9, 1))
+            record_storage(root, 120, dt.date(2026, 9, 1))  # the same day is replaced
+            (root / "feeds" / "b.bin").write_bytes(b"y" * (3 << 20))
+            record_storage(root, 100 + 10 * 1024, dt.date(2026, 9, 11))
+            history = json.loads((root / "status" / "storage-history.json").read_text())
+        self.assertEqual([(h["date"], h["repo_kb"]) for h in history], [("2026-09-01", 120), ("2026-09-11", 10340)])
+        g = growth(history, dt.date(2026, 9, 20))
+        self.assertEqual((g["from"], g["to"], g["repo_mb_per_day"]), ("2026-09-01", "2026-09-11", 1.0))
+        self.assertGreater(g["data_mb_per_day"], 0.29)
+        self.assertIsNone(growth(history, dt.date(2026, 10, 5)))  # only one entry in the last 30 days
+
+    def test_stage_times(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "stages.txt"
+            path.write_text("analysis start 2026-09-27T19:10:00Z\nanalysis end 2026-09-27T19:40:30Z\ncommit start 2026-09-27T20:00:00Z\nnoise\n")
+            self.assertEqual(read_stages(path), {
+                "analysis": {"started": "2026-09-27T19:10:00Z", "finished": "2026-09-27T19:40:30Z", "minutes": 30.5},
+                "commit": {"started": "2026-09-27T20:00:00Z"}})
+
     def test_warns_past_three_quarters_of_a_budget(self):
         self.assertEqual(storage_warnings({"site_bytes": 200 << 20}, 700 << 20), [])
         self.assertEqual(storage_warnings({"site_bytes": 800 << 20}, None),

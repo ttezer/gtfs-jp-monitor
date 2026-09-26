@@ -95,10 +95,13 @@ jobs:
         run: |
           args=()
           if [ -n "$ONLY" ]; then args+=(--only "$ONLY"); fi
+          echo "catalog start $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$RUNNER_TEMP/stages.txt"
           python -m gtfs_jp_monitor sync-catalog --data-dir data --events-out "$RUNNER_TEMP/catalog-events.json" "${args[@]}"
+          echo "catalog end $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$RUNNER_TEMP/stages.txt"
 
       - name: Analyze new generations
         run: |
+          echo "analysis start $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$RUNNER_TEMP/stages.txt"
           args=(--limit "$LIMIT")
           if [ -n "$ONLY" ]; then args+=(--only "$ONLY"); fi
           case "$TRIGGER" in schedule|workflow_dispatch) ;; *) TRIGGER=local ;; esac
@@ -106,16 +109,29 @@ jobs:
             --analyzer "$RUNNER_TEMP/analyzer/gtfs-analyzer" \
             --profile "$GTFS_JP_PROFILE" --trigger "$TRIGGER" \
             --extra-warnings "$RUNNER_TEMP/catalog-events.json" "${args[@]}"
+          echo "analysis end $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$RUNNER_TEMP/stages.txt"
 
       - name: Build semantic change reports
         run: |
+          echo "reports start $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$RUNNER_TEMP/stages.txt"
           args=(--limit "$REPORT_LIMIT" --max-minutes "$REPORT_MINUTES")
           if [ -n "$ONLY" ]; then args+=(--only "$ONLY"); fi
           python -m gtfs_jp_monitor semantic-reports --data-dir data --profile "$GTFS_JP_PROFILE" "${args[@]}"
+          echo "reports end $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$RUNNER_TEMP/stages.txt"
+
+      # Today's sizes go into the data repository, so status.json can give growth rates (data-model §10.2).
+      - name: Record storage
+        env:
+          GH_TOKEN: ${{ secrets.DATA_REPO_TOKEN }}
+        run: |
+          args=()
+          if kb=$(gh api repos/ttezer/gtfs-jp-data --jq .size); then args+=(--repo-kb "$kb"); fi
+          python -m gtfs_jp_monitor record-storage --data-dir data "${args[@]}"
 
       - name: Commit and push data
         working-directory: data
         run: |
+          echo "commit start $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$RUNNER_TEMP/stages.txt"
           if [ -z "$(git status --porcelain)" ]; then
             echo "No data changes."
             exit 0
@@ -128,13 +144,15 @@ jobs:
             git pull -q --rebase
             git push -q
           fi
+          echo "commit end $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$RUNNER_TEMP/stages.txt"
 
       # The public site is rebuilt from the data repository after every run.
       - name: Build web site
         run: |
           release=$(python -c 'import json; print(json.load(open("analyzer.lock.json"))["release_tag"])')
           python -m gtfs_jp_monitor export-web --data-dir data --release-tag "$release" --profile "$GTFS_JP_PROFILE" \
-            --analyzer "$RUNNER_TEMP/analyzer/gtfs-analyzer" --html _site/index.html --bundle-format gz
+            --analyzer "$RUNNER_TEMP/analyzer/gtfs-analyzer" --html _site/index.html --bundle-format gz \
+            --stages "$RUNNER_TEMP/stages.txt"
 
       # Sizes go to the job summary; past 75% of a budget the step warns (data-model §10.2).
       - name: Check storage
