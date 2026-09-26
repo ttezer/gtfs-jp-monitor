@@ -322,3 +322,18 @@ and the engine version. Pairs are those of §12 whose newer publication falls in
 
 Unknown pairs are never guessed: a rate over known pairs is shown with its coverage. Changes of
 identifiers (renumbering) are not counted yet; the report summary does not separate them.
+
+## §14 Analyses derived in the page
+
+Some analyses are computed by the page from data the reports already hold, so they need no new
+reports and no storage:
+
+- **Travel time** per line, direction and day type: for every trip of a stored timetable, from its
+  first to its last time; the page shows the median on each side and, for matched trips, how many
+  got longer, shorter or stayed the same. Only changed lines store timetables.
+- **Share of trips by hour** over all lines: the report's trips per hour of first departure,
+  summed and divided by all trips on each side; hours whose share moves by at least one point are
+  listed.
+
+Dwell times need arrival times at every stop, which reports do not store; they wait for a
+change of the engine version (§11).

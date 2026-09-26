@@ -445,6 +445,10 @@ const R = {
     firstLastN: n => `${n} hat·yön·gün tipinde ilk veya son sefer en az ${state.flShift} dk kaydı`,
     faresTxt: f => f.changed ? `Değişti · ${f.classes_added} sınıf eklendi · ${f.classes_removed} kaldırıldı · ${f.prices_changed} fiyat değişti` : "Değişmedi",
     unchangedLines: n => `Değişmeyen ${n} hat`, noLineChange: "Hiçbir hatta sefer veya güzergâh değişikliği yok.", noLineChangeDates: n => `Tipik günlerde hiçbir hatta değişiklik yok; ancak ${n} tarihte fark var (bkz. Hizmet günleri → Tarihe göre değişiklikler).`, dcTitle: "Tarihe göre değişiklikler", rvReport: "Rapor", rvVerify: "Doğrulama", covShort: p => `Değişen satırların %${p}'i raporda açıklandı; ayrıntı Doğrulama sekmesinde.`, vCoverage: "Kapsam", vSelf: "Tutarlılık denetimi", vSelfOk: "Tutarsızlık yok: sefer tabloları saatlik sayılarla, dosya tablosu kapsamla uyuşuyor.", vSelfBad: n => `${n} tutarsızlık bulundu:`, irrTitle: "Düzensiz hizmetler", irrCols: ["Yayın", "Hizmet", "Tarihler", "Gün", "Sefer", "Nasıl çalışıyor"], irrMode: { adds: "olağan tarifeye ek", replaces: "olağan tarifenin yerine", mixed: "bazı günler ek, bazı günler yerine" }, irrNone: "İki yayında da düzensiz hizmet yok.", irrNote: "Düzensiz hizmet: hiçbir düzenli döneme ait olmayan hizmet takvimi (özel günler, kısa dönemler, dağınık günler).", periodsTitle: "Dönemlerin ayrıntısı", dcCols: ["Tarihler", "Gün tipi", "Sefer (eski → yeni)", "Değişiklik"], dcChanged: "Saati değişti", dcAdded: "Eklendi", dcRemoved: "Kaldırıldı", dcMore: n => `+${n} sefer daha`, dcCard: n => `Tipik günlerin dışında değişen gün: ${n}`, dcNone: "İki yayının ortak geçerli olduğu günlerde, tipik günlerdeki değişiklik dışında tarihe özgü fark yok.", dcNote: "İki yayının ortak geçerli olduğu her gün ayrı karşılaştırıldı; tipik günün değişikliğine uyan günler listelenmez (o değişiklik hat bloklarında). Burada yalnız o güne özgü farklar var: özel sefer, bayram tarifesi, tek günlük saat değişikliği gibi.",
+    travelTitle: "Yolculuk süresi (ilk duraktan son durağa)", travelCols: ["Yön", "Gün tipi", "Medyan · eski", "Medyan · yeni", "Δ", "Eşleşen seferlerde"],
+    travelPaired: (l, s, n) => `${l} uzadı · ${s} kısaldı · ${n} aynı`, min: m => `${m} dk`,
+    bandTitle: "Saat dilimlerine göre sefer payı (bütün hatlar)", bandCols: ["Saat", "Eski", "Yeni", "Eski %", "Yeni %", "Δ puan"],
+    bandNote: "Seferler ilk kalkış saatine göre sayılır; pay, o gün tipi ve yöndeki bütün seferlere oranıdır. Yalnız payı en az 1 puan değişen dilimler gösterilir.",
     byHour: "Saate göre sefer (ilk kalkış saati)", dir: "Yön", first: "İlk", last: "Son", patterns: "Güzergâh değişiklikleri",
     timetables: "Sefer saatleri", vOld: "Eski", vNew: "Yeni", vDiff: "Fark", noTT: "Bu tarafta sefer yok.",
     ttLegend: "Fark görünümü: yeşil sütun eklenen sefer, kırmızı kaldırılan sefer, sarı saati veya güzergâhı değişen sefer. Değişen hücrede yeni saat kalın, eski saat üstü çizili. Yalnız bir tarafta olan duraklar renkli yazılır.",
@@ -502,6 +506,10 @@ const R = {
     firstLastN: n => `First or last trip moved by at least ${state.flShift} min in ${n} line·direction·day-type combinations`,
     faresTxt: f => f.changed ? `Changed · ${f.classes_added} classes added · ${f.classes_removed} removed · ${f.prices_changed} prices changed` : "Unchanged",
     unchangedLines: n => `${n} unchanged lines`, noLineChange: "No trip or pattern changes on any line.", noLineChangeDates: n => `No line changes on the typical days, but ${n} dates differ (see Service days → Changes by date).`, dcTitle: "Changes by date", rvReport: "Report", rvVerify: "Verification", covShort: p => `${p}% of changed rows are explained by the report; details in Verification.`, vCoverage: "Coverage", vSelf: "Consistency check", vSelfOk: "No inconsistencies: timetables match the hourly counts and the file table matches the coverage.", vSelfBad: n => `${n} inconsistencies found:`, irrTitle: "Irregular services", irrCols: ["Publication", "Service", "Dates", "Days", "Trips", "How it runs"], irrMode: { adds: "in addition to the regular timetable", replaces: "instead of the regular timetable", mixed: "in addition on some days, instead on others" }, irrNone: "No irregular services in either publication.", irrNote: "Irregular service: a service calendar that belongs to no regular period (special days, short periods, scattered days).", periodsTitle: "Periods in detail", dcCols: ["Dates", "Day type", "Trips (old → new)", "Change"], dcChanged: "Retimed", dcAdded: "Added", dcRemoved: "Removed", dcMore: n => `+${n} more trips`, dcCard: n => `Dates changed beyond the typical days: ${n}`, dcNone: "On the dates both publications cover, nothing differs beyond the change of the typical days.", dcNote: "Every date both publications cover was compared on its own; dates following the change of their typical day are not listed (that change is in the line blocks). Only date-specific differences are here: special trips, holiday timetables, one-day retimings.",
+    travelTitle: "Travel time (first to last stop)", travelCols: ["Direction", "Day type", "Median · old", "Median · new", "Δ", "Matched trips"],
+    travelPaired: (l, s, n) => `${l} longer · ${s} shorter · ${n} same`, min: m => `${m} min`,
+    bandTitle: "Share of trips by hour (all lines)", bandCols: ["Hour", "Old", "New", "Old %", "New %", "Δ points"],
+    bandNote: "Trips are counted by the hour of their first departure; a share is of all trips. Only hours whose share changes by at least 1 point are shown.",
     byHour: "Trips by hour (first departure)", dir: "Direction", first: "First", last: "Last", patterns: "Pattern changes",
     timetables: "Timetables", vOld: "Old", vNew: "New", vDiff: "Difference", noTT: "No trips on this side.",
     ttLegend: "Difference view: green column = added trip, red = removed trip, yellow = retimed or rerouted trip. In a changed cell the new time is bold and the old time struck through. Stops served on one side only are coloured.",
@@ -559,6 +567,10 @@ const R = {
     firstLastN: n => `始発または終発が${state.flShift}分以上変わった路線・方向・曜日区分：${n}`,
     faresTxt: f => f.changed ? `変更あり・運賃種別 追加${f.classes_added}・削除${f.classes_removed}・価格変更${f.prices_changed}` : "変更なし",
     unchangedLines: n => `変更のない路線 ${n}`, noLineChange: "便・経路の変更はありません。", noLineChangeDates: n => `代表日には路線の変更はありませんが、${n}日で違いがあります（運行日 → 日付ごとの変更を参照）。`, dcTitle: "日付ごとの変更", rvReport: "レポート", rvVerify: "検証", covShort: p => `変更行の${p}%をレポートで説明済み。詳細は検証タブ。`, vCoverage: "カバー率", vSelf: "整合性チェック", vSelfOk: "不整合なし：時刻表と時間帯別便数、ファイル表とカバー率が一致しています。", vSelfBad: n => `${n}件の不整合：`, irrTitle: "臨時・不定期の運行", irrCols: ["公開", "運行区分", "日付", "日数", "便数", "運行形態"], irrMode: { adds: "通常ダイヤに追加", replaces: "通常ダイヤの代わり", mixed: "日により追加・代替" }, irrNone: "両公開とも臨時・不定期の運行はありません。", irrNote: "臨時・不定期：どの通常期間にも属さない運行区分（特別な日、短期間、散発的な日）。", periodsTitle: "期間の詳細", dcCols: ["日付", "曜日区分", "便数（旧 → 新）", "変更"], dcChanged: "時刻変更", dcAdded: "新設", dcRemoved: "廃止", dcMore: n => `ほか${n}便`, dcCard: n => `代表日以外で変更のある日：${n}`, dcNone: "両公開が共通して有効な日には、代表日の変更以外に日付固有の違いはありません。", dcNote: "両公開が共通して有効な日を1日ずつ比較しました。代表日の変更と同じ日は表示しません（その変更は路線ごとの表示にあります）。ここには特別便、祝日ダイヤ、1日だけの時刻変更など日付固有の違いのみを表示します。",
+    travelTitle: "所要時間（始点から終点）", travelCols: ["方向", "曜日区分", "中央値 · 旧", "中央値 · 新", "Δ", "対応する便"],
+    travelPaired: (l, s, n) => `延長 ${l} · 短縮 ${s} · 同じ ${n}`, min: m => `${m}分`,
+    bandTitle: "時間帯別の便の割合（全路線）", bandCols: ["時間帯", "旧", "新", "旧 %", "新 %", "Δ ポイント"],
+    bandNote: "便は始発時刻の時間帯で数え、割合は全便に対する値です。割合が1ポイント以上変わった時間帯のみ表示します。",
     byHour: "時間帯別便数（始発時刻）", dir: "方向", first: "始発", last: "終発", patterns: "経路の変更",
     timetables: "時刻表", vOld: "旧", vNew: "新", vDiff: "差分", noTT: "この側に便はありません。",
     ttLegend: "差分表示：緑の列は新設便、赤は廃止便、黄は時刻または経路が変わった便。変更セルは新時刻を太字、旧時刻を取り消し線で表示。片側のみの停留所は色付きです。",
@@ -826,6 +838,39 @@ function tripChanges(rep, line) {
   return rows;
 }
 
+// Travel time of each trip: from its first to its last time in the timetable (data-model §14).
+const median = xs => { if (!xs.length) return null; const v = xs.slice().sort((a, b) => a - b), m = v.length >> 1; return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; };
+function travelTimes(tab) {
+  const dur = t => { const a = firstTime(t.times), b = lastTime(t.times); return a == null || b == null ? null : b - a; };
+  const side = x => x ? x.trips.map(dur).filter(d => d != null) : [];
+  let longer = 0, shorter = 0, same = 0;
+  for (const [o, n] of tab.pairs || []) {
+    if (o == null || n == null) continue;
+    const a = dur(tab.old.trips[o]), b = dur(tab.new.trips[n]);
+    if (a == null || b == null) continue;
+    if (b > a) longer++; else if (b < a) shorter++; else same++;
+  }
+  return { old: median(side(tab.old)), new: median(side(tab.new)), longer, shorter, same };
+}
+// Share of trips per hour band over all lines, before and after; rows whose share moved >= 1 point.
+function bandShares(lines) {
+  const sum = {}, tot = [0, 0];
+  for (const l of lines) for (const x of l.trips || []) for (const [b, c] of Object.entries(x.bands)) {
+    const v = sum[b] || (sum[b] = [0, 0]); v[0] += c.before; v[1] += c.after; tot[0] += c.before; tot[1] += c.after;
+  }
+  return Object.keys(sum).sort().map(b => {
+    const [x, y] = sum[b], p = tot[0] ? x / tot[0] * 100 : 0, q = tot[1] ? y / tot[1] * 100 : 0;
+    return { band: b, before: x, after: y, p, q, d: q - p };
+  }).filter(r => Math.abs(r.d) >= 1);
+}
+function bandTable(rep) {
+  const rows = bandShares(rep.lines);
+  if (!rows.length) return "";
+  const pp = x => x.toFixed(1);
+  return `<h3>${esc(rt("bandTitle"))}</h3><div class="scroll" style="border:0"><table class="mini"><thead><tr>${rt("bandCols").map((c, i) => `<th${i ? ' class="r"' : ""}>${esc(c)}</th>`).join("")}</tr></thead><tbody>${
+    rows.map(r => `<tr><td>${esc(r.band)}</td><td class="r">${r.before}</td><td class="r">${r.after}</td><td class="r">${pp(r.p)}</td><td class="r">${pp(r.q)}</td><td class="r ${r.d > 0 ? "up" : "down"}">${r.d > 0 ? "+" : ""}${pp(r.d)}</td></tr>`).join("")
+  }</tbody></table></div><p class="hint">${esc(rt("bandNote"))}</p>`;
+}
 function lineBlock(rep, line) {
   const open = state.openLines.has(line.key);
   const perDay = {};
@@ -842,6 +887,14 @@ function lineBlock(rep, line) {
           <td class="r">${hm(r.f0)}</td><td class="r">${hm(r.f1)}</td><td class="r ${d > 0 ? "up" : d < 0 ? "down" : "flat"}">${d == null ? "" : signed(d)}</td>
           <td class="r">${hm(r.l0)}</td><td class="r">${hm(r.l1)}</td><td>${esc(r.note)}</td></tr>`;
       }).join("")}</tbody></table></div><p class="hint">${esc(rt("tcNote"))}</p></div>` : "";
+    const travel = line.timetables.map(t => ({ t, v: travelTimes(t) })).filter(({ v }) => v.old != null || v.new != null);
+    const mins = x => x == null ? "—" : rt("min", Math.round(x));
+    const travelTable = travel.length ? `<div><h3>${esc(rt("travelTitle"))}</h3><div class="scroll" style="border:0"><table class="mini"><thead><tr>${
+      rt("travelCols").map((c, i) => `<th${i >= 2 && i <= 4 ? ' class="r"' : ""}>${esc(c)}</th>`).join("")}</tr></thead><tbody>${travel.map(({ t, v }) => {
+        const d = v.old != null && v.new != null ? Math.round(v.new - v.old) : null;
+        return `<tr><td>${esc(dirLabel(rep, line, t.direction))}</td><td>${esc(dtLabel(t.day_type))}</td><td class="r">${esc(mins(v.old))}</td><td class="r">${esc(mins(v.new))}</td>
+          <td class="r ${d > 0 ? "up" : d < 0 ? "down" : "flat"}">${d == null ? "" : signed(d)}</td><td>${v.longer + v.shorter + v.same ? esc(rt("travelPaired", v.longer, v.shorter, v.same)) : ""}</td></tr>`;
+      }).join("")}</tbody></table></div></div>` : "";
     const bands = [...new Set(line.trips.flatMap(x => Object.keys(x.bands)))].sort();
     const hourRows = line.trips.slice().sort((p, q) => p.direction.localeCompare(q.direction) || byDt(p.day_type, q.day_type));
     const hourTable = bands.length ? `<div><h3>${esc(rt("byHour"))}</h3><div class="scroll"><table class="tt"><thead><tr><th class="pl"></th>${bands.map(b => `<th>${esc(b.replace(/^0/, "").replace("-0", "-"))}</th>`).join("")}</tr></thead><tbody>${
@@ -885,7 +938,7 @@ function lineBlock(rep, line) {
     });
     const routeMap = routes.length ? `<div><h3>${esc(rt("routeMap"))}</h3>${mapShell(`lmap-${rep.lines.indexOf(line)}`, "pmap lmap")}
       <p class="hint">${esc(rt("routeLegend"))}</p><ul class="edits">${routeText.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>` : "";
-    inner = `<div class="lb">${changeTable}${pat}${routeMap}${fl}${hourTable}${tts}</div>`;
+    inner = `<div class="lb">${changeTable}${pat}${routeMap}${fl}${travelTable}${hourTable}${tts}</div>`;
   }
   return `<details class="line" data-key="${esc(line.key)}"${open ? " open" : ""}><summary>${stChip(line.status, rt("ls")[line.status])}<span class="ln">${esc(lineNames(line))}</span><span class="lt">${esc(tot)}</span></summary>${inner}</details>`;
 }
@@ -1329,7 +1382,7 @@ function renderReport() {
       <details><summary class="hint">${esc(rt("periodsTitle"))}</summary><p class="hint">${esc(rt("periods"))} · ${esc(rt("old"))}: ${esc(periods("old") || "—")}<br>${esc(rt("periods"))} · ${esc(rt("new"))}: ${esc(periods("new") || "—")}</p></details>
       <p class="hint">${esc(rt("special"))} · ${esc(rt("old"))}: ${esc(specials("old"))}<br>${esc(rt("special"))} · ${esc(rt("new"))}: ${esc(specials("new"))}</p>
       ${h.comparison.groups ? `<p class="hint">${esc(rt("dtGroups", h.comparison.groups.old.map(dtLabel).join(" | ") || "—", h.comparison.groups.new.map(dtLabel).join(" | ") || "—"))}</p>` : ""}
-      ${dateTable}</div>
+      ${dateTable}${bandTable(rep)}</div>
     <div><h3>3. ${esc(rt("sLines"))}</h3>${rep.lines.some(l => (l.geometry || []).length) ? `${mapShell("netmap", "pmap netmap")}<p class="hint">${esc(rt("netLegend"))}</p>` : ""}${changed.length ? `<div class="lines" style="display:grid;gap:6px">${changed.map(l => lineBlock(rep, l)).join("")}</div>` : `<p class="hint">${esc(s.date_changes ? rt("noLineChangeDates", s.date_changes) : rt("noLineChange"))}</p>`}
       ${same.length ? `<p class="hint">${esc(rt("unchangedLines", same.length))}: ${esc(same.map(lineNames).join(", "))}</p>` : ""}</div>
     <div><h3>4. ${esc(rt("sPlaces"))}</h3>${placeRows ? `${mapShell("pmap")}

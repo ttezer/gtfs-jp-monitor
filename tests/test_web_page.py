@@ -122,6 +122,26 @@ class WebPageTest(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertEqual(json.loads(proc.stdout), [3, 2, 2, 1, 0])  # every word must match, case-insensitive
 
+    @unittest.skipUnless(shutil.which("node"), "node is not installed")
+    def test_travel_times_and_band_shares(self):
+        source = ("const firstTime = times => times.find(x => x != null);\n"
+                  "const lastTime = times => { for (let i = times.length - 1; i >= 0; i--) if (times[i] != null) return times[i]; return null; };\n"
+                  "const median = xs => { if (!xs.length) return null; const v = xs.slice().sort((a, b) => a - b), m = v.length >> 1; return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; };\n"
+                  + self.functions("travelTimes", "bandShares"))
+        cases = """
+        const tab = { old: { trips: [{ times: [480, 490, 500] }, { times: [600, null, 630] }] },
+                      new: { trips: [{ times: [480, 495, 510] }, { times: [600, 610, 630] }, { times: [700, 720] }] },
+                      pairs: [[0, 0], [1, 1], [null, 2]] };
+        const lines = [{ trips: [{ bands: { "07-08": { before: 2, after: 1 }, "08-09": { before: 2, after: 3 } } }] }];
+        console.log(JSON.stringify([travelTimes(tab), bandShares(lines).map(r => [r.band, Math.round(r.d)])]));
+        """
+        proc = subprocess.run(["node", "-e", source + cases], capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(json.loads(proc.stdout), [
+            {"old": 25, "new": 30, "longer": 1, "shorter": 0, "same": 1},  # medians of [20, 30] and [30, 30, 20]
+            [["07-08", -25], ["08-09", 25]],
+        ])
+
 
 if __name__ == "__main__":
     unittest.main()
