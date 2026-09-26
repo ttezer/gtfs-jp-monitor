@@ -56,6 +56,7 @@ header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20p
 .langs button { border: 0; background: transparent; padding: 4px 12px; border-radius: 999px; cursor: pointer; color: var(--muted); }
 .langs button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgb(0 0 0 / .08); }
 
+.rsearch { width: 100%; max-width: 420px; margin: 6px 0; padding: 6px 8px; font: inherit; }
 .notice .fresh { font-weight: 500; }
 .notice .stale { color: var(--bad); }
 .notice { margin-top: 12px; display: flex; gap: 10px; align-items: flex-start; background: var(--warn-soft); color: var(--ink);
@@ -441,6 +442,7 @@ const R = {
     skipped: (n, k) => `Ardışık olmayan karşılaştırma: aradaki ${n} yayın atlandı${k ? ` (${k} tanesi analiz edilemedi)` : ""}; rapor aradaki bütün değişikliklerin toplamını gösterir.`,
     pick: n => `Genel Bakış'ta bir feed seçip iki ardışık yayını karşılaştırın; o çiftin raporu burada açılır. Raporu olan ${n} çift:`,
     loading: "Rapor yükleniyor…", loadFailed: e => `Rapor yüklenemedi (${e}).`,
+    rsearch: "Feed, işletmeci ya da tarih ara…", rmore: (n, all) => `${all} çiftten ${n} tanesi gösteriliyor; aramayı daraltın.`, rnone: "Eşleşen çift yok.",
     metres: m => `${m} m`, others: "Raporu olan diğer çiftler",
     tripChanges: "Sefer değişiklikleri",
     tcCols: ["Yön", "Gün tipi", "Değişiklik", "Eski kalkış", "Yeni kalkış", "Fark (dk)", "Eski varış", "Yeni varış", "Not"],
@@ -496,6 +498,7 @@ const R = {
     skipped: (n, k) => `Non-neighbouring comparison: ${n} publication${n === 1 ? "" : "s"} in between skipped${k ? ` (${k} could not be analysed)` : ""}; the report shows all changes between them combined.`,
     pick: n => `Select a feed in Overview and compare two consecutive publications; the report of that pair opens here. ${n} pairs with a report:`,
     loading: "Loading report…", loadFailed: e => `The report could not be loaded (${e}).`,
+    rsearch: "Search feed, operator or date…", rmore: (n, all) => `Showing ${n} of ${all} pairs; narrow the search.`, rnone: "No matching pair.",
     metres: m => `${m} m`, others: "Other pairs with a report",
     tripChanges: "Trip changes",
     tcCols: ["Direction", "Day type", "Change", "Old departure", "New departure", "Δ (min)", "Old arrival", "New arrival", "Note"],
@@ -551,6 +554,7 @@ const R = {
     skipped: (n, k) => `隣り合わない比較：間の${n}公開を飛ばしています${k ? `（うち${k}件は解析不可）` : ""}。レポートは間のすべての変更をまとめて示します。`,
     pick: n => `概要タブでフィードを選び、連続する2つの公開を比較すると、そのレポートがここに表示されます。レポートのあるペア（${n}）：`,
     loading: "レポートを読み込み中…", loadFailed: e => `レポートを読み込めませんでした（${e}）。`,
+    rsearch: "フィード・事業者・日付で検索…", rmore: (n, all) => `${all}件中${n}件を表示しています。検索を絞り込んでください。`, rnone: "該当するペアはありません。",
     metres: m => `${m} m`, others: "レポートのある他のペア",
     tripChanges: "便の変更",
     tcCols: ["方向", "曜日区分", "変更", "旧発車", "新発車", "差（分）", "旧到着", "新到着", "備考"],
@@ -877,12 +881,37 @@ function pubBox(label, p) {
   return `<div class="pub"><b>${esc(label)}</b><span class="num">${esc(p.from_date)} – ${esc(p.to_date || "…")} · ${esc((p.published_at || "").slice(0, 10))}</span>${p.memo ? `<span class="memo">${esc(p.memo)}</span>` : ""}</div>`;
 }
 
-function reportList(intro = true) {
+// All reports, searchable; only the first LIST_MAX matches are drawn.
+const LIST_MAX = 100;
+let reportItemsCache = null;
+function reportItems() {
+  if (reportItemsCache && reportItemsCache.of === REPORTS) return reportItemsCache.items;
+  const byKey = new Map(DATA.feeds.map(f => [key(f), f]));
   const items = Object.entries(REPORTS).map(([pair, e]) => {
-    const f = DATA.feeds.find(x => x.org_id === e.feed[0] && x.feed_id === e.feed[1]);
-    return f ? { pair, e, f } : null;
+    const f = byKey.get(`${e.feed[0]}/${e.feed[1]}`);
+    return f ? { pair, e, f, text: `${f.organization_name} ${f.name} ${key(f)} ${e.dates[0]} ${e.dates[1]}`.toLowerCase() } : null;
   }).filter(Boolean).sort((a, b) => a.f.organization_name.localeCompare(b.f.organization_name, "ja") || a.f.name.localeCompare(b.f.name, "ja") || a.e.dates[1].localeCompare(b.e.dates[1]));
-  return `${intro ? `<p>${esc(rt("pick", items.length))}</p>` : ""}<ul>${items.map(({ pair, e, f }) => `<li><button type="button" class="linkbtn" data-pick="${esc(pair)}">${esc(f.organization_name)} — ${esc(f.name)} · ${esc(e.dates[0])} → ${esc(e.dates[1])}</button></li>`).join("")}</ul>`;
+  reportItemsCache = { of: REPORTS, items };
+  return items;
+}
+function reportMatches(items, query) {
+  const words = String(query || "").toLowerCase().split(/\s+/).filter(Boolean);
+  return words.length ? items.filter(it => words.every(w => it.text.includes(w))) : items;
+}
+function reportRows(query) {
+  const all = reportItems(), hits = reportMatches(all, query);
+  if (!hits.length) return `<p class="hint">${esc(rt("rnone"))}</p>`;
+  const rows = hits.slice(0, LIST_MAX).map(({ pair, e, f }) => `<li><button type="button" class="linkbtn" data-pick="${esc(pair)}">${esc(f.organization_name)} — ${esc(f.name)} · ${esc(e.dates[0])} → ${esc(e.dates[1])}</button></li>`).join("");
+  return `<ul>${rows}</ul>${hits.length > LIST_MAX ? `<p class="hint">${esc(rt("rmore", LIST_MAX, hits.length))}</p>` : ""}`;
+}
+function reportList(intro = true) {
+  return `${intro ? `<p>${esc(rt("pick", reportItems().length))}</p>` : ""}<input type="search" class="rsearch" data-rsearch placeholder="${esc(rt("rsearch"))}" value="${esc(state.rsearch || "")}"><div data-rlist>${reportRows(state.rsearch)}</div>`;
+}
+function bindReportList(box) {
+  const pick = root => root.querySelectorAll("button[data-pick]").forEach(b => b.addEventListener("click", () => openPair(b.dataset.pick)));
+  const input = box.querySelector("[data-rsearch]"), list = box.querySelector("[data-rlist]");
+  if (input) input.addEventListener("input", () => { state.rsearch = input.value; list.innerHTML = reportRows(state.rsearch); pick(list); });
+  pick(box);
 }
 
 // Publications between a report's two (analysed ones only, as the page lists them) and how many of them are FATAL.
@@ -1153,7 +1182,7 @@ function renderReport() {
   if (!reportsReady) { box.innerHTML = `<p class="hint">${esc(rt("loading"))}</p>`; return; }
   if (!entry) {
     box.innerHTML = reportList();
-    box.querySelectorAll("button[data-pick]").forEach(b => b.addEventListener("click", () => openPair(b.dataset.pick)));
+    bindReportList(box);
     return;
   }
   const cached = state.loaded && state.loaded.pair === pair ? state.loaded.rep : null;
@@ -1273,7 +1302,7 @@ function renderReport() {
   box.querySelectorAll("details.line").forEach(el => bindLine(rep, el));
   initNetworkMap(rep);
   initMap(rep);
-  box.querySelectorAll("button[data-pick]").forEach(b => b.addEventListener("click", () => openPair(b.dataset.pick)));
+  bindReportList(box);
 }
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const $ = id => document.getElementById(id);

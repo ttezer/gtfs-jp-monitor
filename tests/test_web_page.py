@@ -111,6 +111,17 @@ class WebPageTest(unittest.TestCase):
             "",
         ])
 
+    @unittest.skipUnless(shutil.which("node"), "node is not installed")
+    def test_report_search(self):
+        cases = """
+        const items = ["熊本電鉄 kumamoto 2026-04-01", "三重交通 sanco 2025-10-01", "熊本都市バス toshibus 2025-10-01"].map(text => ({ text: text.toLowerCase() }));
+        const n = q => reportMatches(items, q).length;
+        console.log(JSON.stringify([n(""), n("熊本"), n("2025-10"), n("Kumamoto 2026"), n("nothing")]));
+        """
+        proc = subprocess.run(["node", "-e", self.functions("reportMatches") + cases], capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(json.loads(proc.stdout), [3, 2, 2, 1, 0])  # every word must match, case-insensitive
+
 
 if __name__ == "__main__":
     unittest.main()
