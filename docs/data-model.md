@@ -144,6 +144,22 @@ can be selected per run.
 - Transient download failures write nothing and are retried next run. Analyzer-side failures
   (fatal report, timeout, crash, invalid report) are stored as `FATAL` records.
 
+### §8.1 Analyzer upgrades
+
+A new analyzer release or profile is a new analysis key; results of different keys are never
+compared (§4). An upgrade does not switch the site piece by piece:
+
+1. The new key is filled in the background, newest publications first, while the site and the
+   reports stay on the current key.
+2. When every publication the page shows (§11 window) has a result under the new key, or a
+   lasting failure (`FATAL`, `SOURCE_UNAVAILABLE`), the export switches to the new key in one
+   commit.
+3. Older publications keep being analysed under the new key afterwards.
+
+The switch can change which publications are equivalent or `FATAL`, so report pairs are
+recomputed; content signatures do not depend on the key and keep their value. During the fill a
+run analyses under two keys, so its time budget is planned for both.
+
 ## §9 Validation diffs
 
 - `schemas/diff.schema.json` is binding; `build_diff` in `src/gtfs_jp_monitor/diff.py` is the
