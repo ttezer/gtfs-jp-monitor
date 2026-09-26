@@ -183,14 +183,17 @@ no history entries. Changing this format breaks shared links.
 
 ## §11 Semantic change reports
 
+- Reports cover only the publications the page shows: grouped as the page groups them, from
+  three groups before the current one to the newest (`window_uids`). Older history is analysed
+  (§8) but gets no report; reports already stored are kept, and a pair that leaves the window
+  keeps its report.
 - One report per pair of neighbouring publications as the web page shows them: analysed for
   the key and not `FATAL` (`PARTIAL` counts, since the engine reads the ZIP, not the validation
   result); unanalysed publications are passed over, a `FATAL` one breaks the chain, and
   equivalent pairs (§4.2) get no report. `report_pairs` in `src/gtfs_jp_monitor/changes.py`
   is the reference.
-- Pairs the page can compare beyond neighbours are reported as well: among the publications the
-  page shows (grouped as it groups them, from three groups before the current one to the newest),
-  every non-neighbouring pair without a `FATAL` side (`page_pairs`). They are queued after the
+- Pairs the page can compare beyond neighbours are reported as well: every non-neighbouring
+  pair of the window without a `FATAL` side (`page_pairs`). They are queued after the
   two newest rounds of neighbour pairs.
 - Both ZIPs are downloaded again and must match the analysed SHA-256; reports are produced on
   the production platform only, like analyses (§6.2).

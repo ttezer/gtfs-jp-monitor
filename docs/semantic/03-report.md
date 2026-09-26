@@ -8,9 +8,9 @@ The reader is a **transport planner** comparing two publications of one feed. Th
 in this order: *what changed in the service*, *where exactly*, and *is the data itself sound*.
 Validation results support the report; they do not lead it.
 
-One report is produced for every pair of neighbouring publications and for the
-non-neighbouring pairs the page shows (data-model §11), using the comparison window and matches
-of Part 2. Equivalent pairs (data-model §4.2: the same analysis summary and the same content
+One report is produced for every pair of publications the page shows, neighbouring or not
+(data-model §11: the current publication, three before it and the upcoming ones), using the
+comparison window and matches of Part 2. Equivalent pairs (data-model §4.2: the same analysis summary and the same content
 signature) produce no report; they carry only the equivalence flag. A report of non-neighbouring
 publications covers all changes between them combined, and the page says how many publications
 it skips.

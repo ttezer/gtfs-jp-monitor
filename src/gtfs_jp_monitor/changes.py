@@ -1,8 +1,10 @@
-"""Semantic change reports for consecutive publications (docs/semantic/03-report.md, Storage).
+"""Semantic change reports for publications the web page shows (docs/semantic/03-report.md, Storage).
 
-Pairs are neighbouring analysed publications as the web page shows them (see report_pairs);
-equivalent pairs get no report. Newest pairs first, round-robin across feeds, so a partial
-backfill covers the current change of every feed first.
+Pairs are neighbouring analysed publications as the page shows them (see report_pairs) and the
+other pairs the page can compare (page_pairs), all within the page window: the current group,
+PAGE_BACK groups before it and the upcoming ones. Older history gets no report; reports already
+stored stay. Equivalent pairs get no report. Newest pairs first, round-robin across feeds, so a
+partial run covers the current change of every feed first.
 
 A report that cannot be built leaves an .error.json marker for this engine version, so a
 broken pair is not retried every day; a new engine version retries every pair. An engine
@@ -95,12 +97,11 @@ def report_pairs(feed_index: dict, key: str) -> list[tuple[str, str]]:
 PAGE_BACK = 3  # the page shows the current publication and three before it
 
 
-def page_pairs(feed_index: dict, key: str, entries: dict[str, dict]) -> list[tuple[str, str]]:
-    """Non-neighbouring pairs among the publications the page shows, so any two of them can be
-    compared: publications grouped as the page groups them (analysed; an equivalent one joins
-    the previous group), from PAGE_BACK groups before the current one to the newest. A pair is
-    (last uid of the older group, first uid of the newer one); FATAL groups take no part."""
-    groups: list[list] = []  # [first uid, last uid, fatal]
+def _page_window(feed_index: dict, key: str, entries: dict[str, dict]) -> tuple[list[list], list[list]]:
+    """(all groups, the groups the page shows without FATAL ones). Publications are grouped as the
+    page groups them (analysed; an equivalent one joins the previous group); the window runs from
+    PAGE_BACK groups before the current one to the newest."""
+    groups: list[list] = []  # [first uid, last uid, fatal, uids]
     for entry in feed_index["generations"]:
         if entry["source_status"] == "ORDERING_UNKNOWN":
             continue
@@ -110,12 +111,25 @@ def page_pairs(feed_index: dict, key: str, entries: dict[str, dict]) -> list[tup
         fatal = analysis["validation_status"] == "FATAL"
         if groups and not fatal and not groups[-1][2] and analysis.get("equivalent_to_previous"):
             groups[-1][1] = entry["uid"]
+            groups[-1][3].add(entry["uid"])
             continue
-        groups.append([entry["uid"], entry["uid"], fatal])
+        groups.append([entry["uid"], entry["uid"], fatal, {entry["uid"]}])
     rid = lambda uid: (entries.get(uid) or {}).get("rid_observed") or ""
     current = next((i for i in range(len(groups) - 1, -1, -1) if rid(groups[i][0]) == "current" or rid(groups[i][1]) == "current"),
                    next((i for i in range(len(groups) - 1, -1, -1) if not rid(groups[i][1]).startswith("next_")), len(groups) - 1))
-    window = [g for g in groups[max(0, current - PAGE_BACK):] if not g[2]]
+    return groups, [g for g in groups[max(0, current - PAGE_BACK):] if not g[2]]
+
+
+def window_uids(feed_index: dict, key: str, entries: dict[str, dict]) -> set[str]:
+    """Uids of the publications the page shows (see _page_window)."""
+    return {uid for g in _page_window(feed_index, key, entries)[1] for uid in g[3]}
+
+
+def page_pairs(feed_index: dict, key: str, entries: dict[str, dict]) -> list[tuple[str, str]]:
+    """Non-neighbouring pairs among the publications the page shows, so any two of them can be
+    compared. A pair is (last uid of the older group, first uid of the newer one); FATAL groups
+    take no part."""
+    groups, window = _page_window(feed_index, key, entries)
     idx = {id(g): i for i, g in enumerate(groups)}
     return [(a[1], b[0]) for i, a in enumerate(window) for b in window[i + 1:] if idx[id(b)] - idx[id(a)] > 1]
 
@@ -128,9 +142,11 @@ def find_pending_reports(root: Path, feeds: list[FeedKey], key: str, engine_vers
         index = load_feed_index(root, *fk)
         if index is None:
             continue
-        pairs = list(reversed(report_pairs(index, key)))
+        entries = (catalog_gens or {}).get(fk, {})
+        shown = window_uids(index, key, entries)
+        pairs = [p for p in reversed(report_pairs(index, key)) if p[0] in shown and p[1] in shown]
         # Pairs the page can compare beyond neighbours come after the two newest neighbour rounds.
-        extra = page_pairs(index, key, (catalog_gens or {}).get(fk, {}))
+        extra = page_pairs(index, key, entries)
         ranked = [(depth, pair) for depth, pair in enumerate(pairs)] + [(2, pair) for pair in extra]
         for depth, (old_uid, new_uid) in ranked:
             if change_path(root, *fk, engine_version, old_uid, new_uid).exists():

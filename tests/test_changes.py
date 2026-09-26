@@ -9,7 +9,7 @@ from pathlib import Path
 
 from gtfs_jp_monitor.canonical import write_json
 from gtfs_jp_monitor.catalog import load_catalog, sync_catalog
-from gtfs_jp_monitor.changes import find_pending_reports, page_pairs, report_pairs, run_reports
+from gtfs_jp_monitor.changes import find_pending_reports, page_pairs, report_pairs, run_reports, window_uids
 from gtfs_jp_monitor.download import DownloadError, Downloaded
 from gtfs_jp_monitor.pipeline import _catalog_order
 from gtfs_jp_monitor.signature import content_signature
@@ -114,6 +114,18 @@ class ReportRunTest(unittest.TestCase):
         entries = {"e": {"rid_observed": "current"}, "f": {"rid_observed": "next_1"}}
         # groups: a, b, c+c2, d(FATAL), e, f; window from e-3 = b: b, c+c2, e, f (d FATAL left out)
         self.assertEqual(sorted(page_pairs(index, KEY, entries)), sorted([("b", "e"), ("b", "f"), ("c2", "e"), ("c2", "f")]))
+        # Reports stay within the page: neighbours a -> b is older history, b -> c inside the window.
+        self.assertEqual(window_uids(index, KEY, entries), {"b", "c", "c2", "e", "f"})
+        u = {x: uid(i + 1) for i, x in enumerate(["a", "b", "c", "c2", "d", "e", "f"])}
+        root = Path(self.tmp.name) / "window"
+        real = json.loads(json.dumps(index))
+        for g in real["generations"]:
+            g["uid"] = u[g["uid"]]
+        write_json(root / "feeds" / ORG / FEED / "feed.json", dict(real, org_id=ORG, feed_id=FEED))
+        found = find_pending_reports(root, [FK], KEY, "0.1.0", {FK: {u[k]: v for k, v in entries.items()}})
+        back = {v: k for k, v in u.items()}
+        self.assertEqual({(back[p.old_uid], back[p.new_uid]) for p in found},
+                         {("b", "c"), ("e", "f"), ("b", "e"), ("b", "f"), ("c2", "e"), ("c2", "f")})
 
     def test_new_engine_version_rebuilds(self):
         run_reports(self.root, KEY, downloader=FakeDownloader(self.blobs), engine_version="0.1.0")
