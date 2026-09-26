@@ -1,4 +1,5 @@
 import copy
+from datetime import date
 import gzip
 import hashlib
 import json
@@ -126,6 +127,13 @@ class ReportRunTest(unittest.TestCase):
         back = {v: k for k, v in u.items()}
         self.assertEqual({(back[p.old_uid], back[p.new_uid]) for p in found},
                          {("b", "c"), ("e", "f"), ("b", "e"), ("b", "f"), ("c2", "e"), ("c2", "f")})
+        # A recent publication outside the window still gets its neighbour pair (a -> b).
+        recent = {u[k]: dict(v) for k, v in entries.items()}
+        recent[u["b"]] = {"published_at": "2026-08-01T10:00:00+09:00"}
+        found = find_pending_reports(root, [FK], KEY, "0.1.0", {FK: recent}, today=date(2026, 9, 26))
+        self.assertIn(("a", "b"), {(back[p.old_uid], back[p.new_uid]) for p in found})
+        found = find_pending_reports(root, [FK], KEY, "0.1.0", {FK: recent}, today=date(2026, 12, 1))
+        self.assertNotIn(("a", "b"), {(back[p.old_uid], back[p.new_uid]) for p in found})
 
     def test_new_engine_version_rebuilds(self):
         run_reports(self.root, KEY, downloader=FakeDownloader(self.blobs), engine_version="0.1.0")

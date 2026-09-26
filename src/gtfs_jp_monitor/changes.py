@@ -2,8 +2,8 @@
 
 Pairs are neighbouring analysed publications as the page shows them (see report_pairs) and the
 other pairs the page can compare (page_pairs), all within the page window: the current group,
-PAGE_BACK groups before it and the upcoming ones. Older history gets no report; reports already
-stored stay. Equivalent pairs get no report. Newest pairs first, round-robin across feeds, so a
+PAGE_BACK groups before it and the upcoming ones, plus neighbouring pairs whose new publication
+is at most RECENT_DAYS old. Older history gets no report; reports already stored stay. Equivalent pairs get no report. Newest pairs first, round-robin across feeds, so a
 partial run covers the current change of every feed first.
 
 A report that cannot be built leaves an .error.json marker for this engine version, so a
@@ -14,6 +14,7 @@ failed pairs without rebuilding every report.
 
 from __future__ import annotations
 
+import datetime as _dt
 import hashlib
 import json
 import os
@@ -95,6 +96,9 @@ def report_pairs(feed_index: dict, key: str) -> list[tuple[str, str]]:
 
 
 PAGE_BACK = 3  # the page shows the current publication and three before it
+# Neighbouring pairs whose new publication is this recent are reported even outside the page
+# window, so a feed publishing daily loses no change when runs stop for a few days.
+RECENT_DAYS = 60
 
 
 def _page_window(feed_index: dict, key: str, entries: dict[str, dict]) -> tuple[list[list], list[list]]:
@@ -134,8 +138,15 @@ def page_pairs(feed_index: dict, key: str, entries: dict[str, dict]) -> list[tup
     return [(a[1], b[0]) for i, a in enumerate(window) for b in window[i + 1:] if idx[id(b)] - idx[id(a)] > 1]
 
 
+def _published(entry: dict | None) -> _dt.date | None:
+    try:
+        return _dt.datetime.fromisoformat(entry["published_at"]).date()
+    except (TypeError, KeyError, ValueError):
+        return None
+
+
 def find_pending_reports(root: Path, feeds: list[FeedKey], key: str, engine_version: str = ENGINE_VERSION,
-                         catalog_gens: dict | None = None) -> list[PendingReport]:
+                         catalog_gens: dict | None = None, today: _dt.date | None = None) -> list[PendingReport]:
     build = engine_build()
     pending = []
     for fk in feeds:
@@ -144,7 +155,9 @@ def find_pending_reports(root: Path, feeds: list[FeedKey], key: str, engine_vers
             continue
         entries = (catalog_gens or {}).get(fk, {})
         shown = window_uids(index, key, entries)
-        pairs = [p for p in reversed(report_pairs(index, key)) if p[0] in shown and p[1] in shown]
+        since = (today or _dt.datetime.now(_dt.timezone.utc).date()) - _dt.timedelta(days=RECENT_DAYS)
+        recent = lambda uid: (d := _published(entries.get(uid))) is not None and d >= since
+        pairs = [p for p in reversed(report_pairs(index, key)) if (p[0] in shown and p[1] in shown) or recent(p[1])]
         # Pairs the page can compare beyond neighbours come after the two newest neighbour rounds.
         extra = page_pairs(index, key, entries)
         ranked = [(depth, pair) for depth, pair in enumerate(pairs)] + [(2, pair) for pair in extra]

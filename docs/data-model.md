@@ -184,9 +184,11 @@ no history entries. Changing this format breaks shared links.
 ## §11 Semantic change reports
 
 - Reports cover only the publications the page shows: grouped as the page groups them, from
-  three groups before the current one to the newest (`window_uids`). Older history is analysed
-  (§8) but gets no report; reports already stored are kept, and a pair that leaves the window
-  keeps its report.
+  three groups before the current one to the newest (`window_uids`), plus neighbouring pairs
+  whose new publication was published in the last 60 days (`RECENT_DAYS`), so a feed that
+  publishes daily loses no change when runs stop for a few days. Older history is analysed (§8)
+  but gets no report; reports already stored are kept, and a pair that leaves the window keeps
+  its report.
 - One report per pair of neighbouring publications as the web page shows them: analysed for
   the key and not `FATAL` (`PARTIAL` counts, since the engine reads the ZIP, not the validation
   result); unanalysed publications are passed over, a `FATAL` one breaks the chain, and
