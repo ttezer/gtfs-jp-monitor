@@ -14,6 +14,12 @@ English, Japanese). A comparison can be shared by its link (data-model §10.1); 
 report is also published as JSON at `reports/<org_id>/<feed_id>/<old_uid>__<new_uid>.json.gz`
 (data-model §10.0), and `status.json` tells when the site was last updated.
 
+Each pair of publications is classified as a meaningful service change, technical only,
+equivalent or unknown (data-model §12). `metrics.json` gives per feed and in total the last 365
+days: publication and meaningful-update frequency, change ratios, validation regressions and
+coverage (§13); `fields.json.gz` gives how often selected optional fields such as wheelchair
+information are filled (§15).
+
 ## Layout
 
 | Path | Contents |
