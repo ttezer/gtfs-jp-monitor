@@ -27,7 +27,7 @@ class WebExportTest(unittest.TestCase):
                 doc = copy.deepcopy(base)
                 doc["generation"]["uid"] = uid(n)
                 write_json(generation_path(root, ORG, FEED, uid(n), KEY), doc)
-            export, bundles = build_export(root, KEY)
+            export, files = build_export(root, KEY)
         self.assertEqual(export["schema"], "gtfs-jp-monitor-web-export/1")
         self.assertEqual([f["feed_id"] for f in export["feeds"]], [FEED])  # feeds without analyses are left out
         feed = export["feeds"][0]
@@ -36,14 +36,14 @@ class WebExportTest(unittest.TestCase):
         self.assertEqual(g["rid"], "current")
         self.assertEqual(g["rules"]["JPN_030"], [4, "MEDIUM", "QUALITY"])
         self.assertEqual(export["rule_titles"], {"tr": {}, "en": {}, "ja": {}})
-        self.assertEqual((export["report_index"], bundles), ({}, {}))
+        self.assertEqual((export["report_index"], files), ({}, {}))
         status = export["status"]
         self.assertEqual((status["backlog"], status["last_run"]), ({"unanalysed": 1, "reports_pending": 0}, None))
         self.assertEqual(status["storage"]["reports"], {"count": 0, "bytes": 0, "max_bytes": 0, "avg_bytes": 0})
         self.assertGreater(status["storage"]["analyses_bytes"], 0)
         self.assertRegex(status["built_at"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
 
-    def test_indexes_and_bundles_stored_reports(self):
+    def test_indexes_stored_reports_one_file_each(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             sync_catalog(FakeClient([feed_record()], {(ORG, FEED): [gen(1, "current", "2026-04-01")]}), root)
@@ -56,12 +56,12 @@ class WebExportTest(unittest.TestCase):
             path = change_path(root, ORG, FEED, ENGINE_VERSION, h["old"]["uid"], h["new"]["uid"])
             path.parent.mkdir(parents=True)
             path.write_bytes(gzip_bytes(report))
-            export, bundles = build_export(root, KEY)
+            export, files = build_export(root, KEY)
         pair = f"{h['old']['uid']}__{h['new']['uid']}"
         entry = export["report_index"][pair]
-        self.assertEqual((entry["bundle"], entry["feed"]), ("pref-10", [ORG, FEED]))  # feed_record pref 10
+        self.assertEqual(entry["feed"], [ORG, FEED])
         self.assertEqual(entry["summary"], report["summary"])
-        self.assertEqual(bundles, {"pref-10": {pair: report}})
+        self.assertEqual(files, {f"{ORG}/{FEED}/{pair}": report})
 
     def test_newest_stored_engine_version_wins(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -80,8 +80,8 @@ class WebExportTest(unittest.TestCase):
                 path = change_path(root, ORG, FEED, version, h["old"]["uid"], h["new"]["uid"])
                 path.parent.mkdir(parents=True)
                 path.write_bytes(gzip_bytes(r))
-            _, bundles = build_export(root, KEY)
-        (doc,) = bundles["pref-10"].values()
+            _, files = build_export(root, KEY)
+        (doc,) = files.values()
         self.assertEqual(doc["header"]["old"]["memo"], "new")  # newest not above this engine
 
 class StorageTest(unittest.TestCase):

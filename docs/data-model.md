@@ -178,7 +178,7 @@ pinned analyzer installation, catalog sync, incremental analysis, semantic chang
 group guarantees one writer at a time.
 
 After the data commit the job rebuilds the public web site from the data repository
-(`export-web`, report bundles gzip-compressed) and a second job deploys it to GitHub Pages;
+(`export-web`, one gzip-compressed file per report) and a second job deploys it to GitHub Pages;
 only that job has `pages: write` and `id-token: write`.
 
 ### §10.1 Page links

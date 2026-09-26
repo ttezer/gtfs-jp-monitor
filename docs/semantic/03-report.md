@@ -143,7 +143,9 @@ Timetables are the largest part. To keep them compact:
 - unchanged combinations store no timetable.
 
 Pilot reports are 3–180 KB compressed. The web export indexes every report in the page and
-writes the reports in one bundle per prefecture, which the page loads when a pair is opened.
+writes each report to its own file, `reports/<org_id>/<feed_id>/<old_uid>__<new_uid>.json.gz`,
+which the page loads when the pair is opened; these files are also the machine-readable form of
+the reports.
 
 ## Language
 

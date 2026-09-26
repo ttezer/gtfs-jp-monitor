@@ -159,7 +159,7 @@ def _cmd_export_web(args: argparse.Namespace) -> int:
     from .webexport import build_export
 
     key = f"{args.release_tag}__{args.profile}"
-    export, bundles = build_export(Path(args.data_dir), key, Path(args.analyzer) if args.analyzer else None)
+    export, files = build_export(Path(args.data_dir), key, Path(args.analyzer) if args.analyzer else None)
     ext = ".json.gz" if args.bundle_format == "gz" else ".json"
     export["report_bundle_ext"] = ext
     if args.json:
@@ -178,11 +178,12 @@ def _cmd_export_web(args: argparse.Namespace) -> int:
 
         out = Path(args.html).parent / "reports"
         out.mkdir(parents=True, exist_ok=True)
-        for old in [*out.glob("pref-*.json.gz"), *out.glob("pref-*.json")]:  # bundles of an earlier export
+        for old in [*out.rglob("*.json.gz"), *out.rglob("*.json")]:  # reports of an earlier export
             old.unlink()
-        for name, docs in bundles.items():
-            data = gzip_bytes(docs) if ext == ".json.gz" else dumps(docs).encode("utf-8")
-            (out / f"{name}{ext}").write_bytes(data)
+        for name, doc in files.items():  # reports/<org_id>/<feed_id>/<old_uid>__<new_uid><ext>
+            path = out / f"{name}{ext}"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(gzip_bytes(doc) if ext == ".json.gz" else dumps(doc).encode("utf-8"))
         # Operational status for monitoring (watchdog, storage check): the export's status plus the
         # size of the site just written.
         site = Path(args.html).parent
@@ -190,7 +191,7 @@ def _cmd_export_web(args: argparse.Namespace) -> int:
         (site / "status.json").write_text(json.dumps(status, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"feeds": len(export["feeds"]),
                       "generations": sum(len(f["generations"]) for f in export["feeds"]),
-                      "reports": len(export["report_index"]), "bundles": len(bundles)}, indent=2))
+                      "reports": len(export["report_index"]), "report_files": len(files)}, indent=2))
     return 0
 
 
@@ -280,7 +281,7 @@ def main(argv: list[str] | None = None) -> int:
     web.add_argument("--html", help="write a self-contained page here")
     web.add_argument("--template", default=str(DEFAULT_TEMPLATE))
     web.add_argument("--bundle-format", choices=("gz", "json"), default="gz",
-                     help="report bundles next to the page: gzip (default) or plain JSON for hosts that do not serve .gz")
+                     help="report files next to the page: gzip (default) or plain JSON for hosts that do not serve .gz")
     web.set_defaults(func=_cmd_export_web)
 
     chk = sub.add_parser("check-storage", help="print storage sizes and warn past 75%% of a budget (data-model §10.2)")

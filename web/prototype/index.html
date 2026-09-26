@@ -586,12 +586,13 @@ const hm = m => m == null ? "" : `${Math.floor(m / 60)}:${String(m % 60).padStar
 state.openLines = new Set(); state.tt = {}; state.rview = "report";
 
 // Report of two neighbouring groups: old = last member of the older group, new = first member of the newer one.
-// Reports are indexed in the page and loaded per prefecture bundle when first needed.
+// Reports are indexed in the page and loaded one file per pair when first needed.
 const REPORTS = DATA.report_index || {};
-const bundles = new Map();
-function loadBundle(name) {
-  if (!bundles.has(name)) {
-    const p = fetch(`reports/${name}${DATA.report_bundle_ext || ".json.gz"}`).then(async r => {
+const loadedReports = new Map();
+function loadReport(pair) {
+  if (!loadedReports.has(pair)) {
+    const [org, feed] = REPORTS[pair].feed;
+    const p = fetch(`reports/${org}/${feed}/${pair}${DATA.report_bundle_ext || ".json.gz"}`).then(async r => {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const buf = new Uint8Array(await r.arrayBuffer());
       // Some servers already decode gzip (Content-Encoding); only decompress real gzip bytes.
@@ -600,10 +601,10 @@ function loadBundle(name) {
         : new TextDecoder().decode(buf);
       return JSON.parse(text);
     });
-    p.catch(() => bundles.delete(name));
-    bundles.set(name, p);
+    p.catch(() => loadedReports.delete(pair));
+    loadedReports.set(pair, p);
   }
-  return bundles.get(name);
+  return loadedReports.get(pair);
 }
 function pairReport(gs, lo, hi) {
   if (lo === hi) return { adjacent: false, pair: null, entry: null };
@@ -1147,8 +1148,8 @@ function renderReport() {
   const cached = state.loaded && state.loaded.pair === pair ? state.loaded.rep : null;
   if (!cached) {
     box.innerHTML = `<p class="hint">${esc(rt("loading"))}</p>`;
-    loadBundle(entry.bundle).then(docs => {
-      state.loaded = { pair, rep: docs[pair] };
+    loadReport(pair).then(doc => {
+      state.loaded = { pair, rep: doc };
       if (selectedReport().pair === pair && state.loaded.rep) renderReport();
     }).catch(err => { if (selectedReport().pair === pair) box.innerHTML = `<p class="fmt">${esc(rt("loadFailed", String(err.message || err)))}</p>`; });
     return;

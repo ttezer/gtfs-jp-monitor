@@ -3,7 +3,7 @@
 Language-neutral data plus per-language rule titles taken from the analyzer's own catalog.
 Validation diffs are not exported: the page computes them from generation summaries with the
 same rules as `diff.build_diff` (data-model §9). Semantic change reports are indexed in the
-export and written as per-prefecture bundles the page loads on demand.
+export and written one file per pair, which the page loads on demand.
 """
 
 from __future__ import annotations
@@ -63,14 +63,14 @@ def _version(name: str) -> tuple[int, ...] | None:
     return tuple(int(p) for p in parts) if len(parts) == 3 and all(p.isdigit() for p in parts) else None
 
 
-def report_bundles(root: Path, feeds: list[dict], engine_version: str) -> tuple[dict[str, dict], dict[str, dict]]:
-    """Semantic reports of exported feeds: a small index for the page and full reports bundled
-    per prefecture ("pref-01" .. "pref-47", "pref-00" when unknown), loaded on demand.
+def report_files(root: Path, feeds: list[dict], engine_version: str) -> tuple[dict[str, dict], dict[str, dict]]:
+    """Semantic reports of exported feeds: a small index for the page and one file per report,
+    {"<org_id>/<feed_id>/<old_uid>__<new_uid>": report}, loaded on demand.
 
     Each pair uses the newest engine version stored for it, up to `engine_version`, so the site
     keeps older reports while a new engine version is rebuilding them."""
     index: dict[str, dict] = {}
-    bundles: dict[str, dict] = {}
+    files: dict[str, dict] = {}
     limit = _version(engine_version)
     for f in feeds:
         base = feed_dir(root, f["org_id"], f["feed_id"]) / "changes"
@@ -81,17 +81,15 @@ def report_bundles(root: Path, feeds: list[dict], engine_version: str) -> tuple[
         for v in versions:
             for path in sorted((base / ".".join(map(str, v))).glob("*.report.json.gz")):
                 newest.setdefault(path.name, path)
-        pref = f["pref_id"] if isinstance(f["pref_id"], int) and 1 <= f["pref_id"] <= 47 else 0
-        bundle = f"pref-{pref:02d}"
         for _, path in sorted(newest.items()):
             doc = json.loads(gzip.decompress(path.read_bytes()).decode("utf-8"))
             h = doc["header"]
             pair = f"{h['old']['uid']}__{h['new']['uid']}"
-            bundles.setdefault(bundle, {})[pair] = doc
-            index[pair] = {"bundle": bundle, "feed": [f["org_id"], f["feed_id"]],
+            files[f"{f['org_id']}/{f['feed_id']}/{pair}"] = doc
+            index[pair] = {"feed": [f["org_id"], f["feed_id"]],
                            "dates": [h["old"]["from_date"], h["new"]["from_date"]],
                            "summary": doc["summary"], "coverage": h["coverage"]}
-    return index, bundles
+    return index, files
 
 
 def _bytes(paths) -> tuple[int, int, int]:
@@ -136,7 +134,7 @@ def build_status(root: Path, key: str, now: _dt.datetime | None = None) -> dict:
 
 
 def build_export(data_dir: Path, key: str, analyzer: Path | None = None) -> tuple[dict, dict[str, dict]]:
-    """(export for the page, report bundles to write next to it)."""
+    """(export for the page, report files to write next to it)."""
     root = Path(data_dir)
     catalog_feeds, catalog_gens = load_catalog(root)
     feeds = []
@@ -171,7 +169,7 @@ def build_export(data_dir: Path, key: str, analyzer: Path | None = None) -> tupl
             "listed": row.get("listed", True),
             "generations": gens,  # oldest first (data-model §2)
         })
-    report_index, bundles = report_bundles(root, feeds, ENGINE_VERSION)
+    report_index, files = report_files(root, feeds, ENGINE_VERSION)
     return {
         "schema": SCHEMA,
         "analysis_key": key,
@@ -180,7 +178,7 @@ def build_export(data_dir: Path, key: str, analyzer: Path | None = None) -> tupl
         "engine_version": ENGINE_VERSION,
         "report_index": report_index,
         "status": build_status(root, key),
-    }, bundles
+    }, files
 
 
 # Storage budgets (data-model §10.2). The repository budget is the project's own limit, not
