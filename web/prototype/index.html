@@ -2,6 +2,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GTFS-JP Monitor</title>
 <meta name="description" content="Feed quality, publication readiness and change history for gtfs-data.jp feeds">
+<script>
+// Google Analytics (G-2R410JP5N2), loaded only on the published site so that local and preview
+// builds send no page views.
+if (location.hostname === "ttezer.github.io") {
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = function () { dataLayer.push(arguments); };
+  gtag("js", new Date());
+  gtag("config", "G-2R410JP5N2");
+  const tag = document.createElement("script");
+  tag.async = true;
+  tag.src = "https://www.googletagmanager.com/gtag/js?id=G-2R410JP5N2";
+  document.head.appendChild(tag);
+}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
@@ -324,7 +338,7 @@ const T = {
     histIntro: "Seçili feed'in tüm yayınları, eskiden yeniye. Birleştirme açıkken içeriği aynı ardışık yayınlar tek satırda gösterilir.",
     period: "Geçerlilik", published: "Yayın", memo: "Not", status: "Durum", rid: "API konumu",
     gtfsjpText: p => `<p>Analizler GTFS Analyzer ile <b>${p}</b> profiliyle yapıldı. Profil seçilebilir (auto, v3, v4); farklı profille yapılan analizler ayrı tutulur ve birbiriyle karşılaştırılmaz.</p><p>Doğrulama tarihi her yayının geçerlilik başlangıcıdır (from_date); böylece her yayın hizmete girdiği gündeki hâliyle değerlendirilir.</p>`,
-    footer: "Veri kaynağı: gtfs-data.jp ve ilgili işletmeciler. Skorlar ve değişiklik raporları bu verilerden türetilmiştir; her feed'in lisansı feed panelinde yazar. Feed ve durak adları kaynaktaki hâliyle gösterilir. Harita: 地理院タイル. Skor rengi eşikleri geçicidir (≥95 / ≥85).",
+    footer: "Veri kaynağı: gtfs-data.jp ve ilgili işletmeciler. Skorlar ve değişiklik raporları bu verilerden türetilmiştir; her feed'in lisansı feed panelinde yazar. Feed ve durak adları kaynaktaki hâliyle gösterilir. Harita: 地理院タイル. Skor rengi eşikleri geçicidir (≥95 / ≥85). Ziyaret istatistikleri için Google Analytics kullanılır (çerezler; veriler Google'a gönderilir).",
     mergeNote: "Birleştirilmiş yayınlar \"×N yayın\" ile gösterilir: analiz özeti (skorlar, metrikler, kural ve dosya satır sayıları) bir öncekiyle birebir aynı olan yayınlar tek sütunda toplanır. ZIP dosyaları farklı olabilir; hiçbir yayın silinmez, tamamı Feed Geçmişi sekmesinde listelenir.",
     dataUpdated: "±0 skor · veri güncellendi", validity: "Geçerlilik",
     organization: "Kurum", feedPick: "Feed", showDisc: "Kapanan feed'leri göster", discChip: d => `Kapandı: ${d}`, orgCount: (n, a) => `${n} feed · ${a} aktif`, scopeNote: (dr, list) => `Kapsam değişikliği olası: hat sayısı ${dr} değişti ve kurumun şu feed'leri bu dönemde kapandı: ${list}. Hatlar feed'ler arasında taşınmış olabilir; bu bir tahmindir.`,
@@ -371,7 +385,7 @@ const T = {
     histIntro: "All publications of the selected feed, oldest first. With merging on, consecutive publications with identical content share one row.",
     period: "Validity", published: "Published", memo: "Note", status: "Status", rid: "API position",
     gtfsjpText: p => `<p>Analyses were made with GTFS Analyzer using the <b>${p}</b> profile. The profile is selectable (auto, v3, v4); analyses with different profiles are kept apart and never compared.</p><p>Each publication is validated as of its first valid day (from_date), so it is judged as it was when it entered service.</p>`,
-    footer: "Data: gtfs-data.jp and the transit operators. Scores and change reports are derived from these data; each feed's license is shown in its panel. Feed and stop names are shown as published. Map: 地理院タイル (GSI Tiles). Score colour thresholds are provisional (≥95 / ≥85).",
+    footer: "Data: gtfs-data.jp and the transit operators. Scores and change reports are derived from these data; each feed's license is shown in its panel. Feed and stop names are shown as published. Map: 地理院タイル (GSI Tiles). Score colour thresholds are provisional (≥95 / ≥85). Visits are measured with Google Analytics (cookies; data is sent to Google).",
     mergeNote: "Merged publications are marked \"×N publications\": publications whose analysis summary (scores, metrics, rule and file row counts) is identical to the previous one share a column. Their ZIP files may differ; none is removed, and all are listed under Feed history.",
     dataUpdated: "±0 score · data updated", validity: "Validity",
     organization: "Organisation", feedPick: "Feed", showDisc: "Show discontinued feeds", discChip: d => `Discontinued: ${d}`, orgCount: (n, a) => `${n} feeds · ${a} active`, scopeNote: (dr, list) => `Possible change of scope: the route count changed by ${dr} and these feeds of the same organisation ended in this period: ${list}. Routes may have moved between feeds; this is an estimate.`,
@@ -418,7 +432,7 @@ const T = {
     histIntro: "選択したフィードの全公開（古い順）。まとめる設定では、内容が同一の連続した公開を1行で表示します。",
     period: "有効期間", published: "公開", memo: "メモ", status: "状態", rid: "APIの位置",
     gtfsjpText: p => `<p>解析はGTFS Analyzerの<b>${p}</b>プロファイルで行いました。プロファイルは選択可能（auto・v3・v4）で、異なるプロファイルの結果は別に保持し、比較しません。</p><p>各公開は有効期間の開始日（from_date）時点で検証されます。</p>`,
-    footer: "データ：gtfs-data.jpおよび各事業者。スコアと変更レポートはこれらのデータから作成したもので、各フィードのライセンスはフィードのパネルに表示します。フィード名・停留所名は公開時のまま表示します。地図：地理院タイル。スコアの色の閾値は暫定です（≥95 / ≥85）。",
+    footer: "データ：gtfs-data.jpおよび各事業者。スコアと変更レポートはこれらのデータから作成したもので、各フィードのライセンスはフィードのパネルに表示します。フィード名・停留所名は公開時のまま表示します。地図：地理院タイル。スコアの色の閾値は暫定です（≥95 / ≥85）。アクセス解析に Google アナリティクスを使用しています（Cookie を使用し、データは Google に送信されます）。",
     mergeNote: "まとめた公開は「×N回公開」と表示します：解析の要約（スコア・指標・ルール件数・ファイル行数）が直前と完全に同じ公開を1列にまとめています。ZIPファイル自体は異なる場合があり、どの公開も削除せず、すべてフィード履歴に一覧表示します。",
     dataUpdated: "±0 スコア・データ更新", validity: "有効期間",
     organization: "事業者", feedPick: "フィード", showDisc: "終了したフィードを表示", discChip: d => `終了: ${d}`, orgCount: (n, a) => `${n}フィード・${a}件有効`, scopeNote: (dr, list) => `対象範囲の変更の可能性：路線数が${dr}変化し、同じ事業者の次のフィードがこの期間に終了しています：${list}。路線がフィード間で移った可能性があります（推定）。`,

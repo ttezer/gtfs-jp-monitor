@@ -2,6 +2,8 @@
 
 Monitoring pipeline for GTFS feeds published on [gtfs-data.jp](https://gtfs-data.jp).
 
+**Web site: <https://ttezer.github.io/gtfs-jp-monitor/>** (updated daily; Turkish, English, Japanese)
+
 For every feed generation (identified by its permanent `gtfs_file_uid`), the pipeline
 runs [GTFS Analyzer](https://github.com/ttezer/gtfs-analyzer), stores a compact,
 language-neutral summary and produces generation-to-generation differences: validation
