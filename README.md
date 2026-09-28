@@ -87,3 +87,6 @@ installer) need a CA bundle, e.g. `SSL_CERT_FILE=$(python3 -m certifi)`.
 
 Feed data comes from gtfs-data.jp and each transit operator. Every generation record keeps
 the license published for its feed; follow that license when redistributing derived data.
+
+The code of this repository is released under the [MIT License](LICENSE). It does not cover the
+feed data or the data derived from it, which keep their own licenses.

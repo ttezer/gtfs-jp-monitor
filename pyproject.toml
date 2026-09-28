@@ -3,6 +3,7 @@ name = "gtfs-jp-monitor"
 version = "0.0.0"
 description = "Monitoring pipeline for GTFS feeds published on gtfs-data.jp"
 requires-python = ">=3.11"
+license = {text = "MIT"}
 dependencies = []
 
 [project.optional-dependencies]
