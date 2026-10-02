@@ -315,6 +315,8 @@ class AccountingTest(unittest.TestCase):
             {"id": "c0000018", "file": "routes.txt", "kind": "field_changed", "key": ["V1"], "column": "route_long_name",
              "old": "「愛本線」（愛本方面～泊駅）", "new": "［愛本線］（愛本方面～泊駅）"},
             {"id": "c0000019", "file": "routes.txt", "kind": "field_changed", "key": ["10"], "column": "route_long_name", "old": "a", "new": "b"},
+            {"id": "c0000020", "file": "trips.txt", "kind": "field_changed", "key": ["T5"], "column": "direction_id", "old": "", "new": "0"},
+            {"id": "c0000021", "file": "trips.txt", "kind": "field_changed", "key": ["T5"], "column": "direction_id", "old": "0", "new": "1"},
         ]}
         raw["changes"] += [
             {"id": "c0000007", "file": "stop_times.txt", "kind": "field_changed", "key": ["T2", "1"], "column": "stop_id",
@@ -328,10 +330,11 @@ class AccountingTest(unittest.TestCase):
         # c14 a core column; c15 a compared trip that is neither changed nor the same
         # c16 route renumbered within one line; c17 moved to another line
         # c18 a variant renamed within its line family; c19 a route renamed while its line stayed unchanged
-        self.assertEqual(sorted(acc.unclassified), ["c0000002", "c0000008", "c0000014", "c0000015", "c0000017", "c0000019"])
+        # c20 direction_id given to an unchanged trip; c21 an unchanged trip turned round
+        self.assertEqual(sorted(acc.unclassified), ["c0000002", "c0000008", "c0000014", "c0000015", "c0000017", "c0000019", "c0000021"])
         self.assertEqual(acc.outside, ["c0000004"])
         self.assertEqual(acc.other, {"fares": ["c0000003"], "other_files": ["c0000006"], "formatting": ["c0000009", "c0000010"],
-                                     "attributes": ["c0000001", "c0000011", "c0000012", "c0000018"]})
+                                     "attributes": ["c0000001", "c0000011", "c0000012", "c0000018", "c0000020"]})
 
 
 if __name__ == "__main__":

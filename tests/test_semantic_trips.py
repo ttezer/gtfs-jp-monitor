@@ -3,6 +3,7 @@ import unittest
 from gtfs_jp_semantic.reader import Config, Table
 from gtfs_jp_semantic.trips import (
     Trip,
+    align_directions,
     build_trips,
     direction_key,
     dominant_pattern,
@@ -35,6 +36,33 @@ class ParseTest(unittest.TestCase):
         self.assertEqual(direction_key("1", ("A", "B")), "1")
         self.assertEqual(len(direction_key("", ("A", "B"))), 8)
         self.assertNotEqual(direction_key("", ("A", "B")), direction_key("", ("B", "A")))
+
+
+class AlignDirectionsTest(unittest.TestCase):
+    @staticmethod
+    def align(old, new):
+        return [t.direction for t in align_directions(old, new, lambda l: l, lambda l: l)]
+
+    def test_key_from_end_places_takes_the_new_direction_id(self):
+        loop, early = direction_key("", ("T", "T")), direction_key("", ("I", "T"))
+        old = [trip("a", "TEIT", 400, direction=loop), trip("b", "IET", 360, direction=early)]
+        new = [trip("x", "TEIT", 410, direction="0"), trip("y", "IET", 365, direction="0")]
+        self.assertEqual(self.align(old, new), ["0", "0"])  # same first and last place
+
+    def test_first_or_last_place_when_the_ends_changed(self):
+        out, back = direction_key("", ("T", "H")), direction_key("", ("H", "T"))
+        old = [trip("a", "TWH", 400, direction=out), trip("b", "HWT", 500, direction=back), trip("c", "XY", 600, direction="zz")]
+        new = [trip("x", "TWHWT", 400, direction="0")]  # out and back became one round trip
+        self.assertEqual(self.align(old, new), ["0", "0", "zz"])  # no shared end: kept
+
+    def test_ambiguous_or_both_with_direction_id_are_kept(self):
+        old = [trip("a", "TX", 400, direction="h1")]
+        new = [trip("x", "TY", 400, direction="0"), trip("y", "TZ", 400, direction="1")]
+        self.assertEqual(self.align(old, new), ["h1"])  # first place T is in both directions
+        old = [trip("a", "XT", 400, direction="1")]
+        self.assertEqual(self.align(old, [trip("x", "TX", 400, direction="0")]), ["1"])  # direction 1 dropped, not renamed
+        other_line = [trip("a", "TX", 400, line="2", direction="h1")]
+        self.assertEqual(self.align(other_line, [trip("x", "TX", 400, direction="0")]), ["h1"])
 
 
 class BuildTripsTest(unittest.TestCase):

@@ -125,6 +125,16 @@ candidates, to avoid chains through shared corridors.
 A **pattern** is the ordered list of places visited by a trip, within a line and direction
 (`direction_id`, or the order of first and last place when `direction_id` is missing).
 
+When one side has no `direction_id`, the two sides name directions differently, so trips of one
+line would not meet. With `direction_align`, an old trip whose direction the new side does not
+use takes the new direction of the same line with the same first and last place, else the same
+first place, else the same last place, when exactly one direction has it; otherwise it keeps its
+own. When both sides use `direction_id`, directions are never renamed, so a dropped direction
+stays visible. A trip that stays the same apart from `direction_id` being given or dropped is a
+route attribute change, not an unexplained one; and a direction whose trips all pair without a
+route change gets no pattern comparison of its dominant patterns, since an aligned direction can
+hold trips of both ways.
+
 Patterns of matched lines are matched by sequence similarity: the length of the longest common
 subsequence of places divided by the longer length, at least `pattern_min_similarity`.
 Differences between matched patterns are described as edits: places added or removed at an end
@@ -154,6 +164,7 @@ A paired trip is `retimed` when times differ, `rerouted` when the pattern differ
 | `stop_name_min_similarity` | minimum name similarity for proximity matches |
 | `stop_name_suffixes` | suffixes removed during name normalisation |
 | `line_min_overlap`, `line_max_component` | line matching |
+| `direction_align` | align directions across sides when either has no `direction_id` (default off) |
 | `line_family_patterns` | regular expressions whose first group is a route's line (empty: none) |
 | `line_name_strip_patterns` | regular expressions removed from line names before comparing them (empty: none) |
 | `pattern_min_similarity` | pattern matching |

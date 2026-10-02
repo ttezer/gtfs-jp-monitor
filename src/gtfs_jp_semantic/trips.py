@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import hashlib
 import statistics
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from typing import Callable
 from difflib import SequenceMatcher
 
 from .reader import Table
@@ -60,6 +61,39 @@ def direction_key(direction_id: str, places: tuple[str, ...]) -> str:
         return direction_id
     ends = f"{places[0] if places else ''}>{places[-1] if places else ''}"
     return hashlib.sha256(ends.encode("utf-8")).hexdigest()[:8]
+
+
+def _has_direction_id(key: str) -> bool:
+    return key in ("0", "1")
+
+
+def align_directions(old: list[Trip], new: list[Trip], group_old: Callable[[str], str],
+                     group_new: Callable[[str], str]) -> list[Trip]:
+    """Old trips whose direction key the new side does not use, when either side has no direction_id
+    (its key comes from the end places), take the direction of the same line group on the new side
+    that has the same first and last place, else the same first place, else the same last place;
+    only a single such direction is taken. Two sides that both use direction_id are left as they are,
+    so a direction that was dropped is not mistaken for another."""
+    ends: dict[str, dict[str, tuple[set, set, set]]] = {}
+    for t in new:
+        e = ends.setdefault(group_new(t.line), {}).setdefault(t.direction, (set(), set(), set()))
+        e[0].add((t.places[0], t.places[-1]))
+        e[1].add(t.places[0])
+        e[2].add(t.places[-1])
+    result = []
+    for t in old:
+        dirs = ends.get(group_old(t.line), {})
+        if not dirs or t.direction in dirs or (_has_direction_id(t.direction) and all(map(_has_direction_id, dirs))):
+            result.append(t)
+            continue
+        for i, probe in enumerate(((t.places[0], t.places[-1]), t.places[0], t.places[-1])):
+            hits = [d for d, e in sorted(dirs.items()) if probe in e[i]]
+            if len(hits) == 1:
+                t = replace(t, direction=hits[0])
+            if hits:
+                break  # one direction taken, or ambiguous: keep the key
+        result.append(t)
+    return result
 
 
 def build_trips(tables: dict[str, Table], services: frozenset[str], route_line: dict[str, str],

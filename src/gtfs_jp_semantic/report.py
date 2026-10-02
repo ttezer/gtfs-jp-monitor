@@ -23,7 +23,7 @@ from .rawdiff import diff_feeds
 from .reader import Config, Feed, read_feed
 from .report_check import check_report
 from .service import build_calendar, choose_comparison, day_type_order, irregular_services, parse_yyyymmdd
-from .trips import Trip, TripPair, build_trips, dominant_pattern, match_moved_trips, match_trips, pattern_edits
+from .trips import Trip, TripPair, align_directions, build_trips, dominant_pattern, match_moved_trips, match_trips, pattern_edits
 
 SCHEMA = "gtfs-jp-semantic-report/1"
 JP_FILES = frozenset({"agency_jp.txt", "office_jp.txt", "routes_jp.txt", "pattern_jp.txt"})
@@ -482,6 +482,8 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
     for dt, choice in comparison.day_types.items():
         old_trips = build_trips(ot, choice.old_services, old_route_line, place_of_stop(op), translate=to_new)
         new_trips = build_trips(nt, choice.new_services, new_route_line, place_of_stop(np_))
+        if cfg.get("direction_align"):
+            old_trips = align_directions(old_trips, new_trips, lambda l: group_of_old[l].key, lambda l: group_of_new[l].key)
         totals[dt] = {"before": len(old_trips), "after": len(new_trips)}
         by: dict[tuple[str, str], tuple[list[Trip], list[Trip]]] = collections.defaultdict(lambda: ([], []))
         for t in old_trips:
@@ -524,6 +526,8 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
     new_service = {r[0]: r[1] for r in _column_pairs(nt.get("trips.txt"), "trip_id", "service_id")}
     all_old = build_trips(ot, frozenset(old_service.values()), old_route_line, place_of_stop(op), translate=to_new)
     all_new = build_trips(nt, frozenset(new_service.values()), new_route_line, place_of_stop(np_))
+    if cfg.get("direction_align"):
+        all_old = align_directions(all_old, all_new, lambda l: group_of_old[l].key, lambda l: group_of_new[l].key)
 
     def trips_of(side: str, services: frozenset) -> list[Trip]:
         pool, service, group_of = (all_old, old_service, group_of_old) if side == "old" else (all_new, new_service, group_of_new)
@@ -608,7 +612,11 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
                     for e in m["edits"]:
                         seen[(e["kind"], tuple(e["places"]))] += 1
             edits = [{"kind": k, "places": list(ps), "trips": n} for (k, ps), n in sorted(seen.items(), key=lambda x: (-x[1], x[0]))]
-            if not edits:  # no paired trip changed route: compare the dominant patterns of both sides
+            # Every trip paired and none rerouted: the route did not change. With aligned directions a
+            # direction can hold trips of both ways, whose dominant patterns would compare as noise.
+            all_paired = cfg.get("direction_align") and all(
+                p.old is not None and p.new is not None for _, _, pairs in by_dir[direction].values() for p in pairs)
+            if not edits and not all_paired:  # no paired trip changed route: compare the dominant patterns of both sides
                 all_old = [t for a, _, _ in by_dir[direction].values() for t in a]
                 all_new = [t for _, b, _ in by_dir[direction].values() for t in b]
                 edits = [{"kind": e.kind, "places": list(e.places), "trips": None}

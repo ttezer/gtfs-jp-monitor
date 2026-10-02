@@ -129,6 +129,9 @@ def _row_file_bucket(change: dict, ev: Evidence) -> tuple[str, str | None]:
             return "explained", None  # same trip, renumbered route of the same line
     if name == "stop_times.txt" and trip_id in ev.same_trips:
         return "explained", None  # same places and times: stop_sequence was renumbered
+    if (name == "trips.txt" and kind == "field_changed" and column == "direction_id" and trip_id in ev.same_trips
+            and "" in ((change.get("old") or "").strip(), (change.get("new") or "").strip())):
+        return "explained", "attributes"  # direction_id given or dropped on an unchanged trip (directions aligned)
     return "unclassified", None
 
 
