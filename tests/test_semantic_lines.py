@@ -1,3 +1,5 @@
+import re
+import unicodedata
 import unittest
 
 from gtfs_jp_semantic.lines import build_lines, line_key, match_lines
@@ -82,6 +84,65 @@ class MatchLinesTest(unittest.TestCase):
         new = feed({"N1": ("新1", ""), "N2": ("新2", "")}, {"U1": ("N1", list("ABCD")), "U2": ("N2", list("ABCD"))})
         relations = sorted(m.relation for m in run(old, new).values())
         self.assertEqual(relations, ["added"] * 2 + ["discontinued"] * 5)
+
+    @unittest.expectedFailure  # until line families are recognised (WORKPLAN §18 open item 7)
+    def test_route_variants_regrouped_under_line_codes(self):
+        # Modelled on toyama-asahitown/asahimachibus 9989e43c -> 51d03588. The old publication has one
+        # route per trip variant, named only in route_long_name as "［family］variant（…）", with the
+        # line code in route_id; the new one has one route per line, named by code + family. Every line
+        # starts at 泊駅 (T), and lines share an eastern (E*) or western (W*) trunk, which chains them
+        # into components larger than line_max_component. Ground truth (decided by the user): the
+        # network is the same, so each family is one line renamed; nothing is discontinued or added.
+        # 愛本線's one-way trips become round trips (a pattern change, still renamed).
+        east, west = ["T", "E1", "E2", "E3", "E4"], ["T", "W1", "W2", "W3"]
+        old_variants = {  # route_id: (route_long_name, stops of its trip)
+            "A1 宮崎境線(miyazakisakai01)": ("［宮崎境線］（泊駅～宮崎境方面～泊駅）", east + ["M1", "M2", "T"]),
+            "A1 宮崎境線(miyazakisakai02)": ("［宮崎境線］夜便（泊駅～宮崎境方面～泊駅）", east + ["M1", "T"]),
+            "A1 宮崎境線(miyazakisakai03)": ("［宮崎境線］役場便（泊駅～役場～宮崎境方面～役場～泊駅）", ["T", "Y"] + east[1:] + ["M1", "M2", "Y", "T"]),
+            "A2 市振線(ichiburi002)": ("［市振線］（泊駅～市振～泊駅）", east + ["I1", "I2", "O1", "T"]),
+            "A2 市振線(ichiburi004)": ("［市振線］※大平なし（泊駅～市振～泊駅）", east + ["I1", "I2", "T"]),
+            "A2 市振線(ichiburi001)": ("［市振線］早朝便（市振～泊駅）", ["I2", "I1", "E4", "E3", "E2", "E1", "T"]),
+            "B 笹川線(sasagawa02)": ("［笹川線］（泊駅～笹川方面～泊駅）", ["T", "E1", "E2", "S1", "S2", "S3", "T"]),
+            "B 笹川線(sasagawa01)": ("［笹川線］朝便（泊駅～笹川方面～泊駅）", ["T", "E1", "E2", "S1", "S2", "T"]),
+            "C 草野赤川線(kusanoakagawa02)": ("［草野赤川線］（泊駅～役場～草野赤川方面～泊駅）", ["T", "Y", "K1", "K2", "K3", "T"]),
+            "D1 南保線(nanbo02)": ("［南保線］始発便（泊駅～南保方面～泊駅）", west + ["N1", "N2", "T"]),
+            "D1 南保線(nanbo04)": ("［南保線］最終便（泊駅～南保方面～泊駅）", west + ["N1", "T"]),
+            "D1 南保線(nanbo05)": ("［南保線］（泊駅～南保方面～泊駅）", west + ["N1", "N2", "T"]),
+            "D2 山崎線(yamazaki01)": ("［山崎線］朝便（泊駅～山崎方面～泊駅）", west + ["Z1", "T"]),
+            "D2 山崎線(yamazaki02)": ("［山崎線］（泊駅～山崎方面～泊駅）", west + ["Z1", "Z2", "T"]),
+            "E1 藤塚線(fujizuka0001)": ("［藤塚線］（泊駅～藤塚～泊駅）", ["T", "F1", "F2", "F3", "T"]),
+            "E2 愛本線(aimoto0003)": ("［愛本線］（泊駅～愛本方面）", west + ["H1", "H2"]),
+            "E2 愛本線(aimoto0004)": ("［愛本線］（愛本方面～泊駅）", ["H2", "H1", "W3", "W2", "W1", "T"]),
+            "E2 愛本線(aimoto0007)": ("［愛本線］（愛本方面～GS経由～泊駅）", ["H2", "H1", "G", "W2", "W1", "T"]),
+            "Ｆ大家庄線(ooiesyouam-2)": ("［大家庄線］（泊駅～大家庄方面～泊駅）", ["T", "W1", "L1", "L2", "L3", "T"]),
+            "Ｆ大家庄線(ooiesyouam-1)": ("［大家庄線］朝便（大家庄方面～泊駅）", ["L3", "L2", "L1", "W1", "T"]),
+        }
+        new_lines = {  # route_id: (route_short_name, stops of its trips)
+            "1": ("A1宮崎境線", [east + ["M1", "M2", "T"], ["T", "Y"] + east[1:] + ["M1", "M2", "Y", "T"]]),
+            "2": ("A2市振線", [east + ["I1", "I2", "T"], ["I2", "I1", "E4", "E3", "E2", "E1", "T"]]),
+            "3": ("B笹川線", [["T", "E1", "E2", "S1", "S2", "S3", "T"]]),
+            "4": ("C草野赤川線", [["T", "Y", "K1", "K2", "K3", "T"]]),
+            "5": ("D1南保線", [west + ["N1", "N2", "T"]]),
+            "6": ("D2山崎線", [west + ["Z1", "Z2", "T"]]),
+            "7": ("E1藤塚線", [["T", "F1", "F2", "F3", "T"]]),
+            "8": ("E2愛本線", [west + ["H1", "H2", "H1", "W3", "W2", "W1", "T"]]),
+            "9": ("F大家庄", [["T", "W1", "L1", "L2", "L3", "T"]]),
+        }
+        old = feed({rid: ("", name) for rid, (name, _) in old_variants.items()},
+                   {f"t{i}": (rid, stops) for i, (rid, (_, stops)) in enumerate(old_variants.items())})
+        new = feed({rid: (name, "") for rid, (name, _) in new_lines.items()},
+                   {f"u{rid}{j}": (rid, stops) for rid, (_, trips) in new_lines.items() for j, stops in enumerate(trips)})
+        places = {s: s for _, stops in old_variants.values() for s in stops}
+        old_lines, new_lines_ = build_lines(old, places), build_lines(new, places)
+        result = match_lines(old_lines, new_lines_, places, CFG)
+
+        self.assertEqual(sorted(m.relation for m in result), ["renamed"] * 9)
+        # Every old route lands in the new line its route_id code names ("A2 市振線(…)" -> "A2市振線").
+        code = lambda text: re.match(r"[A-Z][0-9]?", unicodedata.normalize("NFKC", text)).group()
+        landed = {r: m.new for m in result for k in m.old for r in old_lines[k].route_ids}
+        self.assertEqual(set(landed), set(old_variants))
+        for route_id, (new_key,) in landed.items():
+            self.assertTrue(new_key.startswith(code(route_id)), (route_id, new_key))
 
     def test_deterministic(self):
         old = feed({"R1": ("北線", ""), "R2": ("南線", "")}, {"T1": ("R1", list("ABC")), "T2": ("R2", list("DEF"))})
