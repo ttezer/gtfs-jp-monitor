@@ -46,6 +46,7 @@ Counts a planner can scan in seconds:
 | First / last departure | lines whose first or last trip moved by at least `first_last_min_shift` |
 | Fares | changed yes/no, with counts |
 | Data quality | Publish and Overall score, old → new |
+| Renumbering | with `report.renumbering`: matched places whose stop_ids changed, kept or renamed lines whose route_ids changed, trips paired exactly under another trip_id |
 
 ### 2. Service days
 

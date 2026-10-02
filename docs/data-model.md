@@ -357,10 +357,11 @@ and the engine version. Pairs are those of §12 whose newer publication falls in
 | `validation_regression_count` | Pairs whose publish score fell or where a CRITICAL or HIGH rule appeared; pairs with a `FATAL` side or a format transition are not compared (`counts.compared`) |
 | `unclassified_diff_ratio` | Unclassified report rows / all raw differences of the reported pairs |
 | `source_availability_rate` | Publications still listed by the source / all publications |
+| `id_churn_ratio` | Reported pairs with renumbered stops, lines or trips (report `summary.renumbered`) / reported pairs whose engine version counts it (`counts.renumbering_reported`) |
 
 Estimated pairs are counted apart (`counts.estimated_*`); unknown pairs are never guessed, and a
-rate over known pairs is shown with its coverage. Changes of
-identifiers (renumbering) are not counted yet; the report summary does not separate them.
+rate over known pairs is shown with its coverage. Renumbering is counted only from reports that
+carry `summary.renumbered`; until the engine version that writes it, `id_churn_ratio` is null.
 
 ## §14 Analyses derived in the page
 

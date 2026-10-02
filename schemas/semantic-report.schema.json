@@ -165,6 +165,17 @@
         },
         "first_last_changed": { "$ref": "#/$defs/count", "description": "Line/direction/day-type combinations whose first or last departure moved by at least first_last_min_shift." },
         "trip_moves": { "$ref": "#/$defs/count", "description": "Trips that moved to another line or direction (see `moves`)." },
+        "renumbered": {
+          "type": "object",
+          "description": "Identifiers that changed while what they name stayed (only with report.renumbering): matched places whose stop_ids changed, kept or renamed lines whose route_ids changed, trips paired exactly under another trip_id.",
+          "additionalProperties": false,
+          "required": ["stops", "lines", "trips"],
+          "properties": {
+            "stops": { "$ref": "#/$defs/count" },
+            "lines": { "$ref": "#/$defs/count" },
+            "trips": { "$ref": "#/$defs/count" }
+          }
+        },
         "date_changes": { "$ref": "#/$defs/count", "description": "Shared dates changed beyond the regular change of their day type (see service_days.date_changes)." },
         "fares": {
           "type": "object",

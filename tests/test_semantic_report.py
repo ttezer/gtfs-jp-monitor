@@ -241,6 +241,33 @@ class DateChangesTest(unittest.TestCase):
         self.assertEqual((g["changed"], g["removed_count"]), ([{"line": "1", "departure": 405, "old_departure": 400}], 1))
 
 
+class RenumberingTest(unittest.TestCase):
+    def test_counts_identifiers_changed_without_service_change(self):
+        import dataclasses
+
+        from gtfs_jp_semantic.reader import Config
+
+        renumbered = dict(OLD, **{
+            "stops.txt": OLD["stops.txt"].replace("S3,", "S3b,"),
+            "routes.txt": ROUTES.replace("R2,", "R2b,"),
+            "trips.txt": OLD["trips.txt"].replace("R2,WK,U1", "R2b,WK,U1").replace("T2,", "T2b,"),
+            "stop_times.txt": OLD["stop_times.txt"].replace("S3,", "S3b,").replace("T2,", "T2b,"),
+        })
+        base = Config.load()
+        with tempfile.TemporaryDirectory() as tmp:
+            old_zip, new_zip = write_zip(Path(tmp) / "old.zip", OLD), write_zip(Path(tmp) / "new.zip", renumbered)
+            kwargs = dict(feed={"org_id": "sample-city", "feed_id": "SampleBus"}, old_pub=dict(PUB, uid="1c8d1613-0633-4b70-9268-c88785f29ac3"),
+                          new_pub=dict(PUB, uid="2da131b0-cb13-4bc2-b8eb-d925bf6050ce"))
+            off, _ = build_report(old_zip, new_zip, config=base, **kwargs)
+            on, _ = build_report(old_zip, new_zip, config=dataclasses.replace(base, report=dict(base.report, renumbering=True)), **kwargs)
+        self.assertNotIn("renumbered", off["summary"])  # not part of reports until enabled
+        self.assertEqual(on["summary"]["renumbered"], {"stops": 1, "lines": 1, "trips": 1})
+        self.assertEqual(on["summary"]["lines"]["unchanged"], 2)  # nothing else changed
+        self.assertEqual(check_report(on), [])
+        if HAVE_JSONSCHEMA:
+            self.assertEqual(errors(validator("semantic-report.schema.json"), on), [])
+
+
 class AccountingTest(unittest.TestCase):
     def test_buckets(self):
         raw = {"changes": [

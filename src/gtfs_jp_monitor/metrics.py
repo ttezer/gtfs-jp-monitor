@@ -44,7 +44,8 @@ def _finish(c: dict) -> dict:
         "pairs": c["pairs"],
         "counts": {"meaningful": c["M"], "technical": c["T"], "equivalent": c["E"], "unknown": c["U"],
                    "estimated_meaningful": c["~M"], "estimated_technical": c["~T"],
-                   "regressions": c["regressions"], "compared": c["compared"]},
+                   "regressions": c["regressions"], "compared": c["compared"],
+                   "renumbering": c["renumbering"], "renumbering_reported": c["renumbering_reported"]},
         "coverage": _ratio(known, c["pairs"]),
         "exact_coverage": _ratio(exact, c["pairs"]),
         "publication_frequency": round(c["publications"] / per, 2),
@@ -55,6 +56,9 @@ def _finish(c: dict) -> dict:
         "validation_regression_count": c["regressions"],
         "unclassified_diff_ratio": _ratio(c["unclassified"], c["raw"], 6),  # tiny: keep precision
         "source_availability_rate": _ratio(c["available"], c["publications"]),
+        # Reported pairs where identifiers changed without what they name (stops, lines, trips);
+        # only reports of an engine version that counts them take part (counts.renumbering_reported).
+        "id_churn_ratio": _ratio(c["renumbering"], c["renumbering_reported"]),
     }
 
 
@@ -65,7 +69,8 @@ def build_metrics(feeds: list[dict], catalog_gens: dict, report_index: dict, key
     `feeds` are the exported feeds with `pair` codes and full rule tuples (before compaction)."""
     start = today - _dt.timedelta(days=WINDOW_DAYS)
     inside = lambda value: (d := _date(value)) is not None and start < d <= today
-    fields = ("publications", "available", "pairs", "M", "T", "E", "~M", "~T", "U", "regressions", "compared", "unclassified", "raw")
+    fields = ("publications", "available", "pairs", "M", "T", "E", "~M", "~T", "U", "regressions", "compared", "unclassified", "raw",
+              "renumbering", "renumbering_reported")
     total = dict.fromkeys(fields, 0)
     out = {}
     for f in feeds:
@@ -89,6 +94,10 @@ def build_metrics(feeds: list[dict], catalog_gens: dict, report_index: dict, key
             if entry:
                 c["unclassified"] += entry["coverage"]["unclassified"]
                 c["raw"] += entry["coverage"]["raw_total"]
+                renumbered = (entry.get("summary") or {}).get("renumbered")
+                if renumbered is not None:
+                    c["renumbering_reported"] += 1
+                    c["renumbering"] += any(renumbered.values())
         for k in fields:
             total[k] += c[k]
         out[f"{fk[0]}/{fk[1]}"] = _finish(c)

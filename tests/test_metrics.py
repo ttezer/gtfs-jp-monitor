@@ -21,13 +21,17 @@ class MetricsTest(unittest.TestCase):
                 gen("f", "06-10", "M", rules={"X": [1, "HIGH", "SPEC"], "Y": [2, "CRITICAL", "SPEC"]}, fmt=True)]
         feeds = [{"org_id": "o", "feed_id": "f", "generations": gens}]
         catalog = {("o", "f"): {g["uid"]: {"published_at": g["published_at"], "present": g["uid"] != "a"} for g in gens}}
-        index = {"a__b": {"coverage": {"unclassified": 1, "raw_total": 100}}, "b__c": {"coverage": {"unclassified": 0, "raw_total": 100}}}
+        index = {"a__b": {"coverage": {"unclassified": 1, "raw_total": 100}, "summary": {"renumbered": {"stops": 0, "lines": 0, "trips": 3}}},
+                 "b__c": {"coverage": {"unclassified": 0, "raw_total": 100}, "summary": {}},  # an engine version that does not count it
+                 "c__d": {"coverage": {"unclassified": 0, "raw_total": 0}, "summary": {"renumbered": {"stops": 0, "lines": 0, "trips": 0}}}}
         m = build_metrics(feeds, catalog, index, "v0.14.0__auto", "0.5.0", dt.date(2026, 9, 26))
         self.assertEqual((m["from"], m["to"], m["analysis_key"], m["engine_version"]), ("2025-09-26", "2026-09-26", "v0.14.0__auto", "0.5.0"))
         f = m["feeds"]["o/f"]
         self.assertEqual(f["counts"], {"meaningful": 2, "technical": 1, "equivalent": 1, "unknown": 1,
                                         "estimated_meaningful": 0, "estimated_technical": 0,
-                                        "regressions": 2, "compared": 4})  # c: score fell; e: HIGH rule appeared; f skipped (format)
+                                        "regressions": 2, "compared": 4,  # c: score fell; e: HIGH rule appeared; f skipped (format)
+                                        "renumbering": 1, "renumbering_reported": 2})
+        self.assertEqual(f["id_churn_ratio"], 0.5)
         self.assertEqual((f["publications"], f["pairs"], f["coverage"]), (6, 5, 0.8))
         self.assertEqual((f["equivalent_republication_ratio"], f["technical_only_change_ratio"]), (0.25, 0.25))
         self.assertEqual((f["unknown_classification_ratio"], f["unclassified_diff_ratio"]), (0.2, 0.005))

@@ -103,6 +103,18 @@ def _groups(line_matches: list[LineMatch], old: dict[str, Line], new: dict[str, 
     return groups
 
 
+def _renumbered(place_matches: list, groups: list[_Group], combos: dict) -> dict:
+    """Identifiers that changed while what they name stayed (data-model §13 id churn): matched places
+    whose stop_ids changed, lines kept or renamed whose route_ids changed, and trips paired exactly
+    (same places and times) under another trip_id."""
+    stops = sum(1 for m in place_matches if m.old and m.new and set(m.old.members) != set(m.new.members))
+    routes = sum(1 for g in groups if g.match.relation in ("same", "renamed")
+                 and {r for l in g.old for r in l.route_ids} != {r for l in g.new for r in l.route_ids})
+    trips = {a[p.old].trip_id for a, b, pairs in combos.values() for p in pairs
+             if p.kind == "exact" and a[p.old].trip_id != b[p.new].trip_id}
+    return {"stops": stops, "lines": routes, "trips": len(trips)}
+
+
 def _side(lines: list[Line]) -> dict | None:
     if not lines:
         return None
@@ -758,6 +770,7 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
             "trip_moves": len(moves),
             "fares": _fares(raw["changes"]),
             "quality": summary_quality,
+            **({"renumbered": _renumbered(place_matches, groups, combos)} if config.report.get("renumbering") else {}),
         },
         "service_days": {
             "day_types": {dt: {"active_days": {"before": old_cal.active_days(dt.split(",")), "after": new_cal.active_days(dt.split(","))}}
