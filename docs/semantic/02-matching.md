@@ -97,11 +97,17 @@ The resulting relation is 1:1; unmatched places are `added` or `removed`.
 ## 4. Routes
 
 A **line** is what a passenger recognises as one route: routes of a publication are grouped by
-normalised `route_short_name`, falling back to `route_long_name`, then `route_id`.
+normalised `route_short_name`, falling back to `route_long_name`, then `route_id`. Some
+publications give every trip variant its own route and put the line in the name
+(`［市振線］早朝便（市振～泊駅）`); a configured **family pattern** replaces such a name by its first
+group (`市振線`), so the variants form one line.
 
 Old and new lines are matched by:
 
-1. **equal normalised name** — confidence 1;
+1. **equal normalised name** — confidence 1. For this comparison configured parts of the name are
+   removed, such as a line code prefix or a trailing `線` (`A2市振線` and `市振線` are both `市振`); a
+   name that would become empty is compared in full. Several lines sharing a name take the shape
+   of their group (merge, split, restructure), like matches by served places;
 2. otherwise **served places**, among lines without a same-name match: the overlap coefficient
    (shared places over the smaller set, using the place matches of §3) of the places served by the
    two lines' trips, at least `line_min_overlap`. The overlap coefficient is used rather than a
@@ -147,6 +153,8 @@ A paired trip is `retimed` when times differ, `rerouted` when the pattern differ
 | `stop_name_min_similarity` | minimum name similarity for proximity matches |
 | `stop_name_suffixes` | suffixes removed during name normalisation |
 | `line_min_overlap`, `line_max_component` | line matching |
+| `line_family_patterns` | regular expressions whose first group is a route's line (empty: none) |
+| `line_name_strip_patterns` | regular expressions removed from line names before comparing them (empty: none) |
 | `pattern_min_similarity` | pattern matching |
 | `trip_max_shift_min`, `trip_max_cost` | trip assignment |
 | `accept_confidence` | below this, a match is only a candidate |

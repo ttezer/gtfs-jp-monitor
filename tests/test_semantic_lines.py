@@ -25,6 +25,11 @@ def feed(routes, trips):
 
 IDENTITY = {s: s for s in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"}
 
+# Line family settings to be enabled with the next engine version (WORKPLAN §18 open item 7); until
+# then the default configuration leaves them empty so reports of the current version do not change.
+FAMILY_CFG = dict(CFG, line_family_patterns=[r"^\[([^\]]+)\]"],
+                  line_name_strip_patterns=[r"^[A-Z][0-9]*(?=[^A-Za-z0-9])", r"線$"])
+
 
 def run(old_feed, new_feed, place_map=None):
     old = build_lines(old_feed, IDENTITY)
@@ -38,6 +43,13 @@ class LineKeyTest(unittest.TestCase):
         self.assertEqual(line_key({"route_short_name": "", "route_long_name": "駅前 線", "route_id": "R1"}), "駅前線")
         self.assertEqual(line_key({"route_short_name": "", "route_long_name": "", "route_id": "R1"}), "R1")
         self.assertEqual(line_key({"route_short_name": "１", "route_id": "x"}), "1")  # NFKC
+
+    def test_family_pattern(self):
+        families = [re.compile(p) for p in FAMILY_CFG["line_family_patterns"]]
+        route = {"route_short_name": "", "route_long_name": "［市振線］早朝便（市振～泊駅）", "route_id": "A2"}
+        self.assertEqual(line_key(route, families), "市振線")
+        self.assertEqual(line_key(route), "[市振線]早朝便(市振~泊駅)")  # no pattern configured
+        self.assertEqual(line_key({"route_short_name": "［］", "route_id": "x"}, families), "[]")  # empty family is not used
 
     def test_routes_with_one_name_form_one_line(self):
         lines = build_lines(feed({"R1": ("1", ""), "R1b": ("1", "")}, {"T1": ("R1", ["A", "B"]), "T2": ("R1b", ["B", "C"])}), IDENTITY)
@@ -65,6 +77,24 @@ class MatchLinesTest(unittest.TestCase):
         split = run(new, old)[(("環状線",), ("北線", "南線"))]
         self.assertEqual(split.relation, "split")
 
+    def test_equal_names_after_removing_line_codes(self):
+        old = feed({"R1": ("宮崎境線", ""), "R2": ("A線", "")}, {"T1": ("R1", list("ABC")), "T2": ("R2", list("DE"))})
+        new = feed({"N1": ("A1宮崎境線", ""), "N2": ("B線", "")}, {"U1": ("N1", list("XYZ")), "U2": ("N2", list("VW"))})
+        m = run(old, new)
+        self.assertEqual(m[(("宮崎境線",), ())].relation, "discontinued")  # nothing configured: names differ
+        m = {(x.old, x.new): x for x in match_lines(build_lines(old, IDENTITY, FAMILY_CFG), build_lines(new, IDENTITY, FAMILY_CFG),
+                                                    IDENTITY, FAMILY_CFG)}
+        match = m[(("宮崎境線",), ("A1宮崎境線",))]
+        self.assertEqual((match.relation, match.method, match.confidence), ("renamed", "same_line_name", 1.0))
+        # A name that would become empty keeps its full form, so "A線" and "B線" stay apart.
+        self.assertEqual((m[(("A線",), ())].relation, m[((), ("B線",))].relation), ("discontinued", "added"))
+
+    def test_lines_sharing_a_name_take_its_shape(self):
+        old = feed({"R1": ("A1宮崎境線", ""), "R2": ("A2宮崎境線", "")}, {"T1": ("R1", list("ABC")), "T2": ("R2", list("DEF"))})
+        new = feed({"N1": ("宮崎境線", "")}, {"U1": ("N1", list("XYZ"))})
+        m = match_lines(build_lines(old, IDENTITY, FAMILY_CFG), build_lines(new, IDENTITY, FAMILY_CFG), IDENTITY, FAMILY_CFG)
+        self.assertEqual([(x.old, x.new, x.relation) for x in m], [(("A1宮崎境線", "A2宮崎境線"), ("宮崎境線",), "merged")])
+
     def test_discontinued_and_added(self):
         m = run(feed({"R1": ("1", "")}, {"T": ("R1", list("ABC"))}), feed({"R2": ("2", "")}, {"T": ("R2", list("XYZ"))}))
         self.assertEqual(m[(("1",), ())].relation, "discontinued")
@@ -85,7 +115,6 @@ class MatchLinesTest(unittest.TestCase):
         relations = sorted(m.relation for m in run(old, new).values())
         self.assertEqual(relations, ["added"] * 2 + ["discontinued"] * 5)
 
-    @unittest.expectedFailure  # until line families are recognised (WORKPLAN §18 open item 7)
     def test_route_variants_regrouped_under_line_codes(self):
         # Modelled on toyama-asahitown/asahimachibus 9989e43c -> 51d03588. The old publication has one
         # route per trip variant, named only in route_long_name as "［family］variant（…）", with the
@@ -133,8 +162,8 @@ class MatchLinesTest(unittest.TestCase):
         new = feed({rid: (name, "") for rid, (name, _) in new_lines.items()},
                    {f"u{rid}{j}": (rid, stops) for rid, (_, trips) in new_lines.items() for j, stops in enumerate(trips)})
         places = {s: s for _, stops in old_variants.values() for s in stops}
-        old_lines, new_lines_ = build_lines(old, places), build_lines(new, places)
-        result = match_lines(old_lines, new_lines_, places, CFG)
+        old_lines, new_lines_ = build_lines(old, places, FAMILY_CFG), build_lines(new, places, FAMILY_CFG)
+        result = match_lines(old_lines, new_lines_, places, FAMILY_CFG)
 
         self.assertEqual(sorted(m.relation for m in result), ["renamed"] * 9)
         # Every old route lands in the new line its route_id code names ("A2 市振線(…)" -> "A2市振線").

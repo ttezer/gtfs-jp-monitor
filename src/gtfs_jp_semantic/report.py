@@ -447,7 +447,7 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
     to_new = {m.old.place_id: m.new.place_id for m in place_matches if m.old and m.new}
     places = _PlaceIndex(place_matches)
 
-    old_lines, new_lines = build_lines(ot, place_of_stop(op)), build_lines(nt, place_of_stop(np_))
+    old_lines, new_lines = build_lines(ot, place_of_stop(op), cfg), build_lines(nt, place_of_stop(np_), cfg)
     groups = _groups(match_lines(old_lines, new_lines, to_new, cfg), old_lines, new_lines)
     old_route_line = {r: l.key for l in old_lines.values() for r in l.route_ids}
     new_route_line = {r: l.key for l in new_lines.values() for r in l.route_ids}
