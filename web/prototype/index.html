@@ -308,7 +308,7 @@ const T = {
     s5: "Son 365 gün", mTotal: "Son 365 gün, bütün feed'ler",
     mRows: { pubs: "Yayın (30 günde)", meaningful: "Anlamlı güncelleme (30 günde)", pairs: "Çiftler", coverage: "Sınıfı bilinen çift (kapsam)",
              equivalent: "Eşdeğer yeniden yayın", technical: "Yalnız teknik değişiklik", regressions: "Doğrulama gerilemesi",
-             unclassified: "Sınıflandırılmamış fark", availability: "Kaynağı indirilebilen yayın" },
+             unclassified: "Sınıflandırılmamış fark", availability: "Kaynağı indirilebilen yayın", churn: "Kimliği yeniden numaralanan çift" },
     mPairs: (m, t, e, u, em, et) => `${m} anlamlı · ${t} teknik · ${e} eşdeğer · ${u} bilinmiyor${em + et ? ` · tahmini ${em} anlamlı, ${et} teknik` : ""}`, mExact: "Kesin kapsam (raporlu)",
     mOf: (n, d) => `${n} / ${d} çift`,
     mNote: (from, to, key, eng) => `${from} – ${to} · ${key} · motor ${eng}. Oranlar sınıfı bilinen çiftler üzerinden; bilinmeyen çiftler tahmin edilmez.`,
@@ -356,7 +356,7 @@ const T = {
     s5: "Last 365 days", mTotal: "Last 365 days, all feeds",
     mRows: { pubs: "Publications (per 30 days)", meaningful: "Meaningful updates (per 30 days)", pairs: "Pairs", coverage: "Pairs with a known class (coverage)",
              equivalent: "Equivalent republications", technical: "Technical-only changes", regressions: "Validation regressions",
-             unclassified: "Unclassified differences", availability: "Publications still downloadable" },
+             unclassified: "Unclassified differences", availability: "Publications still downloadable", churn: "Pairs with renumbered IDs" },
     mPairs: (m, t, e, u, em, et) => `${m} meaningful · ${t} technical · ${e} equivalent · ${u} unknown${em + et ? ` · estimated ${em} meaningful, ${et} technical` : ""}`, mExact: "Exact coverage (reported)",
     mOf: (n, d) => `${n} of ${d} pairs`,
     mNote: (from, to, key, eng) => `${from} – ${to} · ${key} · engine ${eng}. Ratios are over pairs with a known class; unknown pairs are not guessed.`,
@@ -404,7 +404,7 @@ const T = {
     s5: "過去365日", mTotal: "過去365日・全フィード",
     mRows: { pubs: "公開（30日あたり）", meaningful: "意味のある更新（30日あたり）", pairs: "ペア", coverage: "分類が判明したペア（カバー率）",
              equivalent: "同等の再公開", technical: "技術的変更のみ", regressions: "検証結果の悪化",
-             unclassified: "未分類の差分", availability: "取得可能な公開" },
+             unclassified: "未分類の差分", availability: "取得可能な公開", churn: "IDが振り直されたペア" },
     mPairs: (m, t, e, u, em, et) => `意味のある変更 ${m} · 技術的 ${t} · 同等 ${e} · 不明 ${u}${em + et ? ` · 推定 意味あり ${em}・技術的 ${et}` : ""}`, mExact: "確定カバー率（レポートあり）",
     mOf: (n, d) => `${d}ペア中 ${n}`,
     mNote: (from, to, key, eng) => `${from} – ${to} · ${key} · エンジン ${eng}。割合は分類が判明したペアに対する値で、不明なペアは推定しません。`,
@@ -513,6 +513,8 @@ const R = {
     movesNote: (n, lines) => `${n} sefer bu hat ile şu hat(lar) arasında taşındı: ${lines}. Aynı koridorun güzergâh varyantları olabilir; ayrıntı sefer değişiklikleri tablosunda.`,
     editTrips: n => `${n} seferde`, editDominant: "baskın güzergâh karşılaştırması",
     movesCard: n => `Başka hatta veya yöne geçen sefer: ${n}`,
+    renumCard: r => `Yalnız kimliği değişen: ${r.stops} durak · ${r.lines} hat · ${r.trips} sefer`,
+    dwellTitle: "Durakta bekleme (sefer başına toplam)", dwellCols: ["Yön", "Gün tipi", "Medyan · eski", "Medyan · yeni", "Δ"],
     dk: { service_dates_changed: "Hizmet günleri değişti (eski: çıkarılan, yeni: eklenen tarihler)", calendar_no_effect: "Etkisiz: aynı günler, farklı yazım", calendar_outside_shared: "İki yayının ortak döneminin dışında", calendar_unused_service: "Hiçbir seferin kullanmadığı hizmet", attribute_changed: "Alan değişti", coordinates_adjusted: "Koordinat düzeltildi (taşındı eşiğinin altında)", row_added: "Satır eklendi", row_removed: "Satır kaldırıldı", field_changed: "Alan değişti", shape_changed: "Şekil değişti", file_added: "Dosya eklendi", file_removed: "Dosya kaldırıldı", column_added: "Sütun eklendi", column_removed: "Sütun kaldırıldı", rows_bulk: "Toplu değişiklik", file_changed_opaque: "Okunamayan dosya değişti" },
     detailCols: ["Değişiklik", "Dosya", "Anahtar", "Alan", "Eski", "Yeni"],
     truncated: n => `+${n} kayıt daha (tamamı ham fark dosyasında).`, showDetails: n => `Ayrıntılar (${n})`,
@@ -576,6 +578,8 @@ const R = {
     movesNote: (n, lines) => `${n} trips moved between this line and: ${lines}. These may be route variants of one corridor; see the trip changes table.`,
     editTrips: n => `on ${n} trips`, editDominant: "dominant pattern comparison",
     movesCard: n => `Trips moved to another line or direction: ${n}`,
+    renumCard: r => `Only the ID changed: ${r.stops} stops · ${r.lines} lines · ${r.trips} trips`,
+    dwellTitle: "Standing at stops (total per trip)", dwellCols: ["Direction", "Day type", "Median · old", "Median · new", "Δ"],
     dk: { service_dates_changed: "Service days changed (old: dates removed, new: dates added)", calendar_no_effect: "No effect: same days, written differently", calendar_outside_shared: "Outside the period both publications cover", calendar_unused_service: "Service no trip uses", attribute_changed: "Field changed", coordinates_adjusted: "Coordinates adjusted (below the moved threshold)", row_added: "Row added", row_removed: "Row removed", field_changed: "Field changed", shape_changed: "Shape changed", file_added: "File added", file_removed: "File removed", column_added: "Column added", column_removed: "Column removed", rows_bulk: "Bulk change", file_changed_opaque: "Unreadable file changed" },
     detailCols: ["Change", "File", "Key", "Field", "Old", "New"],
     truncated: n => `+${n} more (all in the raw difference file).`, showDetails: n => `Details (${n})`,
@@ -639,6 +643,8 @@ const R = {
     movesNote: (n, lines) => `${n}便がこの路線と次の路線の間で移行：${lines}。同じ系統群の経路違いの可能性があります。詳細は便の変更表を参照。`,
     editTrips: n => `${n}便`, editDominant: "主要経路の比較",
     movesCard: n => `他の路線・方向へ移行した便：${n}`,
+    renumCard: r => `IDのみ変更：停留所 ${r.stops} · 路線 ${r.lines} · 便 ${r.trips}`,
+    dwellTitle: "停留所での停車時間（1便あたり合計）", dwellCols: ["方向", "曜日区分", "中央値 · 旧", "中央値 · 新", "Δ"],
     dk: { service_dates_changed: "運行日の変更（旧：削除日、新：追加日）", calendar_no_effect: "影響なし（同じ日付・表記のみ変更）", calendar_outside_shared: "両公開の共通期間外", calendar_unused_service: "便に使われない運行区分", attribute_changed: "項目変更", coordinates_adjusted: "座標の微修正（移設の閾値未満）", row_added: "行追加", row_removed: "行削除", field_changed: "項目変更", shape_changed: "形状変更", file_added: "ファイル追加", file_removed: "ファイル削除", column_added: "列追加", column_removed: "列削除", rows_bulk: "一括変更", file_changed_opaque: "読めないファイルの変更" },
     detailCols: ["変更", "ファイル", "キー", "項目", "旧", "新"],
     truncated: n => `ほか${n}件（すべて差分ファイルに記録）。`, showDetails: n => `詳細（${n}）`,
@@ -932,6 +938,14 @@ function lineBlock(rep, line) {
         return `<tr><td>${esc(dirLabel(rep, line, t.direction))}</td><td>${esc(dtLabel(t.day_type))}</td><td class="r">${esc(mins(v.old))}</td><td class="r">${esc(mins(v.new))}</td>
           <td class="r ${d > 0 ? "up" : d < 0 ? "down" : "flat"}">${d == null ? "" : signed(d)}</td><td>${v.longer + v.shorter + v.same ? esc(rt("travelPaired", v.longer, v.shorter, v.same)) : ""}</td></tr>`;
       }).join("")}</tbody></table></div></div>` : "";
+    const dwell = line.trips.filter(x => x.dwell && (x.dwell.before || x.dwell.after))  // all-zero rows say nothing
+      .sort((p, q) => p.direction.localeCompare(q.direction) || byDt(p.day_type, q.day_type));
+    const dwellTable = dwell.length ? `<div><h3>${esc(rt("dwellTitle"))}</h3><div class="scroll" style="border:0"><table class="mini"><thead><tr>${
+      rt("dwellCols").map((c, i) => `<th${i >= 2 ? ' class="r"' : ""}>${esc(c)}</th>`).join("")}</tr></thead><tbody>${dwell.map(x => {
+        const d = x.dwell.before != null && x.dwell.after != null ? Math.round(x.dwell.after - x.dwell.before) : null;
+        return `<tr><td>${esc(dirLabel(rep, line, x.direction))}</td><td>${esc(dtLabel(x.day_type))}</td><td class="r">${esc(mins(x.dwell.before))}</td>
+          <td class="r">${esc(mins(x.dwell.after))}</td><td class="r ${d > 0 ? "up" : d < 0 ? "down" : "flat"}">${d == null ? "" : signed(d)}</td></tr>`;
+      }).join("")}</tbody></table></div></div>` : "";
     const bands = [...new Set(line.trips.flatMap(x => Object.keys(x.bands)))].sort();
     const hourRows = line.trips.slice().sort((p, q) => p.direction.localeCompare(q.direction) || byDt(p.day_type, q.day_type));
     const hourTable = bands.length ? `<div><h3>${esc(rt("byHour"))}</h3><div class="scroll"><table class="tt"><thead><tr><th class="pl"></th>${bands.map(b => `<th>${esc(b.replace(/^0/, "").replace("-0", "-"))}</th>`).join("")}</tr></thead><tbody>${
@@ -975,7 +989,7 @@ function lineBlock(rep, line) {
     });
     const routeMap = routes.length ? `<div><h3>${esc(rt("routeMap"))}</h3>${mapShell(`lmap-${rep.lines.indexOf(line)}`, "pmap lmap")}
       <p class="hint">${esc(rt("routeLegend"))}</p><ul class="edits">${routeText.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>` : "";
-    inner = `<div class="lb">${changeTable}${pat}${routeMap}${fl}${travelTable}${hourTable}${tts}</div>`;
+    inner = `<div class="lb">${changeTable}${pat}${routeMap}${fl}${travelTable}${dwellTable}${hourTable}${tts}</div>`;
   }
   return `<details class="line" data-key="${esc(line.key)}"${open ? " open" : ""}><summary>${stChip(line.status, rt("ls")[line.status])}<span class="ln">${esc(lineNames(line))}</span><span class="lt">${esc(tot)}</span></summary>${inner}</details>`;
 }
@@ -1407,7 +1421,8 @@ function renderReport() {
     <div class="seg rview">${[["report", "rvReport"], ["verify", "rvVerify"]].map(([v, k]) => `<button type="button" data-rview="${v}" aria-pressed="${state.rview === v}">${esc(rt(k))}</button>`).join("")}</div>
     ${state.rview === "verify" ? verifyView : `<p class="hint">${esc(rt("covShort", c.raw_total ? Math.floor(c.explained / c.raw_total * 1000) / 10 : 100))}</p>
     <div><h3>1. ${esc(rt("sSummary"))}</h3><div class="cards">
-      <div class="card"><div class="k">${esc(rt("lines"))}</div><div class="chips">${lineCard}</div>${s.trip_moves ? `<div class="hint">${esc(rt("movesCard", s.trip_moves))}</div>` : ""}${s.date_changes ? `<div class="hint">${esc(rt("dcCard", s.date_changes))}</div>` : ""}</div>
+      <div class="card"><div class="k">${esc(rt("lines"))}</div><div class="chips">${lineCard}</div>${s.trip_moves ? `<div class="hint">${esc(rt("movesCard", s.trip_moves))}</div>` : ""}${s.date_changes ? `<div class="hint">${esc(rt("dcCard", s.date_changes))}</div>` : ""}${
+        s.renumbered && (s.renumbered.stops || s.renumbered.lines || s.renumbered.trips) ? `<div class="hint">${esc(rt("renumCard", s.renumbered))}</div>` : ""}</div>
       <div class="card"><div class="k">${esc(rt("places"))}</div><div class="chips">${placeCard}</div></div>
       <div class="card"><div class="k">${esc(rt("trips"))}</div><div>${tripCard}</div></div>
       <div class="card"><div class="k">${esc(rt("firstLast"))}</div><div class="hint">${esc(rt("firstLastN", s.first_last_changed))}</div></div>
@@ -1786,6 +1801,7 @@ function metricsBlock(m, M) {
     [r.equivalent, pct(m.equivalent_republication_ratio)], [r.technical, pct(m.technical_only_change_ratio)],
     [r.regressions, T[state.lang].mOf(c.regressions, c.compared)], [r.unclassified, pct(m.unclassified_diff_ratio, 3)],
     [r.availability, pct(m.source_availability_rate)]];
+  if (c.renumbering_reported) rows.push([r.churn, `${pct(m.id_churn_ratio)} · ${T[state.lang].mOf(c.renumbering, c.renumbering_reported)}`]);
   return `<table class="mini">${rows.map(([k, v]) => `<tr><td>${esc(k)}</td><td class="r num">${esc(String(v))}</td></tr>`).join("")}</table>
     <p class="hint">${esc(T[state.lang].mNote(M.from, M.to, M.analysis_key, M.engine_version))}</p>`;
 }

@@ -167,7 +167,7 @@
         "trip_moves": { "$ref": "#/$defs/count", "description": "Trips that moved to another line or direction (see `moves`)." },
         "renumbered": {
           "type": "object",
-          "description": "Identifiers that changed while what they name stayed (only with report.renumbering): matched places whose stop_ids changed, kept or renamed lines whose route_ids changed, trips paired exactly under another trip_id.",
+          "description": "Identifiers that changed while what they name stayed (only with report.renumbering): unchanged places whose stop_ids changed, lines kept under their name whose route_ids changed, trips paired exactly under another trip_id.",
           "additionalProperties": false,
           "required": ["stops", "lines", "trips"],
           "properties": {

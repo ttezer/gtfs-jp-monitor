@@ -112,11 +112,12 @@ def _median_dwell(trips: list[Trip]) -> float | None:
 
 
 def _renumbered(place_matches: list, groups: list[_Group], combos: dict) -> dict:
-    """Identifiers that changed while what they name stayed (data-model §13 id churn): matched places
-    whose stop_ids changed, lines kept or renamed whose route_ids changed, and trips paired exactly
-    (same places and times) under another trip_id."""
-    stops = sum(1 for m in place_matches if m.old and m.new and set(m.old.members) != set(m.new.members))
-    routes = sum(1 for g in groups if g.match.relation in ("same", "renamed")
+    """Identifiers that changed while what they name stayed (data-model §13 id churn): unchanged places
+    whose stop_ids changed, lines kept under their name whose route_ids changed, and trips paired
+    exactly (same places and times) under another trip_id. A renamed line or place is a change, not
+    renumbering."""
+    stops = sum(1 for m in place_matches if m.status == "unchanged" and set(m.old.members) != set(m.new.members))
+    routes = sum(1 for g in groups if g.match.relation == "same"
                  and {r for l in g.old for r in l.route_ids} != {r for l in g.new for r in l.route_ids})
     trips = {a[p.old].trip_id for a, b, pairs in combos.values() for p in pairs
              if p.kind == "exact" and a[p.old].trip_id != b[p.new].trip_id}
