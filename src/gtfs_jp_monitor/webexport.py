@@ -66,12 +66,16 @@ def _version(name: str) -> tuple[int, ...] | None:
     return tuple(int(p) for p in parts) if len(parts) == 3 and all(p.isdigit() for p in parts) else None
 
 
-def report_files(root: Path, feeds: list[dict], engine_version: str) -> tuple[dict[str, dict], dict[str, dict]]:
+def report_files(root: Path, feeds: list[dict], engine_version: str,
+                 wanted: dict[tuple[str, str], set[str]] | None = None) -> tuple[dict[str, dict], dict[str, dict]]:
     """Semantic reports of exported feeds: a small index for the page and one file per report,
     {"<org_id>/<feed_id>/<old_uid>__<new_uid>": report}, loaded on demand.
 
     Each pair uses the newest engine version stored for it, up to `engine_version`, so the site
-    keeps older reports while a new engine version is rebuilding them."""
+    keeps older reports while a new engine version is rebuilding them. With `wanted` ({feed key:
+    {"<old_uid>__<new_uid>"}}, the pairs reports are built for), a report of an older engine version
+    is shown only for such a pair: older reports of pairs the new version will not rebuild stay in
+    the data repository but leave the site (data-model §11)."""
     index: dict[str, dict] = {}
     files: dict[str, dict] = {}
     limit = _version(engine_version)
@@ -84,6 +88,8 @@ def report_files(root: Path, feeds: list[dict], engine_version: str) -> tuple[di
         newest: dict[str, Path] = {}
         for v in versions:
             for path in sorted((base / ".".join(map(str, v))).glob("*.report.json.gz")):
+                if v != limit and wanted is not None and path.name.split(".")[0] not in wanted.get((f["org_id"], f["feed_id"]), set()):
+                    continue  # superseded engine version and not to be rebuilt
                 newest.setdefault(path.name, path)
         for _, path in sorted(newest.items()):
             doc = json.loads(gzip.decompress(path.read_bytes()).decode("utf-8"))
@@ -336,7 +342,15 @@ def build_export(data_dir: Path, key: str, analyzer: Path | None = None,
             "listed": row.get("listed", True),
             "generations": gens,  # oldest first (data-model §2)
         })
-    report_index, files = report_files(root, feeds, ENGINE_VERSION)
+    from .changes import wanted_pairs
+
+    wanted = {}
+    for f in feeds:
+        fk = (f["org_id"], f["feed_id"])
+        index_doc = load_feed_index(root, *fk)
+        if index_doc:
+            wanted[fk] = {f"{o}__{n}" for _, (o, n) in wanted_pairs(index_doc, key, catalog_gens.get(fk, {}))}
+    report_index, files = report_files(root, feeds, ENGINE_VERSION, wanted)
     classify_pairs(root, feeds, report_index, ENGINE_VERSION)
     metrics = build_metrics(feeds, catalog_gens, report_index, key, ENGINE_VERSION,
                             _dt.datetime.now(_dt.timezone.utc).date())  # before compact_rules

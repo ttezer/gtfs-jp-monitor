@@ -91,6 +91,29 @@ class WebExportTest(unittest.TestCase):
         (doc,) = files.values()
         self.assertEqual(doc["header"]["old"]["memo"], "new")  # newest not above this engine
 
+    def test_superseded_reports_only_for_pairs_being_rebuilt(self):
+        from gtfs_jp_monitor.webexport import report_files
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            report = copy.deepcopy(load_json(FIXTURES / "semantic" / "report-example.json"))
+            report["header"]["feed"] = {"org_id": ORG, "feed_id": FEED}
+            h = report["header"]
+            pair = f"{h['old']['uid']}__{h['new']['uid']}"
+            path = change_path(root, ORG, FEED, "0.0.1", h["old"]["uid"], h["new"]["uid"])
+            path.parent.mkdir(parents=True)
+            path.write_bytes(gzip_bytes(report))
+            feeds = [{"org_id": ORG, "feed_id": FEED}]
+            shown = lambda wanted: list(report_files(root, feeds, ENGINE_VERSION, wanted)[0])
+            self.assertEqual(shown(None), [pair])  # no list of pairs: every stored report
+            self.assertEqual(shown({(ORG, FEED): {pair}}), [pair])  # kept until the new version rebuilds it
+            self.assertEqual(shown({(ORG, FEED): set()}), [])  # outside the page: stays stored, leaves the site
+            self.assertTrue(path.exists())
+            current = change_path(root, ORG, FEED, ENGINE_VERSION, h["old"]["uid"], h["new"]["uid"])
+            current.parent.mkdir(parents=True)
+            current.write_bytes(gzip_bytes(report))
+            self.assertEqual(shown({(ORG, FEED): set()}), [pair])  # a report of this version is always shown
+
 
 class CompactRulesTest(unittest.TestCase):
     def test_counts_only_unless_a_publication_differs(self):

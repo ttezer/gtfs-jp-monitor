@@ -295,7 +295,11 @@ catches a monitoring workflow that fails and one that does not start at all.
   `.error.json` marker and is not retried for that engine version; an engine error is retried
   once the engine code changes (the marker records an `engine_build` digest of it); a transient download
   failure writes nothing and is retried next run. A new engine version reports every pair
-  again under its own directory.
+  again under its own directory. Until it has, the site shows a pair's report of an older
+  version, but only for pairs that are reported (the window, the last `RECENT_DAYS` days and the
+  page's other pairs); older reports of pairs the new version will not rebuild stay in the data
+  repository and leave the site, so the page never mixes known-wrong results of an older engine
+  into history it no longer reports.
 - Raw differences (docs/semantic/01-raw-diff.md) are not stored; they can be rebuilt from the
   two ZIPs. Newest pairs are reported first, round-robin across feeds, at most
   `report_limit` per run and within a time budget (`report_minutes`): no new report starts

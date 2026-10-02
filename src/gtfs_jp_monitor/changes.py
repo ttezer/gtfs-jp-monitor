@@ -145,6 +145,17 @@ def _published(entry: dict | None) -> _dt.date | None:
         return None
 
 
+def wanted_pairs(index: dict, key: str, entries: dict[str, dict], today: _dt.date | None = None) -> list[tuple[int, tuple[str, str]]]:
+    """(depth, pair) of every pair a report is built for: neighbours the page shows or published in
+    the last RECENT_DAYS days, newest first, then the page's other pairs after the two newest rounds."""
+    shown = window_uids(index, key, entries)
+    since = (today or _dt.datetime.now(_dt.timezone.utc).date()) - _dt.timedelta(days=RECENT_DAYS)
+    recent = lambda uid: (d := _published(entries.get(uid))) is not None and d >= since
+    pairs = [p for p in reversed(report_pairs(index, key)) if (p[0] in shown and p[1] in shown) or recent(p[1])]
+    # Pairs the page can compare beyond neighbours come after the two newest neighbour rounds.
+    return [(depth, pair) for depth, pair in enumerate(pairs)] + [(2, pair) for pair in page_pairs(index, key, entries)]
+
+
 def find_pending_reports(root: Path, feeds: list[FeedKey], key: str, engine_version: str = ENGINE_VERSION,
                          catalog_gens: dict | None = None, today: _dt.date | None = None) -> list[PendingReport]:
     build = engine_build()
@@ -153,14 +164,7 @@ def find_pending_reports(root: Path, feeds: list[FeedKey], key: str, engine_vers
         index = load_feed_index(root, *fk)
         if index is None:
             continue
-        entries = (catalog_gens or {}).get(fk, {})
-        shown = window_uids(index, key, entries)
-        since = (today or _dt.datetime.now(_dt.timezone.utc).date()) - _dt.timedelta(days=RECENT_DAYS)
-        recent = lambda uid: (d := _published(entries.get(uid))) is not None and d >= since
-        pairs = [p for p in reversed(report_pairs(index, key)) if (p[0] in shown and p[1] in shown) or recent(p[1])]
-        # Pairs the page can compare beyond neighbours come after the two newest neighbour rounds.
-        extra = page_pairs(index, key, entries)
-        ranked = [(depth, pair) for depth, pair in enumerate(pairs)] + [(2, pair) for pair in extra]
+        ranked = wanted_pairs(index, key, (catalog_gens or {}).get(fk, {}), today)
         for depth, (old_uid, new_uid) in ranked:
             if change_path(root, *fk, engine_version, old_uid, new_uid).exists():
                 continue
