@@ -49,6 +49,9 @@ class Evidence:
     date_trips: set[str] = field(default_factory=set)
     # route_id (either side) -> report line key; a trip moving between routes of one line is renumbering
     route_line: dict[str, str] = field(default_factory=dict)
+    # route_ids (either side) whose line came from a family pattern: renaming such a route variant
+    # leaves its line as it was, so the new name is an attribute of the route
+    family_routes: set[str] = field(default_factory=set)
     compared_trips: set[str] = field(default_factory=set)  # trip_ids that ran on a compared day (either side)
     # stop_id -> id of the matched place, per side; equal values mean the stop was only renumbered.
     old_stop_place: dict[str, str] = field(default_factory=dict)
@@ -101,8 +104,11 @@ def _row_file_bucket(change: dict, ev: Evidence) -> tuple[str, str | None]:
             return "explained", "attributes"  # codes, descriptions, or a move below stop_moved_min_m
         return "unclassified", None
     if name == "routes.txt":
-        if _row_value(change, "route_id") in ev.changed_routes:
+        route_id = _row_value(change, "route_id")
+        if route_id in ev.changed_routes:
             return "explained", None
+        if kind == "field_changed" and column in ("route_short_name", "route_long_name") and route_id in ev.family_routes:
+            return "explained", "attributes"  # a variant renamed within its line family
         return ("explained", "attributes") if attribute else ("unclassified", None)
     if name == "stop_times.txt" and kind == "field_changed" and column == "stop_id":
         target = ev.old_stop_place.get(change["old"])

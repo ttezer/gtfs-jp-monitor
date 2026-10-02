@@ -23,6 +23,7 @@ class Line:
     names: tuple[str, ...]
     route_ids: tuple[str, ...]
     places: frozenset[str]  # place ids served by the line's trips
+    family_routes: frozenset[str] = frozenset()  # routes whose name gave the line through a family pattern
 
 
 @dataclass(frozen=True)
@@ -73,16 +74,19 @@ def build_lines(tables: dict[str, Table], place_of_stop: dict[str, str], cfg: di
                 served.setdefault(route_id, set()).add(place)
     families = _patterns(cfg, "line_family_patterns")
     groups: dict[str, list[str]] = {}
+    family_routes: set[str] = set()
     for route_id, route in routes.items():
         key = line_key(route, families)
         if key:
             groups.setdefault(key, []).append(route_id)
+            if families and key != line_key(route):
+                family_routes.add(route_id)
     lines: dict[str, Line] = {}
     for key, route_ids in groups.items():
         ids = tuple(sorted(route_ids))
         names = sorted({n for rid in ids for n in (routes[rid].get("route_short_name", ""), routes[rid].get("route_long_name", "")) if n})
         places = frozenset().union(*(served.get(rid, set()) for rid in ids))
-        lines[key] = Line(key, tuple(names), ids, places)
+        lines[key] = Line(key, tuple(names), ids, places, frozenset(family_routes.intersection(ids)))
     return lines
 
 
@@ -114,7 +118,7 @@ def match_lines(old: dict[str, Line], new: dict[str, Line], place_map: dict[str,
         name = key
         for pattern in strip:
             name = pattern.sub("", name)
-        return name or key
+        return name if len(name) >= 2 else key  # "A線" stays apart from "B線"
 
     by_name: dict[str, tuple[list[str], list[str]]] = {}
     for side, lines in ((0, old), (1, new)):
@@ -123,12 +127,14 @@ def match_lines(old: dict[str, Line], new: dict[str, Line], place_map: dict[str,
     named_old: set[str] = set()
     named_new: set[str] = set()
     for _, (olds, news) in sorted(by_name.items()):
-        if not olds or not news:
-            continue
-        relation = "same" if olds == news and len(olds) == 1 else _shape(olds, news)
-        result.append(LineMatch(tuple(olds), tuple(news), relation, "same_line_name", 1.0))
-        named_old.update(olds)
-        named_new.update(news)
+        if len(olds) == 1 and len(news) == 1:
+            pairs = [(olds[0], news[0])]
+        else:  # the shortened name is not unique on a side ("A系統", "B系統"): only equal keys are evidence
+            pairs = [(k, k) for k in sorted(set(olds) & set(news))]
+        for o, n in pairs:
+            result.append(LineMatch((o,), (n,), "same" if o == n else "renamed", "same_line_name", 1.0))
+            named_old.add(o)
+            named_new.add(n)
     rest_old = sorted(set(old) - named_old)
     rest_new = sorted(set(new) - named_new)
 

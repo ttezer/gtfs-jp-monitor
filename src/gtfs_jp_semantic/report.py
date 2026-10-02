@@ -708,6 +708,7 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
     for g in groups:
         line_of.update({("route", r): g.key for l in g.old + g.new for r in l.route_ids})
     ev.route_line = {r: g.key for g in groups for l in g.old + g.new for r in l.route_ids}
+    ev.family_routes = {r for l in (*old_lines.values(), *new_lines.values()) for r in l.family_routes}
     acc = classify(raw, ev)
     file_table, file_totals = _file_table(raw, acc)
     unclassified_details, unclassified_truncated = _details(raw["changes"], acc.unclassified, config.report["other_details_max"])

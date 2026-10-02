@@ -27,8 +27,8 @@ IDENTITY = {s: s for s in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"}
 
 # Line family settings to be enabled with the next engine version (WORKPLAN §18 open item 7); until
 # then the default configuration leaves them empty so reports of the current version do not change.
-FAMILY_CFG = dict(CFG, line_family_patterns=[r"^\[([^\]]+)\]"],
-                  line_name_strip_patterns=[r"^[A-Z][0-9]*(?=[^A-Za-z0-9])", r"線$"])
+FAMILY_CFG = dict(CFG, line_family_patterns=[r"^[\[【「]([^\]】」]+線)[\]】」]"],
+                  line_name_strip_patterns=[r"^[A-Z][0-9]*(?=[\u4e00-\u9fff])"])
 
 
 def run(old_feed, new_feed, place_map=None):
@@ -49,7 +49,9 @@ class LineKeyTest(unittest.TestCase):
         route = {"route_short_name": "", "route_long_name": "［市振線］早朝便（市振～泊駅）", "route_id": "A2"}
         self.assertEqual(line_key(route, families), "市振線")
         self.assertEqual(line_key(route), "[市振線]早朝便(市振~泊駅)")  # no pattern configured
-        self.assertEqual(line_key({"route_short_name": "［］", "route_id": "x"}, families), "[]")  # empty family is not used
+        self.assertEqual(line_key({"route_long_name": "「愛本線」（愛本方面～泊駅）", "route_id": "x"}, families), "愛本線")
+        # A bracket that names a kind of service, not a line, is not a family.
+        self.assertEqual(line_key({"route_long_name": "［学校便］安芸-ジオパーク線", "route_id": "x"}, families), "[学校便]安芸-ジオパーク線")
 
     def test_routes_with_one_name_form_one_line(self):
         lines = build_lines(feed({"R1": ("1", ""), "R1b": ("1", "")}, {"T1": ("R1", ["A", "B"]), "T2": ("R1b", ["B", "C"])}), IDENTITY)
@@ -86,14 +88,15 @@ class MatchLinesTest(unittest.TestCase):
                                                     IDENTITY, FAMILY_CFG)}
         match = m[(("宮崎境線",), ("A1宮崎境線",))]
         self.assertEqual((match.relation, match.method, match.confidence), ("renamed", "same_line_name", 1.0))
-        # A name that would become empty keeps its full form, so "A線" and "B線" stay apart.
+        # A name that would keep fewer than two characters is compared in full, so "A線" and "B線" stay apart.
         self.assertEqual((m[(("A線",), ())].relation, m[((), ("B線",))].relation), ("discontinued", "added"))
 
-    def test_lines_sharing_a_name_take_its_shape(self):
-        old = feed({"R1": ("A1宮崎境線", ""), "R2": ("A2宮崎境線", "")}, {"T1": ("R1", list("ABC")), "T2": ("R2", list("DEF"))})
-        new = feed({"N1": ("宮崎境線", "")}, {"U1": ("N1", list("XYZ"))})
+    def test_shortened_name_shared_by_several_lines_is_not_evidence(self):
+        old = feed({"R1": ("A系統", ""), "R2": ("B系統", "")}, {"T1": ("R1", list("ABC")), "T2": ("R2", list("DEF"))})
+        new = feed({"N1": ("A系統", ""), "N2": ("C系統", "")}, {"U1": ("N1", list("ABC")), "U2": ("N2", list("XYZ"))})
         m = match_lines(build_lines(old, IDENTITY, FAMILY_CFG), build_lines(new, IDENTITY, FAMILY_CFG), IDENTITY, FAMILY_CFG)
-        self.assertEqual([(x.old, x.new, x.relation) for x in m], [(("A1宮崎境線", "A2宮崎境線"), ("宮崎境線",), "merged")])
+        self.assertEqual(sorted((x.old, x.new, x.relation) for x in m),
+                         [((), ("C系統",), "added"), (("A系統",), ("A系統",), "same"), (("B系統",), (), "discontinued")])
 
     def test_discontinued_and_added(self):
         m = run(feed({"R1": ("1", "")}, {"T": ("R1", list("ABC"))}), feed({"R2": ("2", "")}, {"T": ("R2", list("XYZ"))}))

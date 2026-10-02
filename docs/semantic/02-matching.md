@@ -105,9 +105,10 @@ group (`市振線`), so the variants form one line.
 Old and new lines are matched by:
 
 1. **equal normalised name** — confidence 1. For this comparison configured parts of the name are
-   removed, such as a line code prefix or a trailing `線` (`A2市振線` and `市振線` are both `市振`); a
-   name that would become empty is compared in full. Several lines sharing a name take the shape
-   of their group (merge, split, restructure), like matches by served places;
+   removed, such as a line code prefix before a kanji (`A2市振線` and `市振線` are both `市振線`); a
+   name that would keep fewer than two characters is compared in full (`A線` stays apart from `B線`).
+   A shortened name counts only when it belongs to one line on each side; when several lines of a
+   publication share it (`A系統`, `B系統` -> `系統`), only equal full names match;
 2. otherwise **served places**, among lines without a same-name match: the overlap coefficient
    (shared places over the smaller set, using the place matches of §3) of the places served by the
    two lines' trips, at least `line_min_overlap`. The overlap coefficient is used rather than a
