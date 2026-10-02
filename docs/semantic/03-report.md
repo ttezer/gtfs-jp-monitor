@@ -76,6 +76,9 @@ One block per line that changed (unchanged lines are listed by name only):
   service after midnight), old → new. Coarser groupings such as peak periods are built by the
   viewer from the hourly counts.
 - First and last departure per direction and day type.
+- With `report.dwell`: per direction and day type, the median over trips of the minutes spent
+  standing at stops (departure minus arrival, summed over the trip), old → new. Timetables keep
+  one time per stop, so this is the only place where arrival times count.
 - Pattern changes per direction: places added, removed, inserted, detours, with the place names.
 - **Route geometry** per direction on both sides, for every line: the most used shape of the
   direction, else the line through its stops, simplified to `report.geometry_tolerance_m`.

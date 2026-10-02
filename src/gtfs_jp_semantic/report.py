@@ -7,6 +7,7 @@ gtfs-jp-semantic-report/1 document, and accounts for every raw difference.
 from __future__ import annotations
 
 import collections
+import statistics
 from dataclasses import dataclass
 from datetime import date
 from difflib import SequenceMatcher
@@ -101,6 +102,13 @@ def _groups(line_matches: list[LineMatch], old: dict[str, Line], new: dict[str, 
         seen.add(key)
         groups.append(_Group(key, m, [old[k] for k in m.old], [new[k] for k in m.new]))
     return groups
+
+
+def _median_dwell(trips: list[Trip]) -> float | None:
+    """Median over trips of the minutes spent standing at stops (departure minus arrival, summed);
+    None when no trip gives both times anywhere."""
+    values = [t.dwell for t in trips if t.dwell is not None]
+    return float(statistics.median(values)) if values else None
 
 
 def _renumbered(place_matches: list, groups: list[_Group], combos: dict) -> dict:
@@ -633,7 +641,10 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
                     for t in side_trips:
                         if t.first_departure is not None:
                             bands.setdefault(_band(t.first_departure), {"before": 0, "after": 0})[side] += 1
-                doc_trips.append({"direction": direction, "day_type": dt, "bands": dict(sorted(bands.items()))})
+                entry = {"direction": direction, "day_type": dt, "bands": dict(sorted(bands.items()))}
+                if config.report.get("dwell"):
+                    entry["dwell"] = {side: _median_dwell(side_trips) for side, side_trips in (("before", a), ("after", b))}
+                doc_trips.append(entry)
                 first = {"before": _time(a[0].first_departure) if a else None, "after": _time(b[0].first_departure) if b else None}
                 lasts_a = [t.first_departure for t in a if t.first_departure is not None]
                 lasts_b = [t.first_departure for t in b if t.first_departure is not None]

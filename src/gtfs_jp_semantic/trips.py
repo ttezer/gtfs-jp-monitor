@@ -21,6 +21,7 @@ class Trip:
     direction: str
     places: tuple[str, ...]
     times: tuple[int | None, ...]  # minutes after midnight per place
+    dwell: int | None = None  # minutes between arrival and departure, summed over the places that give both
 
     @property
     def first_departure(self) -> int | None:
@@ -67,6 +68,7 @@ def build_trips(tables: dict[str, Table], services: frozenset[str], route_line: 
     trips = {t["trip_id"]: t for t in _rows(tables.get("trips.txt"))
              if t.get("trip_id") and t.get("service_id") in services and t.get("route_id") in route_line}
     calls: dict[str, list[tuple[int, str, int | None]]] = {}
+    dwell: dict[str, int] = {}
     for st in _rows(tables.get("stop_times.txt")):
         tid = st.get("trip_id", "")
         if tid not in trips:
@@ -80,10 +82,11 @@ def build_trips(tables: dict[str, Table], services: frozenset[str], route_line: 
             continue
         if translate is not None:
             place = translate.get(place, "old:" + place)
-        t = parse_minutes(st.get("departure_time", "")) if st.get("departure_time") else None
-        if t is None:
-            t = parse_minutes(st.get("arrival_time", ""))
-        calls.setdefault(tid, []).append((seq, place, t))
+        dep = parse_minutes(st.get("departure_time", "")) if st.get("departure_time") else None
+        arr = parse_minutes(st.get("arrival_time", "")) if st.get("arrival_time") else None
+        if dep is not None and arr is not None and dep >= arr:
+            dwell[tid] = dwell.get(tid, 0) + dep - arr
+        calls.setdefault(tid, []).append((seq, place, dep if dep is not None else arr))
     result = []
     for tid, trip in trips.items():
         seq = sorted(calls.get(tid, []))
@@ -91,7 +94,7 @@ def build_trips(tables: dict[str, Table], services: frozenset[str], route_line: 
             continue
         places = tuple(p for _, p, _ in seq)
         result.append(Trip(tid, route_line[trip["route_id"]], direction_key((trip.get("direction_id") or "").strip(), places),
-                           places, tuple(t for _, _, t in seq)))
+                           places, tuple(t for _, _, t in seq), dwell.get(tid)))
     return sorted(result, key=lambda x: (x.line, x.direction, x.first_departure if x.first_departure is not None else 10**6, x.trip_id))
 
 

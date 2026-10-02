@@ -56,6 +56,7 @@ class BuildTripsTest(unittest.TestCase):
         self.assertEqual(trips[0].places, ("N1", "old:P9"))  # unmatched old place keeps a distinct id
         self.assertEqual(trips[0].times, (391, 400))
         self.assertEqual(trips[1].times, (420, 430))  # arrival used when departure is empty
+        self.assertEqual((trips[0].dwell, trips[1].dwell), (1, 0))  # T2 stands 06:30-06:31; T1 gives both times once
 
 
 class MatchTripsTest(unittest.TestCase):

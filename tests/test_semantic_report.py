@@ -268,6 +268,32 @@ class RenumberingTest(unittest.TestCase):
             self.assertEqual(errors(validator("semantic-report.schema.json"), on), [])
 
 
+class DwellTest(unittest.TestCase):
+    def test_median_minutes_standing_at_stops(self):
+        import dataclasses
+
+        from gtfs_jp_semantic.reader import Config
+
+        # Every new trip of line 1 now stands two minutes at 市役所 (arrives 06:48, leaves 06:50, ...).
+        slower = dict(NEW, **{"stop_times.txt": "".join(
+            line.replace(",06:50:00,06:50:00,S2,", ",06:48:00,06:50:00,S2,")
+                .replace(",07:45:00,07:45:00,S2,", ",07:43:00,07:45:00,S2,")
+                .replace(",09:05:00,09:05:00,S2,", ",09:03:00,09:05:00,S2,") + "\n"
+            for line in NEW["stop_times.txt"].splitlines())})
+        base = Config.load()
+        with tempfile.TemporaryDirectory() as tmp:
+            old_zip, new_zip = write_zip(Path(tmp) / "old.zip", OLD), write_zip(Path(tmp) / "new.zip", slower)
+            kwargs = dict(feed={"org_id": "sample-city", "feed_id": "SampleBus"}, old_pub=dict(PUB, uid="1c8d1613-0633-4b70-9268-c88785f29ac3"),
+                          new_pub=dict(PUB, uid="2da131b0-cb13-4bc2-b8eb-d925bf6050ce"))
+            off, _ = build_report(old_zip, new_zip, config=base, **kwargs)
+            on, _ = build_report(old_zip, new_zip, config=dataclasses.replace(base, report=dict(base.report, dwell=True)), **kwargs)
+        line = lambda r: next(l for l in r["lines"] if l["key"] == "1")
+        self.assertNotIn("dwell", line(off)["trips"][0])  # not part of reports until enabled
+        self.assertEqual(line(on)["trips"][0]["dwell"], {"before": 0.0, "after": 2.0})
+        if HAVE_JSONSCHEMA:
+            self.assertEqual(errors(validator("semantic-report.schema.json"), on), [])
+
+
 class AccountingTest(unittest.TestCase):
     def test_buckets(self):
         raw = {"changes": [

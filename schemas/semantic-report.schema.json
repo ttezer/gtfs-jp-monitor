@@ -342,6 +342,16 @@
                   "type": "object",
                   "propertyNames": { "$ref": "#/$defs/time_band" },
                   "additionalProperties": { "$ref": "#/$defs/count_change" }
+                },
+                "dwell": {
+                  "description": "With report.dwell: median over trips of the minutes standing at stops (departure minus arrival, summed), old -> new; null when no trip gives both times.",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["before", "after"],
+                  "properties": {
+                    "before": { "type": ["number", "null"], "minimum": 0 },
+                    "after": { "type": ["number", "null"], "minimum": 0 }
+                  }
                 }
               }
             }
