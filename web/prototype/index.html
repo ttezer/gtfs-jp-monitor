@@ -312,6 +312,7 @@ const T = {
     mPairs: (m, t, e, u, em, et) => `${m} anlamlı · ${t} teknik · ${e} eşdeğer · ${u} bilinmiyor${em + et ? ` · tahmini ${em} anlamlı, ${et} teknik` : ""}`, mExact: "Kesin kapsam (raporlu)",
     mOf: (n, d) => `${n} / ${d} çift`,
     mNote: (from, to, key, eng) => `${from} – ${to} · ${key} · motor ${eng}. Oranlar sınıfı bilinen çiftler üzerinden; bilinmeyen çiftler tahmin edilmez.`,
+    sourceChanged: d => `Bu yayının dosyası kaynakta ilk analizden sonra değiştirildi; sonuçlar yeni dosyaya göredir (yayın tarihi ${d}).`,
     s6: "Veri alanları", fieldCols: ["Alan", "Eski", "Yeni", "Δ"],
     coordWarn: (side, o, w) => `${side}da ${o + w} durak Japonya sınırlarının dışında${w ? ` (${w} tanesinde enlem ve boylam yer değiştirmiş görünüyor)` : ""}; bu durakların hatları haritada ve güzergâh karşılaştırmasında yanlış görünebilir.`,
     fieldNone: "Bu yayınlar için alan doluluğu henüz ölçülmedi; sayfada görünen yayınlar gece gece dolduruluyor.",
@@ -359,6 +360,7 @@ const T = {
     mPairs: (m, t, e, u, em, et) => `${m} meaningful · ${t} technical · ${e} equivalent · ${u} unknown${em + et ? ` · estimated ${em} meaningful, ${et} technical` : ""}`, mExact: "Exact coverage (reported)",
     mOf: (n, d) => `${n} of ${d} pairs`,
     mNote: (from, to, key, eng) => `${from} – ${to} · ${key} · engine ${eng}. Ratios are over pairs with a known class; unknown pairs are not guessed.`,
+    sourceChanged: d => `The file of this publication was replaced at the source after its first analysis; the results are for the new file (published ${d}).`,
     s6: "Data fields", fieldCols: ["Field", "Old", "New", "Δ"],
     coordWarn: (side, o, w) => `The ${side.toLowerCase()} has ${o + w} stops outside Japan${w ? ` (${w} with latitude and longitude apparently swapped)` : ""}; their lines may look wrong on maps and in route comparisons.`,
     fieldNone: "Field filling has not been measured for these publications yet; the publications the page shows are filled in night by night.",
@@ -406,6 +408,7 @@ const T = {
     mPairs: (m, t, e, u, em, et) => `意味のある変更 ${m} · 技術的 ${t} · 同等 ${e} · 不明 ${u}${em + et ? ` · 推定 意味あり ${em}・技術的 ${et}` : ""}`, mExact: "確定カバー率（レポートあり）",
     mOf: (n, d) => `${d}ペア中 ${n}`,
     mNote: (from, to, key, eng) => `${from} – ${to} · ${key} · エンジン ${eng}。割合は分類が判明したペアに対する値で、不明なペアは推定しません。`,
+    sourceChanged: d => `この公開のファイルは最初の解析の後に提供元で差し替えられました。結果は新しいファイルに基づきます（公開日 ${d}）。`,
     s6: "データ項目", fieldCols: ["項目", "旧", "新", "Δ"],
     coordWarn: (side, o, w) => `${side}に日本の範囲外の停留所が ${o + w} 件あります${w ? `（うち ${w} 件は緯度と経度が入れ替わっている可能性）` : ""}。地図や経路比較で該当路線が正しく表示されない場合があります。`,
     fieldNone: "これらの公開の項目充足率はまだ測定されていません。ページに表示される公開から毎晩順に測定しています。",
@@ -1699,7 +1702,9 @@ function renderPanel() {
       : `<p class="hint">${esc(t("noRuleChange"))}</p>`;
     const sameBtn = same.length ? `<button type="button" class="linkbtn" id="toggle-same">${esc(state.showSame ? t("hideSame") : t("showSame", same.length))}</button>` : "";
     const fa = (a.jp_files || []).join(", "), fb = (b.jp_files || []).join(", ");
-    const fmtNote = (fa !== fb ? `<p class="fmt">${esc(t("formatDiff", fa || "—", fb || "—"))}</p>` : "") + scopeNote(f, a, b);
+    const replacedNote = [a, b].filter((g, i, xs) => g.source_changed && xs.indexOf(g) === i)
+      .map(g => `<p class="fmt">${esc(t("sourceChanged", (g.published_at || "").slice(0, 10)))}</p>`).join("");
+    const fmtNote = (fa !== fb ? `<p class="fmt">${esc(t("formatDiff", fa || "—", fb || "—"))}</p>` : "") + replacedNote + scopeNote(f, a, b);
     body = `${backwards ? `<p class="hint">${esc(t("backwards"))}</p>` : ""}${fmtNote}
       <div><h3>1. ${esc(t("s1"))}</h3><div class="cards">${cards}</div></div>
       <div><h3>2. ${esc(t("s2"))}</h3><table class="mini"><thead><tr><th></th><th class="r">${esc(t("before"))}</th><th class="r">${esc(t("after"))}</th><th class="r">Δ</th></tr></thead><tbody>${metricRows}</tbody></table></div>

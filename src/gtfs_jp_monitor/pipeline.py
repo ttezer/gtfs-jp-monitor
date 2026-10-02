@@ -44,6 +44,8 @@ from .store import (
     list_analyses,
     load_content,
     load_feed_index,
+    mark_replaced,
+    replaced_path,
     summary_digest,
     write_feed_index,
 )
@@ -148,9 +150,17 @@ def run_analysis(
     catalog_feeds, catalog_gens = load_catalog(root)
     stored = {fk: list_analyses(root, *fk) for fk in catalog_gens}
     pending = find_pending(catalog_gens, stored, key, only)
+    # Publications whose file was replaced at the source come first (data-model §3.3).
+    replaced = [Pending(fk[0], fk[1], -1, catalog_gens[fk][u]) for fk in sorted(catalog_gens)
+                if stored.get(fk) and all(is_path_id(x) for x in fk) and (only is None or fk in only)
+                for u in replaced_uids(root, fk, catalog_gens[fk], stored[fk], key)]
+    pending = replaced + pending
     selected = pending if limit is None else pending[:limit]
     counts = {"feeds_scanned": len(catalog_gens), "generations_seen": sum(len(v) for v in catalog_gens.values()),
-              "new_generations": len(pending), "analyzed": 0, "skipped": len(pending) - len(selected), "failed": 0}
+              "new_generations": len(pending) - len(replaced), "analyzed": 0, "skipped": len(pending) - len(selected),
+              "failed": 0}
+    if replaced:
+        counts["replaced"] = len(replaced)
 
     source_changed: dict[FeedKey, set[str]] = {}
     with tempfile.TemporaryDirectory(prefix="gtfs-jp-monitor-") as tmp:
@@ -203,6 +213,12 @@ def run_analysis(
                 path = generation_path(root, item.org_id, item.feed_id, uid, key)
                 write_json(path, doc)
                 report.changed_files.append(str(path.relative_to(root)))
+                if prev_sha is not None and prev_sha != downloaded.sha256:  # reports describe the old file
+                    report.changed_files.extend(_drop_reports(root, *fk, uid))
+                marker = replaced_path(root, *fk, uid)
+                if marker.is_file():
+                    marker.unlink()
+                    report.changed_files.append(str(marker.relative_to(root)))
                 stored.setdefault(fk, {}).setdefault(uid, {})[key] = doc["validation_status"]
                 record.update(action="analyzed", validation_status=doc["validation_status"],
                               error_code=doc["fatal"]["code"] if doc["fatal"] else None)
@@ -226,8 +242,9 @@ def run_analysis(
                     counts["signature_failed"] = counts.get("signature_failed", 0) + 1  # stays not equivalent
                     continue
                 analysed = json.loads(generation_path(root, *fk, uid, key).read_text(encoding="utf-8"))
-                if analysed["generation"]["sha256"] != downloaded.sha256:
+                if analysed["generation"]["sha256"] != downloaded.sha256:  # replaced at the source: analyse again
                     counts["signature_failed"] = counts.get("signature_failed", 0) + 1
+                    report.changed_files.append(str(mark_replaced(root, *fk, uid, downloaded.sha256).relative_to(root)))
                     continue
                 if _write_signature(root, *fk, uid, zip_path, downloaded.sha256):
                     report.changed_files.append(str(content_path(root, *fk, uid).relative_to(root)))
@@ -313,6 +330,40 @@ def _field_candidates(root: Path, fk: FeedKey, entries: dict[str, dict], analyse
         if key in analyses.get(uid, {}) and entries.get(uid, {}).get("present", True) and (content is None or "fields" not in content):
             out.append(uid)
     return out
+
+
+REPLACED_FIELDS = ("published_at", "from_date", "to_date")
+
+
+def replaced_uids(root: Path, fk: FeedKey, entries: dict[str, dict], analyses: dict[str, dict[str, str]],
+                  key: str) -> list[str]:
+    """Analysed publications whose file was replaced at the source (data-model §3.3): the catalog
+    gives other dates than the analysis recorded (the source renews them with the file), or a
+    download saw other bytes (source-changed.json). Publications no longer listed are left alone."""
+    out = []
+    for uid, keys in sorted(analyses.items()):
+        entry = entries.get(uid)
+        if key not in keys or entry is None or not entry.get("present", True) or not entry.get("from_date"):
+            continue
+        if replaced_path(root, *fk, uid).is_file():
+            out.append(uid)
+            continue
+        gen = json.loads(generation_path(root, *fk, uid, key).read_text(encoding="utf-8"))["generation"]
+        if any(gen.get(f) != entry.get(f) for f in REPLACED_FIELDS):
+            out.append(uid)
+    return out
+
+
+def _drop_reports(root: Path, org_id: str, feed_id: str, uid: str) -> list[str]:
+    """Remove the semantic reports and report markers of every pair with `uid`; the report step
+    builds those the page needs again. Returns the removed paths."""
+    base = root / "feeds" / org_id / feed_id / "changes"
+    gone = []
+    for path in sorted(base.glob(f"*/*{uid}*")) if base.is_dir() else []:
+        if path.name.endswith((".report.json.gz", ".error.json")) and uid in path.name.split(".")[0].split("__"):
+            path.unlink()
+            gone.append(str(path.relative_to(root)))
+    return gone
 
 
 def _catalog_order(by_uid: dict[str, dict]) -> list[dict]:

@@ -11,7 +11,7 @@ from gtfs_jp_monitor.analyzer import AnalyzerBinary
 from gtfs_jp_monitor.catalog import sync_catalog
 from gtfs_jp_monitor.download import Downloaded, DownloadError
 from gtfs_jp_monitor.pipeline import run_analysis
-from gtfs_jp_monitor.store import UNPINNED_MARKER, StoreError, content_path, generation_path
+from gtfs_jp_monitor.store import UNPINNED_MARKER, StoreError, content_path, generation_path, mark_replaced, replaced_path
 
 from .schema_support import FIXTURES, HAVE_JSONSCHEMA, errors, validator
 from .test_catalog import FEED, ORG, FakeClient, feed_record, gen, uid
@@ -183,6 +183,41 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual((result.counts["signed"], len(dl.calls)), (2, 5))  # two more downloads
         self.run_it(dl)
         self.assertTrue(all("fields" in json.loads(content_path(self.data, ORG, FEED, uid(n)).read_text()) for n in (1, 2, 3)))
+
+    def catalog_path(self) -> Path:
+        return self.data / "catalog" / "generations" / ORG / f"{FEED}.json"
+
+    def test_replaced_file_is_analysed_again(self):
+        dl = FakeDownloader({uid(1): b"OK1", uid(2): b"OK2", uid(3): b"OK3"})
+        self.run_it(dl)
+        report = self.feed_dir() / "changes" / "0.5.0" / f"{uid(1)}__{uid(2)}.report.json.gz"
+        report.parent.mkdir(parents=True)
+        report.write_bytes(b"old")
+        # The source replaces uid(2)'s file and renews its publication date with it.
+        cat = json.loads(self.catalog_path().read_text())
+        for e in cat["generations"]:
+            if e["uid"] == uid(2):
+                e["published_at"] = "2026-10-01T09:00:00+09:00"
+        self.catalog_path().write_text(json.dumps(cat))
+        dl2 = FakeDownloader({uid(1): b"OK1", uid(2): b"OK2-new", uid(3): b"OK3"})
+        result = self.run_it(dl2)
+        self.assertEqual((dl2.calls, result.counts["replaced"]), ([uid(2)], 1))
+        self.assertIn("SOURCE_CHANGED", [w["code"] for w in result.warnings])
+        doc = json.loads(generation_path(self.data, ORG, FEED, uid(2), "v0.14.0__auto").read_text())
+        self.assertEqual((doc["generation"]["sha256"], doc["generation"]["published_at"]),
+                         (hashlib.sha256(b"OK2-new").hexdigest(), "2026-10-01T09:00:00+09:00"))
+        self.assertFalse(report.exists())  # it described the old file
+        index = json.loads((self.feed_dir() / "feed.json").read_text())
+        self.assertEqual({g["uid"]: g["source_status"] for g in index["generations"]}[uid(2)], "SOURCE_CHANGED")
+        self.assertEqual(self.run_it(dl2).counts.get("replaced"), None)  # done: nothing to analyse again
+
+    def test_replaced_bytes_seen_by_a_download_are_analysed_again(self):
+        dl = FakeDownloader({uid(1): b"OK1", uid(2): b"OK2", uid(3): b"OK3"})
+        self.run_it(dl)
+        mark_replaced(self.data, ORG, FEED, uid(3), "0" * 64)
+        result = self.run_it(dl)
+        self.assertEqual((result.counts["replaced"], dl.calls[3:]), (1, [uid(3)]))
+        self.assertFalse(replaced_path(self.data, ORG, FEED, uid(3)).exists())
 
     def test_unpinned_binary_refuses_unmarked_directory(self):
         (self.data / UNPINNED_MARKER).unlink()

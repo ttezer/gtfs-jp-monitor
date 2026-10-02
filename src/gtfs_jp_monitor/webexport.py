@@ -22,7 +22,7 @@ from .classify import EQUIVALENT, MEANINGFUL, TECHNICAL, classify_report, load_r
 from .ids import feed_dir
 from .metrics import build_metrics
 from .ordering import GenerationRef, order_generations
-from .store import content_digest, generation_path, list_analyses, load_content, summary_digest
+from .store import content_digest, generation_path, list_analyses, load_content, load_feed_index, summary_digest
 
 SCHEMA = "gtfs-jp-monitor-web-export/1"
 LANGS = ("tr", "en", "ja")
@@ -274,6 +274,8 @@ def build_export(data_dir: Path, key: str, analyzer: Path | None = None) -> tupl
         entries = catalog_gens[fk]
         ordered, _ = order_generations(GenerationRef(e["uid"], e["from_date"], e["published_at"]) for e in entries.values())
         gens = []
+        index_doc = load_feed_index(root, *fk) or {}
+        replaced = {g["uid"] for g in index_doc.get("generations", []) if g.get("source_status") == "SOURCE_CHANGED"}
         last_digest = None
         last = None  # (content signature, summary digest, rules, uid) of the previous publication
         for ref in ordered:
@@ -281,6 +283,8 @@ def build_export(data_dir: Path, key: str, analyzer: Path | None = None) -> tupl
                 continue
             doc = json.loads(generation_path(root, *fk, ref.uid, key).read_text(encoding="utf-8"))
             gens.append(_summary(entries[ref.uid], doc))
+            if ref.uid in replaced:  # the file was replaced at the source after an earlier analysis (§3.3)
+                gens[-1]["source_changed"] = True
             content = load_content(root, *fk, ref.uid)
             if content and content.get("fields"):
                 fields[ref.uid] = field_shares(content["fields"])

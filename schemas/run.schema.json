@@ -34,7 +34,8 @@
         "skipped": { "$ref": "generation.schema.json#/$defs/count" },
         "failed": { "$ref": "generation.schema.json#/$defs/count" },
         "signed": { "$ref": "generation.schema.json#/$defs/count" },
-        "signature_failed": { "$ref": "generation.schema.json#/$defs/count" }
+        "signature_failed": { "$ref": "generation.schema.json#/$defs/count" },
+        "replaced": { "$ref": "generation.schema.json#/$defs/count", "description": "Publications analysed again because their file was replaced at the source (data-model §3.3)." }
       }
     },
     "items": {

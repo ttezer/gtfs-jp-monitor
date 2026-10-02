@@ -4,6 +4,7 @@ feeds/<org_id>/<feed_id>/
     feed.json
     generations/<uid>/<analysis_key>.json      analysis_key = <release_tag>__<gtfs_jp_profile>
     generations/<uid>/content.json             content signature of the ZIP (signature.py)
+    generations/<uid>/source-changed.json      the ZIP was seen replaced; analyse again (data-model §3.3)
     diffs/<analysis_key>/<old_uid>__<new_uid>.json
     changes/<engine_version>/<old_uid>__<new_uid>.report.json.gz   semantic change report
     changes/<engine_version>/<old_uid>__<new_uid>.error.json       report could not be built
@@ -56,6 +57,18 @@ def content_path(root: Path, org_id: str, feed_id: str, uid: str) -> Path:
 def load_content(root: Path, org_id: str, feed_id: str, uid: str) -> dict | None:
     path = content_path(root, org_id, feed_id, uid)
     return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
+
+
+def replaced_path(root: Path, org_id: str, feed_id: str, uid: str) -> Path:
+    return feed_dir(root, org_id, feed_id) / "generations" / require_uid(uid) / "source-changed.json"
+
+
+def mark_replaced(root: Path, org_id: str, feed_id: str, uid: str, sha256: str) -> Path:
+    """Note that a download of `uid` gave other bytes than the analysed ZIP; the next analysis run
+    analyses it again (data-model §3.3)."""
+    path = replaced_path(root, org_id, feed_id, uid)
+    write_json_if_changed(path, {"sha256": sha256})
+    return path
 
 
 def diff_path(root: Path, org_id: str, feed_id: str, key: str, old_uid: str, new_uid: str) -> Path:

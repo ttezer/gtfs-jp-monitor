@@ -32,6 +32,24 @@ in code comments and schemas as `data-model §N`.
 `..`); `gtfs_file_uid` must be a lower-case UUID v4. Values from the API are validated before
 any path is built; paths are built only from validated components.
 
+### §3.3 Replaced files
+
+A source can replace a publication's ZIP while its `gtfs_file_uid` stays the same, so the uid
+alone does not identify an analysis: `(gtfs_file_uid, ZIP SHA-256)` does. The source renews the
+publication's dates with the file, so a replacement is found without downloading: after the
+catalog sync, every analysed publication whose `published_at`, `from_date` or `to_date` in the
+catalog differs from the one its analysis recorded is analysed again. A download that sees other
+bytes than the analysed ZIP (content signatures, field counts, reports) leaves
+`generations/<uid>/source-changed.json`, which has the same effect.
+
+Replaced publications are analysed first. The new analysis overwrites the record (the previous
+SHA is reported as a `SOURCE_CHANGED` warning in the run record, and `feed.json` keeps
+`source_status: SOURCE_CHANGED`); the content record is rewritten, diffs and equivalence follow
+from the records, and the semantic reports and report markers of every pair with the uid are
+removed so that the report step builds them again from the new file. The page says that the file
+was replaced. Measured on 2026-10-02: 4 of 9,323 analysed publications had renewed dates, and all
+4 files had changed.
+
 ## §4 Data repository layout
 
 ```text
@@ -40,6 +58,7 @@ catalog/generations/<org_id>/<feed_id>.json
 feeds/<org_id>/<feed_id>/feed.json
 feeds/<org_id>/<feed_id>/generations/<uid>/<analysis_key>.json
 feeds/<org_id>/<feed_id>/generations/<uid>/content.json
+feeds/<org_id>/<feed_id>/generations/<uid>/source-changed.json
 feeds/<org_id>/<feed_id>/diffs/<analysis_key>/<old_uid>__<new_uid>.json
 feeds/<org_id>/<feed_id>/changes/<engine_version>/<old_uid>__<new_uid>.report.json.gz
 feeds/<org_id>/<feed_id>/changes/<engine_version>/<old_uid>__<new_uid>.error.json

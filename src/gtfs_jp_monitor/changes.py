@@ -36,7 +36,7 @@ from .canonical import write_json
 from .catalog import load_catalog
 from .download import DownloadError, download_zip
 from .ids import is_path_id
-from .store import change_path, diff_path, generation_path, load_feed_index, split_key
+from .store import change_path, diff_path, generation_path, load_feed_index, mark_replaced, split_key
 
 ERROR_SCHEMA = "gtfs-jp-monitor-change-error/1"
 # Each report is built in its own process: memory is returned after every pair, and a pair that
@@ -220,6 +220,7 @@ def run_reports(data_dir: Path, key: str, limit: int | None = None, only: set[Fe
                     analysed = json.loads(generation_path(root, *fk, uid, key).read_text(encoding="utf-8"))
                     if analysed["generation"]["sha256"] != downloaded.sha256:
                         target.unlink(missing_ok=True)
+                        run.changed_files.append(str(mark_replaced(root, *fk, uid, downloaded.sha256).relative_to(root)))
                         error = ("SOURCE_CHANGED", f"{uid}: ZIP differs from the analysed one")
                         break
                     zips[uid] = target
