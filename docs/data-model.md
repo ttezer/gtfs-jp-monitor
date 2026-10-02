@@ -173,11 +173,12 @@ compared (§4). An upgrade does not switch the site piece by piece:
    the current key first, then gives the rest of the run's `limit` to the next key, newest
    publications first. The site, the reports and the `canonical` analysis in `feed.json` stay on
    the current key (`analyze --next`).
-2. `status.json` reports the fill as `next_analysis` (§10.2). When every publication the page
-   shows (§11 window) has a result under the new key, or can no longer be fetched
-   (`SOURCE_UNAVAILABLE`), the switch is one commit that makes `next` the lock's release. The
-   switch is made by hand, so it can go out together with a new engine version.
-3. Older publications keep being analysed under the new key afterwards.
+2. `status.json` reports the fill as `next_analysis` (§10.2). The switch waits until every
+   publication has a result under the new key (`next_analysis.unanalysed` is 0; publications the
+   source no longer lists are not counted): the page shows only publications analysed under its
+   key, so switching once the window is covered would hide most of the history until the rest is
+   filled. The switch is one commit that makes `next` the lock's release, made by hand so it can
+   go out together with a new engine version. Manual runs with a larger `limit` shorten the fill.
 
 The switch can change which publications are equivalent or `FATAL`, so report pairs are
 recomputed; content signatures do not depend on the key and keep their value. The two keys
