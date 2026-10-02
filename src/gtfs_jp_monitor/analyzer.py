@@ -58,9 +58,31 @@ class Lock:
 
     @classmethod
     def load(cls, path: Path) -> "Lock":
+        """The release the site uses."""
+        return cls._from(path, cls._read(path))
+
+    @classmethod
+    def load_next(cls, path: Path) -> "Lock | None":
+        """The release being filled in the background before the site switches to it (data-model §8.1),
+        or None when no upgrade is under way. It shares the repository and production platform."""
+        doc = cls._read(path)
+        if doc.get("next") is None:
+            return None
+        nxt = doc["next"]
+        lock = cls._from(path, dict(doc, release_tag=nxt["release_tag"], version=nxt["version"], assets=nxt["assets"]))
+        if lock.release_tag == doc["release_tag"]:
+            raise AnalyzerError(f"{path}: next release {lock.release_tag!r} is the current one")
+        return lock
+
+    @staticmethod
+    def _read(path: Path) -> dict:
         doc = json.loads(Path(path).read_text(encoding="utf-8"))
         if doc.get("schema") != LOCK_SCHEMA:
             raise AnalyzerError(f"{path}: unexpected schema {doc.get('schema')!r}")
+        return doc
+
+    @classmethod
+    def _from(cls, path: Path, doc: dict) -> "Lock":
         if doc["release_tag"] != f"v{doc['version']}":
             raise AnalyzerError(f"{path}: release_tag {doc['release_tag']!r} does not match version {doc['version']!r}")
         return cls(doc["repository"], doc["release_tag"], doc["version"], doc["production_platform"], doc["assets"])

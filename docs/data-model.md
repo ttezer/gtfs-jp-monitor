@@ -168,16 +168,20 @@ can be selected per run.
 A new analyzer release or profile is a new analysis key; results of different keys are never
 compared (§4). An upgrade does not switch the site piece by piece:
 
-1. The new key is filled in the background, newest publications first, while the site and the
-   reports stay on the current key.
-2. When every publication the page shows (§11 window) has a result under the new key, or a
-   lasting failure (`FATAL`, `SOURCE_UNAVAILABLE`), the export switches to the new key in one
-   commit.
+1. The new release is added to `analyzer.lock.json` as `next` (tag, version and asset hashes;
+   repository and production platform are shared). Each run installs both binaries and analyses
+   the current key first, then gives the rest of the run's `limit` to the next key, newest
+   publications first. The site, the reports and the `canonical` analysis in `feed.json` stay on
+   the current key (`analyze --next`).
+2. `status.json` reports the fill as `next_analysis` (§10.2). When every publication the page
+   shows (§11 window) has a result under the new key, or can no longer be fetched
+   (`SOURCE_UNAVAILABLE`), the switch is one commit that makes `next` the lock's release. The
+   switch is made by hand, so it can go out together with a new engine version.
 3. Older publications keep being analysed under the new key afterwards.
 
 The switch can change which publications are equivalent or `FATAL`, so report pairs are
-recomputed; content signatures do not depend on the key and keep their value. During the fill a
-run analyses under two keys, so its time budget is planned for both.
+recomputed; content signatures do not depend on the key and keep their value. The two keys
+share one `limit`, so the time budget of a run does not grow during the fill.
 
 ## §9 Validation diffs
 
@@ -242,6 +246,9 @@ it, plus `site_bytes`:
   heartbeat; run records (§4.1) are written only when data changed and cannot serve as one.
   `last_run` is the newest run record.
 - `backlog`: publications not analysed yet for the key and report pairs still pending (§11).
+- `next_analysis` (only during an analyzer upgrade, §8.1): the next key, how many publications
+  the page shows (`window`), how many of them are `covered` under the next key, and how many
+  publications are still `unanalysed` under it.
 - `storage`: sizes of the data working tree, reports (count, total, average, largest),
   analyses, content signatures and diffs, and `growth` in MiB per day over the last 30 days (the
   repository with its history, the working tree, the reports). Each run adds its sizes to

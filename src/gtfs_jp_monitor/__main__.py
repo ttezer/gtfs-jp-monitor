@@ -64,14 +64,22 @@ def _fetch_release_archive(url: str, dest: Path, max_bytes: int = 64 * 1024 * 10
 
 
 def _cmd_install_analyzer(args: argparse.Namespace) -> int:
-    lock = Lock.load(Path(args.lock))
+    lock = Lock.load_next(Path(args.lock)) if args.next else Lock.load(Path(args.lock))
+    if lock is None:  # no upgrade under way: nothing to install
+        print(json.dumps({"binary": None, "release_tag": None}, indent=2))
+        return 0
     binary = install_release(lock, Path(args.dest), _fetch_release_archive)
     print(json.dumps({"binary": str(binary), "release_tag": lock.release_tag, "sha256": sha256_file(binary)}, indent=2))
     return 0
 
 
 def _cmd_analyze(args: argparse.Namespace) -> int:
-    lock = Lock.load(Path(args.lock))
+    from .store import analysis_key
+
+    current = Lock.load(Path(args.lock))
+    lock = Lock.load_next(Path(args.lock)) if args.next else current
+    if lock is None:
+        raise SystemExit(f"{args.lock} has no next release")
     pinned = pinned_release_for(Path(args.analyzer), lock)
     binary = AnalyzerBinary.inspect(Path(args.analyzer), pinned_release=pinned)
     if binary.is_pinned and f"{binary.arch}-{binary.os}" != lock.production_platform and not args.allow_non_production_platform:
@@ -83,9 +91,10 @@ def _cmd_analyze(args: argparse.Namespace) -> int:
     report = run_analysis(
         Path(args.data_dir), binary, args.profile, trigger=args.trigger, limit=args.limit,
         only=set(args.only) if args.only else None, timeout=args.timeout, extra_warnings=extra,
+        canonical_key=analysis_key(current.release_tag, args.profile),
     )
     print(json.dumps({
-        "run_id": report.run_id, "pinned": binary.is_pinned, "counts": report.counts,
+        "run_id": report.run_id, "pinned": binary.is_pinned, "counts": report.counts, "processed": len(report.items),
         "changed_files": len(report.changed_files), "run_file": report.run_file,
         "warnings_by_code": dict(sorted(collections.Counter(w["code"] for w in report.warnings).items())),
     }, ensure_ascii=False, indent=2))
@@ -159,7 +168,8 @@ def _cmd_export_web(args: argparse.Namespace) -> int:
     from .webexport import build_export
 
     key = f"{args.release_tag}__{args.profile}"
-    export, files = build_export(Path(args.data_dir), key, Path(args.analyzer) if args.analyzer else None)
+    next_key = f"{args.next_release_tag}__{args.profile}" if args.next_release_tag else None
+    export, files = build_export(Path(args.data_dir), key, Path(args.analyzer) if args.analyzer else None, next_key)
     ext = ".json.gz" if args.bundle_format == "gz" else ".json"
     export["report_bundle_ext"] = ext
     if args.json:
@@ -261,6 +271,8 @@ def main(argv: list[str] | None = None) -> int:
     install = sub.add_parser("install-analyzer", help="download, verify and install the pinned analyzer release")
     install.add_argument("--dest", required=True, help="directory for the gtfs-analyzer binary")
     install.add_argument("--lock", default=str(DEFAULT_LOCK))
+    install.add_argument("--next", action="store_true",
+                         help="install the lock's next release instead (data-model §8.1); does nothing when there is none")
     install.set_defaults(func=_cmd_install_analyzer)
 
     analyze = sub.add_parser("analyze", help="analyze generations that have no record for this analyzer and profile")
@@ -275,6 +287,8 @@ def main(argv: list[str] | None = None) -> int:
     analyze.add_argument("--trigger", choices=("schedule", "workflow_dispatch", "local"), default="local")
     analyze.add_argument("--allow-non-production-platform", action="store_true")
     analyze.add_argument("--extra-warnings", help="JSON list of catalog events to include in the run record")
+    analyze.add_argument("--next", action="store_true",
+                         help="analyze under the lock's next release; feed.json keeps the current one canonical (data-model §8.1)")
     analyze.set_defaults(func=_cmd_analyze)
 
     raw = sub.add_parser("rawdiff", help="list every difference between two GTFS ZIP files (semantic engine, part 1)")
@@ -307,6 +321,7 @@ def main(argv: list[str] | None = None) -> int:
     web.add_argument("--data-dir", required=True)
     web.add_argument("--release-tag", required=True, help="analysis release, e.g. v0.14.0")
     web.add_argument("--profile", default="auto", choices=PROFILES)
+    web.add_argument("--next-release-tag", help="release being filled in the background; status.json reports its coverage")
     web.add_argument("--analyzer", help="gtfs-analyzer binary, used only to read rule titles (tr/en/ja)")
     web.add_argument("--json", help="write the export JSON here")
     web.add_argument("--html", help="write a self-contained page here")

@@ -9,6 +9,20 @@
       "sha256": "1ee1f82ef766db360118aca4d02b3c71666a22b854026f9f3b89beaab1013ca9"
     }
   },
+  "next": {
+    "assets": {
+      "aarch64-macos": {
+        "name": "gtfs-analyzer-aarch64-macos.tar.gz",
+        "sha256": "6232749399ef5d7650d7c2a0b986a35c28d0b2f78b20ccebdcd6ff9f7befb962"
+      },
+      "x86_64-linux": {
+        "name": "gtfs-analyzer-x86_64-linux.tar.gz",
+        "sha256": "b41d6cb27f6650ec50098db2ab3002ee437836c376c79bb9692490b0f4db7ac4"
+      }
+    },
+    "release_tag": "v0.15.0",
+    "version": "0.15.0"
+  },
   "production_platform": "x86_64-linux",
   "release_tag": "v0.14.0",
   "repository": "ttezer/gtfs-analyzer",

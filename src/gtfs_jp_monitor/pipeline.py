@@ -137,7 +137,10 @@ def run_analysis(
     extra_warnings: list[dict] | None = None,
     signature_limit: int = SIGNATURE_LIMIT,
     fields_limit: int = FIELDS_LIMIT,
+    canonical_key: str | None = None,
 ) -> RunReport:
+    """canonical_key: the key the site uses, kept as the canonical analysis in feed.json while a
+    newer release is filled in the background (data-model §8.1); defaults to this run's key."""
     root = Path(data_dir)
     check_writable(root, binary.is_pinned)
     release_tag = binary.pinned_release or f"v{binary.version}"
@@ -256,7 +259,7 @@ def run_analysis(
         if fk not in catalog_feeds or not all(is_path_id(x) for x in fk):
             continue
         ordered_entries = _catalog_order(catalog_gens[fk])
-        doc = build_feed_index(catalog_feeds[fk], ordered_entries, stored.get(fk, {}), key,
+        doc = build_feed_index(catalog_feeds[fk], ordered_entries, stored.get(fk, {}), canonical_key or key,
                                previous=load_feed_index(root, *fk), source_changed=source_changed.get(fk, set()),
                                digests=analysis_digests(root, *fk) if stored.get(fk) else None)
         if write_feed_index(root, doc):

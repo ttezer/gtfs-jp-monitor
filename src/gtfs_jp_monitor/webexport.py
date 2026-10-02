@@ -195,11 +195,12 @@ def read_stages(path: Path) -> dict:
     return stages
 
 
-def build_status(root: Path, key: str, now: _dt.datetime | None = None) -> dict:
+def build_status(root: Path, key: str, now: _dt.datetime | None = None, next_key: str | None = None) -> dict:
     """Operational status for the page and status.json: when the site was built, the last analysis
     run record, work still to do, and the size of the stored data (the working tree; the git
-    history of the data repository is measured separately by the workflow)."""
-    from .changes import find_pending_reports
+    history of the data repository is measured separately by the workflow). With `next_key`, also
+    how far a release being filled in the background covers the page (data-model §8.1)."""
+    from .changes import find_pending_reports, window_uids
     from .ids import is_path_id
     from .pipeline import find_pending
 
@@ -225,13 +226,28 @@ def build_status(root: Path, key: str, now: _dt.datetime | None = None) -> dict:
     path = root / HISTORY_PATH
     history = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else []
     storage["growth"] = growth(history, now.date())
-    return {
+    status = {
         "built_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "last_run": last_run,
         "backlog": {"unanalysed": len(find_pending(catalog_gens, stored, key)),
                     "reports_pending": len(find_pending_reports(root, feeds, key, ENGINE_VERSION, catalog_gens))},
         "storage": storage,
     }
+    if next_key:
+        # A window publication is covered once it has a result under the next key, or can no longer
+        # be fetched (SOURCE_UNAVAILABLE); the switch waits until all are covered.
+        window = covered = 0
+        for fk in feeds:
+            index = load_feed_index(root, *fk)
+            if not index:
+                continue
+            unavailable = {g["uid"] for g in index["generations"] if g["source_status"] == "SOURCE_UNAVAILABLE"}
+            for uid in window_uids(index, key, catalog_gens[fk]):
+                window += 1
+                covered += next_key in stored[fk].get(uid, {}) or uid in unavailable
+        status["next_analysis"] = {"key": next_key, "window": window, "covered": covered,
+                                   "unanalysed": len(find_pending(catalog_gens, stored, next_key))}
+    return status
 
 
 def compact_rules(feeds: list[dict]) -> dict[str, list[str]]:
@@ -261,8 +277,10 @@ def field_shares(fields: dict) -> dict:
     return out
 
 
-def build_export(data_dir: Path, key: str, analyzer: Path | None = None) -> tuple[dict, dict[str, dict]]:
-    """(export for the page, report files to write next to it)."""
+def build_export(data_dir: Path, key: str, analyzer: Path | None = None,
+                 next_key: str | None = None) -> tuple[dict, dict[str, dict]]:
+    """(export for the page, report files to write next to it). `next_key` only adds the coverage of
+    a release being filled in the background to the status."""
     root = Path(data_dir)
     catalog_feeds, catalog_gens = load_catalog(root)
     feeds = []
@@ -330,7 +348,7 @@ def build_export(data_dir: Path, key: str, analyzer: Path | None = None) -> tupl
         "rule_meta": compact_rules(feeds),  # publications keep counts only (see compact_rules)
         "engine_version": ENGINE_VERSION,
         "report_index": report_index,
-        "status": build_status(root, key),
+        "status": build_status(root, key, next_key=next_key),
         "metrics": metrics,
         "fields": fields,
         "determinism": check,

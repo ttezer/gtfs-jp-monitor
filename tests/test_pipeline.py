@@ -128,6 +128,28 @@ class PipelineTest(unittest.TestCase):
         item = [i for i in result.items if i["uid"] == uid(2)][0]
         self.assertEqual(item["error_code"], "ANALYZER_CRASH")
 
+    def test_next_release_keeps_the_canonical_key(self):
+        from gtfs_jp_monitor.webexport import build_status
+
+        dl = FakeDownloader({uid(1): b"OK1", uid(2): b"OK2", uid(3): b"OK3"})
+        self.run_it(dl)
+        fake = Path(self.tmp.name) / "next" / "gtfs-analyzer"
+        fake.parent.mkdir()
+        fake.write_text(FAKE.format(python=sys.executable, ok=str(OK_REPORT)).replace("0.14.0", "0.15.0"), encoding="utf-8")
+        fake.chmod(fake.stat().st_mode | stat.S_IXUSR)
+        result = run_analysis(self.data, AnalyzerBinary.inspect(fake), "auto", downloader=dl, limit=1,
+                              canonical_key="v0.14.0__auto")
+        self.assertEqual([i["uid"] for i in result.items], [uid(3)])  # newest first under the next key too
+        self.assertTrue(generation_path(self.data, ORG, FEED, uid(3), "v0.15.0__auto").exists())
+        index = json.loads((self.feed_dir() / "feed.json").read_text())
+        self.assertEqual({g["canonical"]["release_tag"] for g in index["generations"]}, {"v0.14.0"})
+        g3 = next(g for g in index["generations"] if g["uid"] == uid(3))
+        self.assertEqual([a["release_tag"] for a in g3["analyses"]], ["v0.14.0", "v0.15.0"])
+        status = build_status(self.data, "v0.14.0__auto", next_key="v0.15.0__auto")
+        self.assertEqual(status["next_analysis"], {"key": "v0.15.0__auto", "window": 3, "covered": 1, "unanalysed": 2})
+        self.assertEqual(status["backlog"]["unanalysed"], 0)
+        self.assertNotIn("next_analysis", build_status(self.data, "v0.14.0__auto"))
+
     def test_source_changed_is_detected_across_profiles(self):
         dl = FakeDownloader({uid(1): b"OK1", uid(2): b"OK2", uid(3): b"OK3"})
         self.run_it(dl)

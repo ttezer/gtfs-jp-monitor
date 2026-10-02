@@ -91,6 +91,28 @@ class LockTest(unittest.TestCase):
         with self.assertRaises(AnalyzerError):
             lock.asset_for("windows", "aarch64")
 
+    def test_next_release(self):
+        nxt = Lock.load_next(ROOT / "analyzer.lock.json")
+        if nxt is not None:  # an upgrade is under way (data-model §8.1)
+            current = Lock.load(ROOT / "analyzer.lock.json")
+            self.assertNotEqual(nxt.release_tag, current.release_tag)
+            self.assertEqual((nxt.repository, nxt.production_platform), (current.repository, current.production_platform))
+            self.assertIn(nxt.production_platform, nxt.assets)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "lock.json"
+            doc = json.loads((ROOT / "analyzer.lock.json").read_text())
+            doc.pop("next", None)
+            path.write_text(json.dumps(doc))
+            self.assertIsNone(Lock.load_next(path))
+            doc["next"] = {"release_tag": doc["release_tag"], "version": doc["version"], "assets": doc["assets"]}
+            path.write_text(json.dumps(doc))
+            with self.assertRaises(AnalyzerError):  # the next release must differ from the current one
+                Lock.load_next(path)
+            doc["next"] = {"release_tag": "v9.9.9", "version": "9.9.8", "assets": doc["assets"]}
+            path.write_text(json.dumps(doc))
+            with self.assertRaises(AnalyzerError):
+                Lock.load_next(path)
+
 
 class InstallTest(unittest.TestCase):
     def setUp(self):

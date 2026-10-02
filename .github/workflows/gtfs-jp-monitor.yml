@@ -88,8 +88,11 @@ jobs:
           token: ${{ secrets.DATA_REPO_TOKEN }}
           path: data
 
+      # During an analyzer upgrade the lock also names the next release, filled in the background (data-model §8.1).
       - name: Install pinned GTFS Analyzer
-        run: python -m gtfs_jp_monitor install-analyzer --dest "$RUNNER_TEMP/analyzer"
+        run: |
+          python -m gtfs_jp_monitor install-analyzer --dest "$RUNNER_TEMP/analyzer"
+          python -m gtfs_jp_monitor install-analyzer --next --dest "$RUNNER_TEMP/analyzer-next"
 
       - name: Sync catalog
         run: |
@@ -108,7 +111,20 @@ jobs:
           python -m gtfs_jp_monitor analyze --data-dir data \
             --analyzer "$RUNNER_TEMP/analyzer/gtfs-analyzer" \
             --profile "$GTFS_JP_PROFILE" --trigger "$TRIGGER" \
-            --extra-warnings "$RUNNER_TEMP/catalog-events.json" "${args[@]}"
+            --extra-warnings "$RUNNER_TEMP/catalog-events.json" "${args[@]}" > "$RUNNER_TEMP/analysis.json"
+          cat "$RUNNER_TEMP/analysis.json"
+          # The next release gets what is left of the limit; the site's key always comes first.
+          if [ -x "$RUNNER_TEMP/analyzer-next/gtfs-analyzer" ]; then
+            used=$(python -c 'import json, sys; print(json.load(open(sys.argv[1]))["processed"])' "$RUNNER_TEMP/analysis.json")
+            rest=$((LIMIT - used))
+            if [ "$rest" -gt 0 ]; then
+              next_args=(--limit "$rest")
+              if [ -n "$ONLY" ]; then next_args+=(--only "$ONLY"); fi
+              python -m gtfs_jp_monitor analyze --next --data-dir data \
+                --analyzer "$RUNNER_TEMP/analyzer-next/gtfs-analyzer" \
+                --profile "$GTFS_JP_PROFILE" --trigger "$TRIGGER" "${next_args[@]}"
+            fi
+          fi
           echo "analysis end $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$RUNNER_TEMP/stages.txt"
 
       - name: Build semantic change reports
@@ -150,7 +166,10 @@ jobs:
       - name: Build web site
         run: |
           release=$(python -c 'import json; print(json.load(open("analyzer.lock.json"))["release_tag"])')
-          python -m gtfs_jp_monitor export-web --data-dir data --release-tag "$release" --profile "$GTFS_JP_PROFILE" \
+          next_release=$(python -c 'import json; print((json.load(open("analyzer.lock.json")).get("next") or {}).get("release_tag", ""))')
+          next_args=()
+          if [ -n "$next_release" ]; then next_args+=(--next-release-tag "$next_release"); fi
+          python -m gtfs_jp_monitor export-web --data-dir data --release-tag "$release" --profile "$GTFS_JP_PROFILE" "${next_args[@]}" \
             --analyzer "$RUNNER_TEMP/analyzer/gtfs-analyzer" --html _site/index.html --bundle-format gz \
             --stages "$RUNNER_TEMP/stages.txt"
 
