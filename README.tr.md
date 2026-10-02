@@ -33,7 +33,8 @@ Bir GitHub Actions workflow'u (`.github/workflows/gtfs-jp-monitor.yml`) her gün
 üretir, sonuçları ayrı ve private bir veri reposuna commit eder ve siteyi GitHub Pages'e yayımlar.
 Veri reposundaki bir watchdog her akşam sitenin son 30 saat içinde yeniden kurulduğunu kontrol
 eder ve GitHub günlük koşuyu etkinliksizlik nedeniyle kapattıysa onu yeniden açar
-(data-model §10, §10.2).
+(data-model §10, §10.2). Kaynakta aynı kimlikle dosyası değiştirilen bir yayın yeniden analiz edilir
+ve raporları yeniden üretilir (data-model §3.3).
 
 ## Kendin çalıştırmak
 

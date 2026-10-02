@@ -33,7 +33,8 @@ A GitHub Actions workflow (`.github/workflows/gtfs-jp-monitor.yml`) runs every d
 reports, commits the results to a separate, private data repository and publishes the site to
 GitHub Pages. A watchdog in the data repository checks every evening that the site was rebuilt
 within 30 hours and re-enables the daily schedule if GitHub disabled it for inactivity
-(data-model §10, §10.2).
+(data-model §10, §10.2). A publication whose file is replaced at the source under the same id is
+analysed again, and its reports are rebuilt (data-model §3.3).
 
 ## Running it yourself
 
