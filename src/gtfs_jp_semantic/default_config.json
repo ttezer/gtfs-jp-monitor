@@ -5,9 +5,16 @@
     "cross_line_max_shift_min": 10,
     "cross_line_min_containment": 0.8,
     "day_group_min_agreement": 0.8,
+    "direction_align": true,
     "first_last_min_shift": 10,
+    "line_family_patterns": [
+      "^[\\[【「]([^\\]】」]+線)[\\]】」]"
+    ],
     "line_max_component": 4,
     "line_min_overlap": 0.6,
+    "line_name_strip_patterns": [
+      "^[A-Z][0-9]*(?=[\\u4e00-\\u9fff])"
+    ],
     "pattern_min_similarity": 0.4,
     "stop_moved_min_m": 20,
     "stop_name_min_similarity": 0.6,
@@ -39,13 +46,15 @@
   "report": {
     "date_change_trips_max": 30,
     "date_changes_max": 100,
+    "dwell": true,
     "geometry_cap_m": 500,
     "geometry_diverge_m": 50,
     "geometry_sample_m": 20,
     "geometry_tolerance_m": 10,
     "irregular_max": 50,
     "irregular_spans_max": 20,
-    "other_details_max": 200
+    "other_details_max": 200,
+    "renumbering": true
   },
   "schema": "gtfs-jp-semantic-config/1",
   "special_max_days": 8

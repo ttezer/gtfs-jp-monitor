@@ -258,9 +258,9 @@ class RenumberingTest(unittest.TestCase):
             old_zip, new_zip = write_zip(Path(tmp) / "old.zip", OLD), write_zip(Path(tmp) / "new.zip", renumbered)
             kwargs = dict(feed={"org_id": "sample-city", "feed_id": "SampleBus"}, old_pub=dict(PUB, uid="1c8d1613-0633-4b70-9268-c88785f29ac3"),
                           new_pub=dict(PUB, uid="2da131b0-cb13-4bc2-b8eb-d925bf6050ce"))
-            off, _ = build_report(old_zip, new_zip, config=base, **kwargs)
+            off, _ = build_report(old_zip, new_zip, config=dataclasses.replace(base, report=dict(base.report, renumbering=False)), **kwargs)
             on, _ = build_report(old_zip, new_zip, config=dataclasses.replace(base, report=dict(base.report, renumbering=True)), **kwargs)
-        self.assertNotIn("renumbered", off["summary"])  # not part of reports until enabled
+        self.assertNotIn("renumbered", off["summary"])  # only with report.renumbering
         self.assertEqual(on["summary"]["renumbered"], {"stops": 1, "lines": 1, "trips": 1})
         self.assertEqual(on["summary"]["lines"]["unchanged"], 2)  # nothing else changed
         self.assertEqual(check_report(on), [])
@@ -285,10 +285,10 @@ class DwellTest(unittest.TestCase):
             old_zip, new_zip = write_zip(Path(tmp) / "old.zip", OLD), write_zip(Path(tmp) / "new.zip", slower)
             kwargs = dict(feed={"org_id": "sample-city", "feed_id": "SampleBus"}, old_pub=dict(PUB, uid="1c8d1613-0633-4b70-9268-c88785f29ac3"),
                           new_pub=dict(PUB, uid="2da131b0-cb13-4bc2-b8eb-d925bf6050ce"))
-            off, _ = build_report(old_zip, new_zip, config=base, **kwargs)
+            off, _ = build_report(old_zip, new_zip, config=dataclasses.replace(base, report=dict(base.report, dwell=False)), **kwargs)
             on, _ = build_report(old_zip, new_zip, config=dataclasses.replace(base, report=dict(base.report, dwell=True)), **kwargs)
         line = lambda r: next(l for l in r["lines"] if l["key"] == "1")
-        self.assertNotIn("dwell", line(off)["trips"][0])  # not part of reports until enabled
+        self.assertNotIn("dwell", line(off)["trips"][0])  # only with report.dwell
         self.assertEqual(line(on)["trips"][0]["dwell"], {"before": 0.0, "after": 2.0})
         if HAVE_JSONSCHEMA:
             self.assertEqual(errors(validator("semantic-report.schema.json"), on), [])

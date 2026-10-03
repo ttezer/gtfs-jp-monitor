@@ -170,9 +170,9 @@ A paired trip is `retimed` when times differ, `rerouted` when the pattern differ
 | `stop_group_radius_m` | stops without parent and with equal names within this distance form one place (absent: off) |
 | `stop_name_suffixes` | suffixes removed during name normalisation |
 | `line_min_overlap`, `line_max_component` | line matching |
-| `direction_align` | align directions across sides when either has no `direction_id` (default off) |
-| `line_family_patterns` | regular expressions whose first group is a route's line (empty: none) |
-| `line_name_strip_patterns` | regular expressions removed from line names before comparing them (empty: none) |
+| `direction_align` | align directions across sides when either has no `direction_id` (on by default since engine 0.6.0) |
+| `line_family_patterns` | regular expressions whose first group is a route's line (default: a bracket ending in 線, in ［］【】「」) |
+| `line_name_strip_patterns` | regular expressions removed from line names before comparing them (default: a letter-and-digit code before a kanji) |
 | `pattern_min_similarity` | pattern matching |
 | `trip_max_shift_min`, `trip_max_cost` | trip assignment |
 | `accept_confidence` | below this, a match is only a candidate |

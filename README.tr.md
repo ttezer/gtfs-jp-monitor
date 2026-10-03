@@ -56,7 +56,7 @@ PYTHONPATH=src python3 -m gtfs_jp_monitor sync-catalog --data-dir data
 PYTHONPATH=src python3 -m gtfs_jp_monitor install-analyzer --dest analyzer
 PYTHONPATH=src python3 -m gtfs_jp_monitor analyze --data-dir data --analyzer analyzer/gtfs-analyzer --limit 20
 PYTHONPATH=src python3 -m gtfs_jp_monitor semantic-reports --data-dir data
-PYTHONPATH=src python3 -m gtfs_jp_monitor export-web --data-dir data --release-tag v0.14.0 --html site/index.html
+PYTHONPATH=src python3 -m gtfs_jp_monitor export-web --data-dir data --release-tag v0.15.0 --html site/index.html
 ```
 
 Yerel olarak derlenmiş bir Analyzer'ın sonuçları yalnız "scratch" olarak işaretlenmiş bir klasöre

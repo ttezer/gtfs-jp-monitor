@@ -25,10 +25,10 @@ def feed(routes, trips):
 
 IDENTITY = {s: s for s in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"}
 
-# Line family settings to be enabled with the next engine version (WORKPLAN §18 open item 7); until
-# then the default configuration leaves them empty so reports of the current version do not change.
-FAMILY_CFG = dict(CFG, line_family_patterns=[r"^[\[【「]([^\]】」]+線)[\]】」]"],
-                  line_name_strip_patterns=[r"^[A-Z][0-9]*(?=[\u4e00-\u9fff])"])
+# The default configuration recognises line families and line codes (engine 0.6.0); NO_FAMILY_CFG
+# switches both off.
+FAMILY_CFG = CFG
+NO_FAMILY_CFG = dict(CFG, line_family_patterns=[], line_name_strip_patterns=[])
 
 
 def run(old_feed, new_feed, place_map=None):
@@ -82,7 +82,8 @@ class MatchLinesTest(unittest.TestCase):
     def test_equal_names_after_removing_line_codes(self):
         old = feed({"R1": ("宮崎境線", ""), "R2": ("A線", "")}, {"T1": ("R1", list("ABC")), "T2": ("R2", list("DE"))})
         new = feed({"N1": ("A1宮崎境線", ""), "N2": ("B線", "")}, {"U1": ("N1", list("XYZ")), "U2": ("N2", list("VW"))})
-        m = run(old, new)
+        m = {(x.old, x.new): x for x in match_lines(build_lines(old, IDENTITY, NO_FAMILY_CFG), build_lines(new, IDENTITY, NO_FAMILY_CFG),
+                                                    IDENTITY, NO_FAMILY_CFG)}
         self.assertEqual(m[(("宮崎境線",), ())].relation, "discontinued")  # nothing configured: names differ
         m = {(x.old, x.new): x for x in match_lines(build_lines(old, IDENTITY, FAMILY_CFG), build_lines(new, IDENTITY, FAMILY_CFG),
                                                     IDENTITY, FAMILY_CFG)}
