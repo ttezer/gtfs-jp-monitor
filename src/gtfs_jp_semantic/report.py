@@ -463,7 +463,7 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
     new_cal = build_calendar(nt, holidays, config, (_date(new_pub["from_date"]), _date(new_pub.get("to_date"))))
     comparison = choose_comparison(old_cal, new_cal, config)
 
-    op, np_ = build_places(ot.get("stops.txt")), build_places(nt.get("stops.txt"))
+    op, np_ = build_places(ot.get("stops.txt"), cfg), build_places(nt.get("stops.txt"), cfg)
     place_matches = match_places(op, np_, cfg)
     to_new = {m.old.place_id: m.new.place_id for m in place_matches if m.old and m.new}
     places = _PlaceIndex(place_matches)
@@ -741,6 +741,8 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
         line_of.update({("route", r): g.key for l in g.old + g.new for r in l.route_ids})
     ev.route_line = {r: g.key for g in groups for l in g.old + g.new for r in l.route_ids}
     ev.family_routes = {r for l in (*old_lines.values(), *new_lines.values()) for r in l.family_routes}
+    if cfg.get("stop_group_radius_m"):
+        ev.grouped_stops = {m for p in (*op.values(), *np_.values()) if len(p.members) > 1 for m in p.members}
     acc = classify(raw, ev)
     file_table, file_totals = _file_table(raw, acc)
     unclassified_details, unclassified_truncated = _details(raw["changes"], acc.unclassified, config.report["other_details_max"])

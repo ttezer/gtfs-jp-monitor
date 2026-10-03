@@ -19,6 +19,26 @@ def by_old(matches):
 BASE_LAT, BASE_LON = 33.0, 131.0
 
 
+class GroupingTest(unittest.TestCase):
+    def test_both_sides_of_a_street_form_one_place(self):
+        stops = table([
+            ("TSU_s", "津田町", BASE_LAT, BASE_LON, "0", ""),
+            ("TSU_n", "津田町（上り）", BASE_LAT + 0.0003, BASE_LON, "0", ""),  # ~33 m across the street
+            ("TSU_far", "津田町", BASE_LAT + 0.02, BASE_LON, "0", ""),  # same name, 2 km away
+            ("ST", "駅", BASE_LAT + 0.05, BASE_LON, "1", ""),
+            ("ST_1", "駅", BASE_LAT + 0.05, BASE_LON, "0", "ST"),
+            ("ST_x", "駅", BASE_LAT + 0.0501, BASE_LON, "0", ""),  # near a station, but the station keeps its platforms
+        ])
+        self.assertEqual(sorted(build_places(stops)), ["ST", "ST_x", "TSU_far", "TSU_n", "TSU_s"])  # off by default
+        places = build_places(stops, dict(CFG, stop_group_radius_m=100))
+        self.assertEqual(sorted(places), ["ST", "ST_x", "TSU_far", "TSU_n"])
+        street = places["TSU_n"]
+        self.assertEqual((street.name, street.members), ("津田町（上り）", ("TSU_n", "TSU_s")))
+        self.assertAlmostEqual(street.lat, BASE_LAT + 0.00015)
+        self.assertEqual(places["ST"].members, ("ST", "ST_1"))
+        self.assertEqual(place_of_stop(places)["TSU_s"], "TSU_n")
+
+
 class NormaliserTest(unittest.TestCase):
     def setUp(self):
         self.norm = NameNormaliser(CFG["stop_name_suffixes"], CFG["stop_name_strip_patterns"])

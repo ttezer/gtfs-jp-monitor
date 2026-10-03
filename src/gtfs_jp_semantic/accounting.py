@@ -52,6 +52,9 @@ class Evidence:
     # route_ids (either side) whose line came from a family pattern: renaming such a route variant
     # leaves its line as it was, so the new name is an attribute of the route
     family_routes: set[str] = field(default_factory=set)
+    # stop_ids (either side) that belong to a place of several stops: one side of a street added,
+    # removed or edited while the place stayed is a change of the place's stops, not of the place
+    grouped_stops: set[str] = field(default_factory=set)
     compared_trips: set[str] = field(default_factory=set)  # trip_ids that ran on a compared day (either side)
     # stop_id -> id of the matched place, per side; equal values mean the stop was only renumbered.
     old_stop_place: dict[str, str] = field(default_factory=dict)
@@ -100,6 +103,8 @@ def _row_file_bucket(change: dict, ev: Evidence) -> tuple[str, str | None]:
     if name == "stops.txt":
         if _row_value(change, "stop_id") in ev.changed_stops:
             return "explained", None
+        if _row_value(change, "stop_id") in ev.grouped_stops:
+            return "explained", "attributes"
         if attribute or (kind == "field_changed" and column in ("stop_lat", "stop_lon")):
             return "explained", "attributes"  # codes, descriptions, or a move below stop_moved_min_m
         return "unclassified", None

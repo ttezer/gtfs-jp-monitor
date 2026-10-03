@@ -1,6 +1,8 @@
 """Places (stops) and their matching between two publications (docs/semantic/02-matching.md §3).
 
-A place is a parent station with its platforms, or a stop without a parent. Matching runs in
+A place is a parent station with its platforms, or a stop without a parent. With
+`stop_group_radius_m`, stops without a parent that share a normalised name and lie that close
+form one place too (the two sides of a street published as separate stops). Matching runs in
 three passes, each one-to-one and deterministic: same stop_id, same normalised name nearby,
 similar name close by. Nothing is guessed without coordinates except by id and name.
 """
@@ -43,7 +45,7 @@ def _float(value: str) -> float | None:
     return x if math.isfinite(x) else None
 
 
-def build_places(stops: Table | None) -> dict[str, Place]:
+def build_places(stops: Table | None, cfg: dict | None = None) -> dict[str, Place]:
     """Places keyed by place_id. Entrances, generic nodes and boarding areas (location_type 2-4) are not places."""
     if stops is None or stops.status != "ok":
         return {}
@@ -70,7 +72,51 @@ def build_places(stops: Table | None) -> dict[str, Place]:
                 if pts:
                     lat, lon = sum(p[0] for p in pts) / len(pts), sum(p[1] for p in pts) / len(pts)
             places[sid] = Place(sid, r.get("stop_name", ""), lat, lon, members)
+    if cfg and cfg.get("stop_group_radius_m"):
+        lone = [sid for sid, p in places.items() if p.members == (sid,) and (by_id[sid].get("location_type") or "0").strip() in ("", "0")]
+        places = _group_lone_stops(places, lone, cfg)
     return places
+
+
+def _group_lone_stops(places: dict[str, Place], lone: list[str], cfg: dict) -> dict[str, Place]:
+    """Stops without parent and with the same normalised name, each within stop_group_radius_m of
+    another, become one place: id the smallest stop_id, name of that stop, position the mean."""
+    norm = NameNormaliser(cfg["stop_name_suffixes"], cfg["stop_name_strip_patterns"])
+    radius = cfg["stop_group_radius_m"]
+    by_name: dict[str, list[str]] = {}
+    for sid in sorted(lone):
+        name = norm(places[sid].name)
+        if name and places[sid].lat is not None and places[sid].lon is not None:
+            by_name.setdefault(name, []).append(sid)
+    result = dict(places)
+    for ids in by_name.values():
+        if len(ids) < 2:
+            continue
+        parent = {i: i for i in ids}
+
+        def find(x: str) -> str:
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+
+        for i, a in enumerate(ids):
+            for b in ids[i + 1:]:
+                if distance_m(places[a], places[b]) <= radius:
+                    parent[max(find(a), find(b))] = min(find(a), find(b))
+        groups: dict[str, list[str]] = {}
+        for i in ids:
+            groups.setdefault(find(i), []).append(i)
+        for members in groups.values():
+            if len(members) < 2:
+                continue
+            first = places[members[0]]
+            for m in members:
+                del result[m]
+            result[first.place_id] = Place(first.place_id, first.name,
+                                           sum(places[m].lat for m in members) / len(members),
+                                           sum(places[m].lon for m in members) / len(members), tuple(members))
+    return result
 
 
 def place_of_stop(places: dict[str, Place]) -> dict[str, str]:

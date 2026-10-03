@@ -77,6 +77,11 @@ the report header.
 ## 3. Stops
 
 Stops are compared as **places**: a parent station with its platforms, or a stop without parent.
+Many publications give each side of a street its own stop and no parent station. With
+`stop_group_radius_m`, stops without a parent whose normalised names are equal and that lie within
+that distance of one another (chained) form one place, as a parent station would: its id is the
+smallest stop_id, its name that stop's name and its position the mean. A stop of such a place that
+is added, removed or edited while the place stays is accounted as an attribute change.
 
 Matching, in order; each old place is matched at most once:
 
@@ -162,6 +167,7 @@ A paired trip is `retimed` when times differ, `rerouted` when the pattern differ
 | `min_overlap_days` | shared valid dates needed for the "same days" mode |
 | `stop_same_id_max_m`, `stop_name_radius_m`, `stop_near_radius_m` | stop matching distances |
 | `stop_name_min_similarity` | minimum name similarity for proximity matches |
+| `stop_group_radius_m` | stops without parent and with equal names within this distance form one place (absent: off) |
 | `stop_name_suffixes` | suffixes removed during name normalisation |
 | `line_min_overlap`, `line_max_component` | line matching |
 | `direction_align` | align directions across sides when either has no `direction_id` (default off) |
