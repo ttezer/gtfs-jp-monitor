@@ -10,12 +10,14 @@
     "line_family_patterns": [
       "^[\\[【「]([^\\]】」]+線)[\\]】」]"
     ],
-    "line_max_component": 4,
+    "line_max_component": 6,
     "line_min_overlap": 0.6,
+    "line_name_pair_min_similarity": 0.6,
     "line_name_strip_patterns": [
       "^[A-Z][0-9]*(?=[\\u4e00-\\u9fff])"
     ],
     "pattern_min_similarity": 0.4,
+    "stop_group_radius_m": 200,
     "stop_moved_min_m": 20,
     "stop_name_min_similarity": 0.6,
     "stop_name_radius_m": 500,
@@ -33,7 +35,11 @@
       "のりば",
       "乗り場",
       "乗場",
-      "バス停"
+      "バス停",
+      "（往路）",
+      "（復路）",
+      "（往）",
+      "（復）"
     ],
     "stop_near_radius_m": 150,
     "stop_same_id_max_m": 300,
@@ -47,6 +53,7 @@
     "date_change_trips_max": 30,
     "date_changes_max": 100,
     "dwell": true,
+    "events": true,
     "geometry_cap_m": 500,
     "geometry_diverge_m": 50,
     "geometry_sample_m": 20,
@@ -54,6 +61,7 @@
     "irregular_max": 50,
     "irregular_spans_max": 20,
     "other_details_max": 200,
+    "pattern_shifts": true,
     "renumbering": true
   },
   "schema": "gtfs-jp-semantic-config/1",

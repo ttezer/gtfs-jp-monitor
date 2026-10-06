@@ -29,6 +29,9 @@ IDENTITY = {s: s for s in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"}
 # switches both off.
 FAMILY_CFG = CFG
 NO_FAMILY_CFG = dict(CFG, line_family_patterns=[], line_name_strip_patterns=[])
+# The default configuration lets names divide components (engine 0.7.0); NO_NAMES_CFG switches that
+# off and restores the earlier component limit.
+NO_NAMES_CFG = dict({k: v for k, v in CFG.items() if k != "line_name_pair_min_similarity"}, line_max_component=4)
 
 
 def run(old_feed, new_feed, place_map=None):
@@ -182,7 +185,7 @@ class MatchLinesTest(unittest.TestCase):
         # sides of each street are one place, so every old direction overlaps every new one.
         old = feed({"R1": ("1循環線右回り", ""), "R2": ("2循環線左回り", "")}, {"T1": ("R1", list("ABCD")), "T2": ("R2", list("DCBA"))})
         new = feed({"N1": ("1循環線", ""), "N2": ("2循環線", "")}, {"U1": ("N1", list("ABCD")), "U2": ("N2", list("DCBA"))})
-        off = match_lines(build_lines(old, IDENTITY), build_lines(new, IDENTITY), IDENTITY, CFG)
+        off = match_lines(build_lines(old, IDENTITY), build_lines(new, IDENTITY), IDENTITY, NO_NAMES_CFG)
         self.assertEqual([(m.relation, len(m.old), len(m.new)) for m in off], [("restructured", 2, 2)])
         on_cfg = dict(CFG, line_name_pair_min_similarity=0.5)
         on = match_lines(build_lines(old, IDENTITY), build_lines(new, IDENTITY), IDENTITY, on_cfg)
@@ -220,7 +223,7 @@ class MatchLinesTest(unittest.TestCase):
         names = ["東回り上り", "東回り下り", "西回り上り"]
         old = feed({f"O{i}": (n, "") for i, n in enumerate(names)}, {f"T{i}": (f"O{i}", list("ABCD")) for i in range(3)})
         new = feed({f"N{i}": ("市バス" + n, "") for i, n in enumerate(names)}, {f"U{i}": (f"N{i}", list("ABCD")) for i in range(3)})
-        off = sorted(m.relation for m in match_lines(build_lines(old, IDENTITY), build_lines(new, IDENTITY), IDENTITY, CFG))
+        off = sorted(m.relation for m in match_lines(build_lines(old, IDENTITY), build_lines(new, IDENTITY), IDENTITY, NO_NAMES_CFG))
         self.assertEqual(off, ["added"] * 3 + ["discontinued"] * 3)
         on = match_lines(build_lines(old, IDENTITY), build_lines(new, IDENTITY), IDENTITY, dict(CFG, line_name_pair_min_similarity=0.5))
         self.assertEqual(sorted((m.old, m.new, m.relation) for m in on),
@@ -233,7 +236,7 @@ class MatchLinesTest(unittest.TestCase):
         old = feed({"R1": ("坂下線[上り]", ""), "R2": ("坂下線[下り]", ""), "R3": ("藤沢線[上り]", ""), "R4": ("藤沢線[下り]", "")},
                    {f"T{i}": (f"R{i}", list("ABCD")) for i in range(1, 5)})
         new = feed({"N1": ("坂下線", ""), "N2": ("藤沢線", "")}, {"U1": ("N1", list("ABCD")), "U2": ("N2", list("ABCD"))})
-        off = sorted(m.relation for m in match_lines(build_lines(old, IDENTITY), build_lines(new, IDENTITY), IDENTITY, CFG))
+        off = sorted(m.relation for m in match_lines(build_lines(old, IDENTITY), build_lines(new, IDENTITY), IDENTITY, NO_NAMES_CFG))
         self.assertEqual(off, ["added"] * 2 + ["discontinued"] * 4)
         on = match_lines(build_lines(old, IDENTITY), build_lines(new, IDENTITY), IDENTITY, on_cfg)
         self.assertEqual(sorted((m.old, m.new, m.relation) for m in on), [

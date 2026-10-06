@@ -124,7 +124,7 @@ The validation diff (scores, rule counts) already produced by the monitoring pip
 
 ### 8. Events and mappings
 
-With `report.events`, the report also lists every conclusion of sections 1–5 as one **event** of
+With `report.events` (on by default since engine 0.7.0), the report also lists every conclusion of sections 1–5 as one **event** of
 a fixed type, for readers that process reports rather than read them (notifications, summaries,
 other tools). Events add no judgement of their own; they are the report's findings in one list.
 
@@ -214,7 +214,7 @@ places every raw difference in one bucket.
   `report.other_details_max` unclassified differences are kept with their row-level details.
 - **Reordered places.** A place that leaves a pattern in one edit and comes back in another is
   reported once as `reordered`.
-- **Shifted places.** With `report.pattern_shifts`, places that some paired trips of a direction
+- **Shifted places.** With `report.pattern_shifts` (on by default since engine 0.7.0), places that some paired trips of a direction
   gained and others lost, as the same set in opposite edits (extended / shortened, inserted /
   removed, detour added / removed), are reported as `shifted` for the trips that only swapped: the
   departures that serve them changed. The surplus keeps its own kind (a detour added to 6 trips and

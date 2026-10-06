@@ -311,7 +311,7 @@ class PatternShiftTest(unittest.TestCase):
             old_zip, new_zip = write_zip(Path(tmp) / "old.zip", old), write_zip(Path(tmp) / "new.zip", new)
             kwargs = dict(feed={"org_id": "sample-city", "feed_id": "SampleBus"}, old_pub=dict(PUB, uid="1c8d1613-0633-4b70-9268-c88785f29ac3"),
                           new_pub=dict(PUB, uid="2da131b0-cb13-4bc2-b8eb-d925bf6050ce"))
-            off, _ = build_report(old_zip, new_zip, config=base, **kwargs)
+            off, _ = build_report(old_zip, new_zip, config=dataclasses.replace(base, report=dict(base.report, pattern_shifts=False)), **kwargs)
             on, _ = build_report(old_zip, new_zip, config=dataclasses.replace(base, report=dict(base.report, pattern_shifts=True)), **kwargs)
         edits = lambda r: [(e["kind"], e["trips"]) for p in next(l for l in r["lines"] if l["key"] == "1")["patterns"] for e in p["edits"]]
         self.assertEqual(sorted(edits(off)), [("inserted", 1), ("removed", 1)])

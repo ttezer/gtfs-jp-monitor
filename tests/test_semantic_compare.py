@@ -31,12 +31,12 @@ class SampleTest(unittest.TestCase):
 class OverrideTest(unittest.TestCase):
     def test_sections_are_merged_key_by_key(self):
         base = Config.load()
-        cfg = apply_override(base, {"matching": {"stop_group_radius_m": 200}, "min_overlap_days": 7})
-        self.assertEqual(cfg.matching["stop_group_radius_m"], 200)
+        cfg = apply_override(base, {"matching": {"stop_group_radius_m": 150}, "min_overlap_days": 7})
+        self.assertEqual(cfg.matching["stop_group_radius_m"], 150)
         self.assertEqual(cfg.matching["line_min_overlap"], base.matching["line_min_overlap"])
         self.assertEqual(cfg.report, base.report)
         self.assertEqual(cfg.min_overlap_days, 7)
-        self.assertNotIn("stop_group_radius_m", base.matching)  # the base is not changed
+        self.assertEqual(base.matching["stop_group_radius_m"], 200)  # the base is not changed
 
     def test_unknown_field_is_refused(self):
         with self.assertRaises(ValueError):

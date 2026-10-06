@@ -183,10 +183,10 @@ A paired trip is `retimed` when times differ, `rerouted` when the pattern differ
 | `min_overlap_days` | shared valid dates needed for the "same days" mode |
 | `stop_same_id_max_m`, `stop_name_radius_m`, `stop_near_radius_m` | stop matching distances |
 | `stop_name_min_similarity` | minimum name similarity for proximity matches |
-| `stop_group_radius_m` | stops without parent and with equal names within this distance form one place (absent: off) |
-| `stop_name_suffixes` | suffixes removed during name normalisation |
-| `line_min_overlap`, `line_max_component` | line matching |
-| `line_name_pair_min_similarity` | names divide components of line variants that serve the same places, at least this name score (absent: off) |
+| `stop_group_radius_m` | stops without parent and with equal names within this distance form one place (absent: off; 200 m by default since engine 0.7.0) |
+| `stop_name_suffixes` | suffixes removed during name normalisation (`（往路）`, `（復路）`, `（往）`, `（復）` added in engine 0.7.0) |
+| `line_min_overlap`, `line_max_component` | line matching (`line_max_component` 6 since engine 0.7.0, 4 before) |
+| `line_name_pair_min_similarity` | names divide components of line variants that serve the same places, at least this name score (absent: off; 0.6 by default since engine 0.7.0) |
 | `direction_align` | align directions across sides when either has no `direction_id` (on by default since engine 0.6.0) |
 | `line_family_patterns` | regular expressions whose first group is a route's line (default: a bracket ending in 線, in ［］【】「」) |
 | `line_name_strip_patterns` | regular expressions removed from line names before comparing them (default: a letter-and-digit code before a kanji) |
