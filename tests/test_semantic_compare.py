@@ -129,7 +129,7 @@ class SummaryTest(unittest.TestCase):
     def m(self, relations, unmatched=0):
         counts = dict.fromkeys(("places_added", "places_removed", "places_renamed", "places_moved", "trip_moves",
                                 "pattern_edits", "unclassified"), 0)
-        return counts | {"unmatched_lines": unmatched, "relations": relations}
+        return counts | {"unmatched_lines": unmatched, "lines_changed": 0, "relations": relations}
 
     def test_changed_line_relations_are_listed(self):
         same = [["renamed", "A"]]
@@ -137,10 +137,13 @@ class SummaryTest(unittest.TestCase):
             {"feed": "o/f", "group": "g", "old": "a", "new": "b",
              "base": self.m([["added", "A"], ["discontinued", "A0"]], 2), "candidate": self.m(same)},
             {"feed": "o/f", "group": "g", "old": "b", "new": "c", "base": self.m(same), "candidate": self.m(same)},
+            # a line that only stops being changed keeps its relation
+            {"feed": "o/f", "group": "g", "old": "d", "new": "e",
+             "base": self.m([["changed", "B"]]), "candidate": self.m([["unchanged", "B"]])},
             {"feed": "o/f", "group": "g", "old": "c", "new": "d", "error": "ValueError: x"},
         ]
         s = summarise(results)
-        self.assertEqual(s["pairs"], 3)
+        self.assertEqual(s["pairs"], 4)
         self.assertEqual(len(s["errors"]), 1)
         self.assertEqual(s["line_relations_changed"], [
             {"feed": "o/f", "group": "g", "old": "a", "new": "b", "unmatched_lines": [2, 0],

@@ -26,7 +26,7 @@ from .ids import is_path_id, is_uid
 SAMPLE_SCHEMA = "gtfs-jp-monitor-semantic-sample/1"
 RESULT_SCHEMA = "gtfs-jp-monitor-semantic-compare/1"
 COUNTS = ("places_added", "places_removed", "places_renamed", "places_moved", "trip_moves", "pattern_edits",
-          "unclassified", "unmatched_lines")
+          "unclassified", "unmatched_lines", "lines_changed")
 
 
 def load_sample(path: Path) -> list[dict]:
@@ -92,6 +92,7 @@ def measure(report: dict) -> dict:
         "pattern_edits": sum(len(p["edits"]) for line in report["lines"] for p in line["patterns"]),
         "unclassified": report["header"]["coverage"]["unclassified"],
         "unmatched_lines": lines["added"] + lines["discontinued"],
+        "lines_changed": lines["changed"],
         "relations": sorted([line["status"], line["key"]] for line in report["lines"]),
     }
 
@@ -126,17 +127,21 @@ def run_pair(pair: dict, zip_dir: Path, configs: dict[str, Config]) -> dict:
     return out
 
 
+def _relations(m: dict) -> list[list[str]]:
+    """Line relations without the content status: a same-name line that changed or not is "same"."""
+    return sorted(["same" if st in ("changed", "unchanged") else st, key] for st, key in m["relations"])
+
+
 def summarise(results: list[dict], names=("base", "candidate")) -> dict:
     ok = [r for r in results if "error" not in r]
     totals = {n: {c: sum(r[n][c] for r in ok) for c in COUNTS} for n in names}
     changed = []
     for r in ok:
-        a, b = r[names[0]], r[names[1]]
-        if a["relations"] != b["relations"]:
+        a, b = _relations(r[names[0]]), _relations(r[names[1]])
+        if a != b:
             changed.append({k: r[k] for k in ("feed", "group", "old", "new")}
-                           | {"unmatched_lines": [a["unmatched_lines"], b["unmatched_lines"]],
-                              "only_base": [x for x in a["relations"] if x not in b["relations"]],
-                              "only_candidate": [x for x in b["relations"] if x not in a["relations"]]})
+                           | {"unmatched_lines": [r[names[0]]["unmatched_lines"], r[names[1]]["unmatched_lines"]],
+                              "only_base": [x for x in a if x not in b], "only_candidate": [x for x in b if x not in a]})
     expect = [{k: r[k] for k in ("feed", "old", "new")} | {n: r[n]["expect_failures"] for n in names}
               for r in ok if "expect_failures" in r[names[0]]]
     return {"pairs": len(results), "errors": [{k: r[k] for k in ("feed", "old", "new", "error")}
