@@ -177,6 +177,72 @@ class MatchLinesTest(unittest.TestCase):
         for route_id, (new_key,) in landed.items():
             self.assertTrue(new_key.startswith(code(route_id)), (route_id, new_key))
 
+    def test_line_variants_serving_the_same_places_are_paired_by_name(self):
+        # Modelled on kanicity/satsukibus: both loop directions serve the same places once the two
+        # sides of each street are one place, so every old direction overlaps every new one.
+        old = feed({"R1": ("1循環線右回り", ""), "R2": ("2循環線左回り", "")}, {"T1": ("R1", list("ABCD")), "T2": ("R2", list("DCBA"))})
+        new = feed({"N1": ("1循環線", ""), "N2": ("2循環線", "")}, {"U1": ("N1", list("ABCD")), "U2": ("N2", list("DCBA"))})
+        off = match_lines(build_lines(old, IDENTITY), build_lines(new, IDENTITY), IDENTITY, CFG)
+        self.assertEqual([(m.relation, len(m.old), len(m.new)) for m in off], [("restructured", 2, 2)])
+        on_cfg = dict(CFG, line_name_pair_min_similarity=0.5)
+        on = match_lines(build_lines(old, IDENTITY), build_lines(new, IDENTITY), IDENTITY, on_cfg)
+        self.assertEqual(sorted((m.old, m.new, m.relation, m.method) for m in on), [
+            (("1循環線右回り",), ("1循環線",), "renamed", "served_places_and_name"),
+            (("2循環線左回り",), ("2循環線",), "renamed", "served_places_and_name")])
+
+    def test_name_pairing_needs_a_unique_best_on_both_sides(self):
+        on_cfg = dict(CFG, line_name_pair_min_similarity=0.5)
+        # names that tell nothing apart (A/B against right/left) keep the component as found
+        old = feed({"R1": ("御薗ルートA回り", ""), "R2": ("御薗ルートB回り", "")}, {"T1": ("R1", list("ABCD")), "T2": ("R2", list("DCBA"))})
+        new = feed({"N1": ("御薗線右回り", ""), "N2": ("御薗線左回り", "")}, {"U1": ("N1", list("ABCD")), "U2": ("N2", list("DCBA"))})
+        m = match_lines(build_lines(old, IDENTITY), build_lines(new, IDENTITY), IDENTITY, on_cfg)
+        self.assertEqual([m.relation for m in m], ["restructured"])
+        # a best name that shares too little is no evidence (modelled on sakawatown: 加茂・荷稲線 / 長竹線)
+        old = feed({"R1": ("加茂・荷稲線", ""), "R2": ("舟床・川ノ内線", "")}, {"T1": ("R1", list("ABCD")), "T2": ("R2", list("DCBA"))})
+        new = feed({"N1": ("長竹線", ""), "N2": ("川ノ内線", "")}, {"U1": ("N1", list("ABCD")), "U2": ("N2", list("DCBA"))})
+        m = match_lines(build_lines(old, IDENTITY), build_lines(new, IDENTITY), IDENTITY, on_cfg)
+        self.assertEqual([m.relation for m in m], ["restructured"])
+        # an added operator prefix does not count against a name
+        old = feed({"R1": ("才覚地線", ""), "R2": ("楜ヶ原線", "")}, {"T1": ("R1", list("ABCD")), "T2": ("R2", list("DCBA"))})
+        new = feed({"N1": ("市営大山コミュニティバス才覚地線", ""), "N2": ("市営大山コミュニティバス楜ヶ原線", "")},
+                   {"U1": ("N1", list("ABCD")), "U2": ("N2", list("DCBA"))})
+        m = match_lines(build_lines(old, IDENTITY), build_lines(new, IDENTITY), IDENTITY, on_cfg)
+        self.assertEqual(sorted(x.relation for x in m), ["renamed", "renamed"])
+        # a merge is never taken apart, even when one old name is closer to the new one
+        old = feed({"R1": ("北線", ""), "R2": ("南線", "")}, {"T1": ("R1", list("ABC")), "T2": ("R2", list("DEF"))})
+        new = feed({"R3": ("北南線", "")}, {"T3": ("R3", list("ABCDEF"))})
+        m = match_lines(build_lines(old, IDENTITY), build_lines(new, IDENTITY), IDENTITY, on_cfg)
+        self.assertEqual([(x.old, x.relation) for x in m], [(("北線", "南線"), "merged")])
+
+    def test_name_pairs_reduce_a_large_component(self):
+        # Three variant pairs on one corridor (6 > line_max_component): pairs found by name are
+        # taken out; the rest is interpreted again when it is small enough.
+        names = ["東回り上り", "東回り下り", "西回り上り"]
+        old = feed({f"O{i}": (n, "") for i, n in enumerate(names)}, {f"T{i}": (f"O{i}", list("ABCD")) for i in range(3)})
+        new = feed({f"N{i}": ("市バス" + n, "") for i, n in enumerate(names)}, {f"U{i}": (f"N{i}", list("ABCD")) for i in range(3)})
+        off = sorted(m.relation for m in match_lines(build_lines(old, IDENTITY), build_lines(new, IDENTITY), IDENTITY, CFG))
+        self.assertEqual(off, ["added"] * 3 + ["discontinued"] * 3)
+        on = match_lines(build_lines(old, IDENTITY), build_lines(new, IDENTITY), IDENTITY, dict(CFG, line_name_pair_min_similarity=0.5))
+        self.assertEqual(sorted((m.old, m.new, m.relation) for m in on),
+                         [((n,), ("市バス" + n,), "renamed") for n in sorted(names)])
+
+    def test_names_group_merges_and_splits_in_a_large_component(self):
+        # Modelled on kitaena/kitaena: directions published as lines are merged into one line each;
+        # all four old lines overlap both new ones (6 > line_max_component).
+        on_cfg = dict(CFG, line_name_pair_min_similarity=0.6)
+        old = feed({"R1": ("坂下線[上り]", ""), "R2": ("坂下線[下り]", ""), "R3": ("藤沢線[上り]", ""), "R4": ("藤沢線[下り]", "")},
+                   {f"T{i}": (f"R{i}", list("ABCD")) for i in range(1, 5)})
+        new = feed({"N1": ("坂下線", ""), "N2": ("藤沢線", "")}, {"U1": ("N1", list("ABCD")), "U2": ("N2", list("ABCD"))})
+        off = sorted(m.relation for m in match_lines(build_lines(old, IDENTITY), build_lines(new, IDENTITY), IDENTITY, CFG))
+        self.assertEqual(off, ["added"] * 2 + ["discontinued"] * 4)
+        on = match_lines(build_lines(old, IDENTITY), build_lines(new, IDENTITY), IDENTITY, on_cfg)
+        self.assertEqual(sorted((m.old, m.new, m.relation) for m in on), [
+            (("坂下線[上り]", "坂下線[下り]"), ("坂下線",), "merged"),
+            (("藤沢線[上り]", "藤沢線[下り]"), ("藤沢線",), "merged")])
+        # and the other way round (modelled on uozucity/junkai): one line split into trip groups
+        on = match_lines(build_lines(new, IDENTITY), build_lines(old, IDENTITY), IDENTITY, on_cfg)
+        self.assertEqual(sorted(m.relation for m in on), ["split", "split"])
+
     def test_deterministic(self):
         old = feed({"R1": ("北線", ""), "R2": ("南線", "")}, {"T1": ("R1", list("ABC")), "T2": ("R2", list("DEF"))})
         new = feed({"R3": ("環状線", "")}, {"T3": ("R3", list("ABCDEF"))})

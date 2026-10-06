@@ -624,7 +624,7 @@
       "additionalProperties": false,
       "required": ["method", "confidence"],
       "properties": {
-        "method": { "enum": ["same_id", "same_name", "near_similar_name", "same_line_name", "served_places", "exact", "assigned"] },
+        "method": { "enum": ["same_id", "same_name", "near_similar_name", "same_line_name", "served_places", "served_places_and_name", "exact", "assigned"] },
         "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
       }
     },

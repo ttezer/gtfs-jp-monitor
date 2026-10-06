@@ -125,6 +125,20 @@ Matching may be 1:1 (same line, possibly renamed), N:1 (merged), 1:N (split) or 
 `line_max_component` are not interpreted as merges or splits; their members stay unmatched
 candidates, to avoid chains through shared corridors.
 
+Variants of one line published as separate lines (both directions, A/B loops, `（上り）` and
+`（下り）`) often serve the same places, all the more when the two sides of a street form one place
+(§3); every old variant then overlaps every new one and the component reads as restructured. With
+`line_name_pair_min_similarity`, names decide inside a component with several lines on both sides:
+each line keeps its edge to the line of the other side whose name scores best, when that best is
+unique and at least that value, and the groups these edges form are read on their own (1:1 renamed,
+N:1 merged, 1:N split, N:M restructured; method `served_places_and_name`). The score is the
+characters the two names share in order over the length of the shorter name, so an added operator
+prefix or destination (`才覚地線` and `市営大山コミュニティバス才覚地線`) does not count against it;
+edit similarity breaks ties. The groups are taken when every line of the component has such an
+edge, or when the component is larger than `line_max_component`; then the lines left over are
+interpreted again. A component that names do not divide stays as found, so a merge or a split is
+never taken apart.
+
 ## 5. Patterns
 
 A **pattern** is the ordered list of places visited by a trip, within a line and direction
@@ -170,6 +184,7 @@ A paired trip is `retimed` when times differ, `rerouted` when the pattern differ
 | `stop_group_radius_m` | stops without parent and with equal names within this distance form one place (absent: off) |
 | `stop_name_suffixes` | suffixes removed during name normalisation |
 | `line_min_overlap`, `line_max_component` | line matching |
+| `line_name_pair_min_similarity` | names divide components of line variants that serve the same places, at least this name score (absent: off) |
 | `direction_align` | align directions across sides when either has no `direction_id` (on by default since engine 0.6.0) |
 | `line_family_patterns` | regular expressions whose first group is a route's line (default: a bracket ending in 線, in ［］【】「」) |
 | `line_name_strip_patterns` | regular expressions removed from line names before comparing them (default: a letter-and-digit code before a kanji) |
