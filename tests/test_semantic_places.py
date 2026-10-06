@@ -39,6 +39,23 @@ class GroupingTest(unittest.TestCase):
         self.assertEqual(place_of_stop(places)["TSU_s"], "TSU_n")
 
 
+    def test_a_grouped_place_moves_only_as_far_as_its_nearest_stops(self):
+        # One side of the street stays; the new publication adds a stop 90 m further on. The mean of
+        # the stops shifts by about 45 m, but the place did not move.
+        cfg = dict(CFG, stop_group_radius_m=200)
+        old = build_places(table([("A1", "藤島", BASE_LAT, BASE_LON, "0", "")]), cfg)
+        new = build_places(table([("A1", "藤島", BASE_LAT, BASE_LON, "0", ""),
+                                  ("A2", "藤島", BASE_LAT + 0.0008, BASE_LON, "0", "")]), cfg)
+        (m,) = match_places(old, new, cfg)
+        self.assertEqual((m.status, m.distance_m), ("unchanged", 0))
+        # every stop of the place moved: the place moved, by its nearest stops
+        new = build_places(table([("A1", "藤島", BASE_LAT + 0.0009, BASE_LON, "0", ""),
+                                  ("A2", "藤島", BASE_LAT + 0.0012, BASE_LON, "0", "")]), cfg)
+        (m,) = match_places(old, new, cfg)
+        self.assertEqual(m.status, "moved")
+        self.assertAlmostEqual(m.distance_m, 100, delta=2)
+
+
 class NormaliserTest(unittest.TestCase):
     def setUp(self):
         self.norm = NameNormaliser(CFG["stop_name_suffixes"], CFG["stop_name_strip_patterns"])

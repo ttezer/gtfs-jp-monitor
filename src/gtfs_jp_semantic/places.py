@@ -25,6 +25,7 @@ class Place:
     lat: float | None
     lon: float | None
     members: tuple[str, ...]  # every stop_id that belongs to this place (the place itself included)
+    points: tuple[tuple[float, float], ...] = ()  # positions of the stops of a grouped place
 
 
 @dataclass(frozen=True)
@@ -115,7 +116,8 @@ def _group_lone_stops(places: dict[str, Place], lone: list[str], cfg: dict) -> d
                 del result[m]
             result[first.place_id] = Place(first.place_id, first.name,
                                            sum(places[m].lat for m in members) / len(members),
-                                           sum(places[m].lon for m in members) / len(members), tuple(members))
+                                           sum(places[m].lon for m in members) / len(members), tuple(members),
+                                           tuple((places[m].lat, places[m].lon) for m in members))
     return result
 
 
@@ -156,6 +158,19 @@ def distance_m(a: Place, b: Place) -> float | None:
     dp, dl = p2 - p1, math.radians(b.lon - a.lon)
     h = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
     return 2 * r * math.asin(min(1.0, math.sqrt(h)))
+
+
+def moved_m(a: Place, b: Place) -> float | None:
+    """How far a matched place moved. A grouped place (the stops of a street, platforms) moved only
+    as far as its nearest stops did: one side of the street added, removed or kept while the other
+    moved shifts the mean of its stops but not the place."""
+    if not (a.points or b.points):
+        return distance_m(a, b)
+    pa = a.points or ((a.lat, a.lon),)
+    pb = b.points or ((b.lat, b.lon),)
+    ds = [distance_m(Place("", "", x[0], x[1], ()), Place("", "", y[0], y[1], ())) for x in pa for y in pb]
+    ds = [d for d in ds if d is not None]
+    return min(ds) if ds else None
 
 
 GRID_DEG = 0.01  # about 1.1 km north-south; every search radius must stay below one cell
@@ -247,7 +262,7 @@ def match_places(old: dict[str, Place], new: dict[str, Place], cfg: dict) -> lis
     for o in sorted(old):
         if o in pairs:
             n, method, conf = pairs[o]
-            d = distance_m(old[o], new[n])
+            d = moved_m(old[o], new[n])
             renamed = names_old[o] != names_new[n]
             moved = d is not None and d >= moved_min
             status = "renamed_moved" if renamed and moved else "renamed" if renamed else "moved" if moved else "unchanged"

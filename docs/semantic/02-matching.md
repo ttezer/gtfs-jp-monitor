@@ -81,7 +81,9 @@ Many publications give each side of a street its own stop and no parent station.
 `stop_group_radius_m`, stops without a parent whose normalised names are equal and that lie within
 that distance of one another (chained) form one place, as a parent station would: its id is the
 smallest stop_id, its name that stop's name and its position the mean. A stop of such a place that
-is added, removed or edited while the place stays is accounted as an attribute change.
+is added, removed or edited while the place stays is accounted as an attribute change, and the
+place moved only as far as its nearest stops did (the least distance between a stop of the old place
+and one of the new): the mean of its stops shifts when one side of the street is added or removed.
 
 Matching, in order; each old place is matched at most once:
 
