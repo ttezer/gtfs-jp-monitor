@@ -50,6 +50,7 @@ on `--data-dir`, a checkout of a data repository (`install-analyzer` takes `--de
 | `semantic-reports` | Builds the missing change reports of the publications the page shows |
 | `export-web` | Builds the site (`--html`) from the data directory |
 | `semantic-report`, `rawdiff` | Compare two GTFS ZIP files directly |
+| `semantic-compare` | Measures an engine setting on the sample pairs (`tests/sample/`) before it is switched on |
 
 ```bash
 PYTHONPATH=src python3 -m gtfs_jp_monitor sync-catalog --data-dir data

@@ -47,6 +47,7 @@ Python 3.11 以上が必要です。パイプラインは標準ライブラリ�
 | `semantic-reports` | ページに表示される公開の、不足している変更レポートを作成します |
 | `export-web` | データディレクトリからサイトを構築します（`--html`） |
 | `semantic-report`, `rawdiff` | 2つの GTFS ZIP ファイルを直接比較します |
+| `semantic-compare` | エンジンの設定を有効にする前に、サンプルのペア（`tests/sample/`）で測定します |
 
 ```bash
 PYTHONPATH=src python3 -m gtfs_jp_monitor sync-catalog --data-dir data

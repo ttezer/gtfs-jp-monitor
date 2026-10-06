@@ -50,6 +50,7 @@ reposu kopyası olan `--data-dir` üzerinde çalışır (`install-analyzer` `--d
 | `semantic-reports` | Sayfada görünen yayınların eksik değişiklik raporlarını üretir |
 | `export-web` | Veri klasöründen siteyi kurar (`--html`) |
 | `semantic-report`, `rawdiff` | İki GTFS ZIP dosyasını doğrudan karşılaştırır |
+| `semantic-compare` | Bir motor ayarını açılmadan önce örnek çiftlerde (`tests/sample/`) ölçer |
 
 ```bash
 PYTHONPATH=src python3 -m gtfs_jp_monitor sync-catalog --data-dir data

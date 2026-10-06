@@ -186,3 +186,11 @@ Values used are copied into every output.
   bundled two-period publication, successive-period comparison.
 - Pilot feeds with manually checked expectations. Match quality (wrong and missed matches) is
   measured and reported, not assumed.
+- A fixed sample of real publication pairs, `tests/sample/semantic-pairs.json`: pairs with trip
+  moves within a line (`same_line`) and across lines (`cross_line`), pairs without
+  (`control`), and pairs with checked expectations (`ground_truth`, exact line counts and the
+  status of each line). `semantic-compare` reports every pair under a base and a candidate
+  configuration (JSON overrides of `default_config.json`) and gives the totals of place, trip-move,
+  pattern-edit, unclassified and unmatched-line counts, the pairs whose line relations differ, and
+  the expectation checks. ZIPs are cached outside the repositories and must match the sample's
+  SHA-256. A setting is switched on only after it has been measured this way.

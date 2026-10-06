@@ -161,6 +161,33 @@ def _cmd_semantic_reports(args: argparse.Namespace) -> int:
     return 0
 
 
+DEFAULT_SAMPLE = Path(__file__).resolve().parents[2] / "tests" / "sample" / "semantic-pairs.json"
+
+
+def _cmd_semantic_compare(args: argparse.Namespace) -> int:
+    from gtfs_jp_semantic.reader import Config
+
+    from .canonical import write_json
+    from .semantic_compare import apply_override, compare, load_sample, summary_text
+
+    pairs = load_sample(Path(args.sample))
+    if args.group:
+        pairs = [p for p in pairs if p["group"] in args.group]
+    if args.only:
+        pairs = [p for p in pairs if tuple(p["feed"].split("/")) in set(args.only)]
+    if args.limit:
+        pairs = pairs[:args.limit]
+    read = lambda path: json.loads(Path(path).read_text(encoding="utf-8")) if path else {}
+    default = Config.load()
+    base = apply_override(default, read(args.base))
+    candidate = apply_override(base, read(args.candidate))
+    result = compare(pairs, Path(args.zip_dir).expanduser(), base, candidate, jobs=args.jobs)
+    if args.output:
+        write_json(Path(args.output), result)
+    print(summary_text(result["summary"]))
+    return 1 if result["summary"]["errors"] else 0
+
+
 DEFAULT_TEMPLATE = Path(__file__).resolve().parents[2] / "web" / "prototype" / "index.html"
 
 
@@ -316,6 +343,18 @@ def main(argv: list[str] | None = None) -> int:
     reps.add_argument("--only", type=_feed_key, action="append", metavar="ORG_ID/FEED_ID")
     reps.add_argument("--max-minutes", type=float, help="time budget: start no new report after this many minutes")
     reps.set_defaults(func=_cmd_semantic_reports)
+
+    cmp = sub.add_parser("semantic-compare", help="compare two engine configurations on the sample pairs (docs/semantic/02-matching.md §8)")
+    cmp.add_argument("--sample", default=str(DEFAULT_SAMPLE))
+    cmp.add_argument("--zip-dir", required=True, help="local ZIP cache, outside the repositories; missing ZIPs are downloaded")
+    cmp.add_argument("--base", help="JSON override of the default configuration for the base run")
+    cmp.add_argument("--candidate", help="JSON override applied on top of the base for the candidate run")
+    cmp.add_argument("--group", action="append", help="only pairs of this sample group (repeatable)")
+    cmp.add_argument("--only", type=_feed_key, action="append", metavar="ORG_ID/FEED_ID")
+    cmp.add_argument("--limit", type=int)
+    cmp.add_argument("--jobs", type=int, default=1, help="pairs reported in parallel")
+    cmp.add_argument("-o", "--output", help="write the full result JSON here")
+    cmp.set_defaults(func=_cmd_semantic_compare)
 
     web = sub.add_parser("export-web", help="export data for the web page (prototype)")
     web.add_argument("--data-dir", required=True)
