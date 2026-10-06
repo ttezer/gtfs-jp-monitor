@@ -187,6 +187,11 @@ places every raw difference in one bucket.
   `report.other_details_max` unclassified differences are kept with their row-level details.
 - **Reordered places.** A place that leaves a pattern in one edit and comes back in another is
   reported once as `reordered`.
+- **Shifted places.** With `report.pattern_shifts`, places that some paired trips of a direction
+  gained and others lost, as the same set in opposite edits (extended / shortened, inserted /
+  removed, detour added / removed), are reported as `shifted` for the trips that only swapped: the
+  departures that serve them changed. The surplus keeps its own kind (a detour added to 6 trips and
+  removed from 2: shifted on 2, added on 4). Overlapping but different sets stay as they are.
 - **Changed.** A line matched by name is `changed` when a trip pair in any compared direction and
   day type is not exact, or its dominant pattern changed; otherwise `unchanged` and its trips,
   first/last and timetables are omitted.

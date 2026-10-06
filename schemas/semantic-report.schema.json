@@ -698,7 +698,7 @@
         "to": { "$ref": "#/$defs/place_ref" }
       }
     },
-    "edit_kind": { "enum": ["extended", "shortened", "inserted", "removed", "detour_added", "detour_removed", "reordered"] },
+    "edit_kind": { "enum": ["extended", "shortened", "inserted", "removed", "detour_added", "detour_removed", "reordered", "shifted"] },
     "trip_ref": {
       "type": "object",
       "additionalProperties": false,

@@ -23,7 +23,8 @@ from .rawdiff import diff_feeds
 from .reader import Config, Feed, read_feed
 from .report_check import check_report
 from .service import build_calendar, choose_comparison, day_type_order, irregular_services, parse_yyyymmdd
-from .trips import Trip, TripPair, align_directions, build_trips, dominant_pattern, match_moved_trips, match_trips, pattern_edits
+from .trips import (Trip, TripPair, align_directions, build_trips, dominant_pattern, match_moved_trips, match_trips,
+                    pattern_edits, shift_edits)
 
 SCHEMA = "gtfs-jp-semantic-report/1"
 JP_FILES = frozenset({"agency_jp.txt", "office_jp.txt", "routes_jp.txt", "pattern_jp.txt"})
@@ -611,6 +612,8 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
                 if m["old"]["line"] == m["new"]["line"] == g.key and m["new"]["direction"] == direction:
                     for e in m["edits"]:
                         seen[(e["kind"], tuple(e["places"]))] += 1
+            if config.report.get("pattern_shifts"):
+                seen = collections.Counter(shift_edits(seen))
             edits = [{"kind": k, "places": list(ps), "trips": n} for (k, ps), n in sorted(seen.items(), key=lambda x: (-x[1], x[0]))]
             # Every trip paired and none rerouted: the route did not change. With aligned directions a
             # direction can hold trips of both ways, whose dominant patterns would compare as noise.

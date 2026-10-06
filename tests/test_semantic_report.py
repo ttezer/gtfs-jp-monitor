@@ -294,6 +294,33 @@ class DwellTest(unittest.TestCase):
             self.assertEqual(errors(validator("semantic-report.schema.json"), on), [])
 
 
+class PatternShiftTest(unittest.TestCase):
+    def test_a_detour_served_by_other_trips(self):
+        import dataclasses
+
+        from gtfs_jp_semantic.reader import Config
+
+        # Line 1: the 06:40 trip used to go round by 病院 and the 07:40 one not; now the other way round.
+        old = dict(OLD, **{"trips.txt": "route_id,service_id,trip_id,direction_id\nR1,WK,T1,0\nR1,WK,T2,0\n",
+                           "stop_times.txt": stop_times({"T1": [("S1", "06:40"), ("S3", "06:45"), ("S2", "06:50")],
+                                                         "T2": [("S1", "07:40"), ("S2", "07:50")]})})
+        new = dict(old, **{"stop_times.txt": stop_times({"T1": [("S1", "06:40"), ("S2", "06:50")],
+                                                         "T2": [("S1", "07:40"), ("S3", "07:45"), ("S2", "07:50")]})})
+        base = Config.load()
+        with tempfile.TemporaryDirectory() as tmp:
+            old_zip, new_zip = write_zip(Path(tmp) / "old.zip", old), write_zip(Path(tmp) / "new.zip", new)
+            kwargs = dict(feed={"org_id": "sample-city", "feed_id": "SampleBus"}, old_pub=dict(PUB, uid="1c8d1613-0633-4b70-9268-c88785f29ac3"),
+                          new_pub=dict(PUB, uid="2da131b0-cb13-4bc2-b8eb-d925bf6050ce"))
+            off, _ = build_report(old_zip, new_zip, config=base, **kwargs)
+            on, _ = build_report(old_zip, new_zip, config=dataclasses.replace(base, report=dict(base.report, pattern_shifts=True)), **kwargs)
+        edits = lambda r: [(e["kind"], e["trips"]) for p in next(l for l in r["lines"] if l["key"] == "1")["patterns"] for e in p["edits"]]
+        self.assertEqual(sorted(edits(off)), [("inserted", 1), ("removed", 1)])
+        self.assertEqual(edits(on), [("shifted", 1)])
+        self.assertEqual(check_report(on), [])
+        if HAVE_JSONSCHEMA:
+            self.assertEqual(errors(validator("semantic-report.schema.json"), on), [])
+
+
 class AccountingTest(unittest.TestCase):
     def test_buckets(self):
         raw = {"changes": [

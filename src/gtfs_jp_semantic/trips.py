@@ -38,7 +38,7 @@ class TripPair:
 
 @dataclass(frozen=True)
 class PatternEdit:
-    kind: str  # extended | shortened | inserted | removed | detour_added | detour_removed | reordered
+    kind: str  # extended | shortened | inserted | removed | detour_added | detour_removed | reordered | shifted
     places: tuple[str, ...]
 
 
@@ -282,6 +282,29 @@ def pattern_edits(old: tuple[str, ...], new: tuple[str, ...]) -> list[PatternEdi
 
 _OUT = ("shortened", "removed", "detour_removed")
 _IN = ("extended", "inserted", "detour_added")
+
+
+_OPPOSITE = {"extended": "shortened", "inserted": "removed", "detour_added": "detour_removed"}
+
+
+def shift_edits(seen: dict[tuple[str, tuple[str, ...]], int]) -> dict[tuple[str, tuple[str, ...]], int]:
+    """Edit counts of a line direction with places that some paired trips gained and others lost
+    (the same set, in opposite edits) reported as `shifted` for the trips that only swapped: those
+    places are now served by other departures. The surplus keeps its own kind. seen: (kind, places)
+    -> trips; the places of a shifted edit are in new-side order."""
+    out = dict(seen)
+    losing = {(kind, frozenset(places)): (kind, places) for kind, places in seen if kind in _OPPOSITE.values()}
+    for kind, places in sorted(seen):
+        match = losing.get((_OPPOSITE.get(kind), frozenset(places)))
+        if match not in out:  # none, or used up by the same places in another order
+            continue
+        swapped = min(out[(kind, places)], out[match])
+        out[("shifted", places)] = out.get(("shifted", places), 0) + swapped
+        for key in ((kind, places), match):
+            out[key] -= swapped
+            if not out[key]:
+                del out[key]
+    return out
 
 
 def _collapse_reordered(edits: list[PatternEdit]) -> list[PatternEdit]:

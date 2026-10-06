@@ -11,6 +11,7 @@ from gtfs_jp_semantic.trips import (
     match_trips,
     parse_minutes,
     pattern_edits,
+    shift_edits,
 )
 
 CFG = Config.load().matching
@@ -160,6 +161,21 @@ class PatternTest(unittest.TestCase):
         for (a, b), expected in cases.items():
             with self.subTest(old=a, new=b):
                 self.assertEqual([(e.kind, e.places) for e in pattern_edits(tuple(a), tuple(b))], expected)
+
+
+    def test_places_some_trips_gained_and_others_lost_are_shifted(self):
+        seen = {("detour_added", ("X", "Y")): 6, ("detour_removed", ("X", "Y")): 2, ("inserted", ("Z",)): 1,
+                ("removed", ("Z",)): 1, ("detour_removed", ("P", "Q")): 3, ("shortened", ("E",)): 1,
+                ("inserted", ("E",)): 1}
+        self.assertEqual(shift_edits(seen), {
+            ("shifted", ("X", "Y")): 2, ("detour_added", ("X", "Y")): 4,  # the surplus keeps its kind
+            ("shifted", ("Z",)): 1,
+            ("detour_removed", ("P", "Q")): 3,
+            ("shortened", ("E",)): 1, ("inserted", ("E",)): 1})  # different kinds of change stay apart
+        # the same places in another order are the same set; new-side order is kept
+        self.assertEqual(shift_edits({("detour_added", ("Y", "X")): 1, ("detour_removed", ("X", "Y")): 1}),
+                         {("shifted", ("Y", "X")): 1})
+        self.assertEqual(shift_edits({}), {})
 
 
 if __name__ == "__main__":
