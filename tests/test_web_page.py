@@ -5,6 +5,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from gtfs_jp_monitor import webexport
+from gtfs_jp_monitor.diff import build_diff
+
+from .test_diff_builder import gen_doc
+
 PAGE = Path(__file__).resolve().parent.parent / "web" / "prototype" / "index.html"
 
 
@@ -143,6 +148,59 @@ class WebPageTest(unittest.TestCase):
             {"old": 25, "new": 30, "longer": 1, "shorter": 0, "same": 1},  # medians of [20, 30] and [30, 30, 20]
             [["07-08", -25], ["08-09", 25]],
         ])
+
+    def line(self, prefix):
+        """One top-level line of the page script, such as a `const` helper."""
+        start = self.html.index(prefix)
+        return self.html[start:self.html.index("\n", start) + 1]
+
+    @unittest.skipUnless(shutil.which("node"), "node is not installed")
+    def test_diff_matches_build_diff(self):
+        # The page compares any two publications itself (data-model §9); it must give the same
+        # rule buckets and score/metric deltas as `build_diff`, after the export has compacted
+        # the rules and the page has expanded them again.
+        docs = [gen_doc(1, **{"scores.publish": 96.2, "scores.spec": 99.9, "scores.interop": 0.0,
+                              "metrics.routes": 22, "metrics.avg_daily_trips": 0.1}),
+                gen_doc(2, **{"scores.publish": 98.1, "scores.spec": 100.0, "scores.interop": 70.7,
+                              "metrics.avg_daily_trips": 0.3, "metrics.trips": 0}),
+                gen_doc(3, **{"scores.quality": 80.0, "metrics.stops": 390})]
+        docs[0]["rules"] = {"CAL_013": rule(3, "LOW"), "STP_037": rule(12, "LOW"), "FRQ_002": rule(1, "INFO"),
+                            "AAA_001": rule(1, "INFO"), "SEV_001": rule(2, "LOW")}
+        docs[1]["rules"] = {"JPN_030": rule(4, "MEDIUM"), "STP_037": rule(5, "LOW"), "FRQ_002": rule(1, "INFO"),
+                            "AAA_001": rule(2, "INFO"), "SEV_001": rule(2, "LOW")}
+        docs[2]["rules"] = {"CAL_013": rule(1, "LOW"), "SEV_001": rule(5, "HIGH")}  # severity differs: kept in full
+        feed = {"generations": [webexport._summary({"uid": d["generation"]["uid"], "from_date": "2026-04-01",
+                                                    "to_date": "2027-03-31", "published_at": None}, d) for d in docs]}
+        meta = webexport.compact_rules([feed])
+        self.assertIsInstance(feed["generations"][0]["rules"]["SEV_001"], int)
+        self.assertIsInstance(feed["generations"][2]["rules"]["SEV_001"], list)
+        pairs = [(0, 1), (1, 0), (1, 2), (0, 2)]
+        start = self.html.index("if (DATA.rule_meta)")
+        expand = self.html[start:self.html.index("\n}\n", start) + 3]
+        source = ("const DATA = " + json.dumps({"rule_meta": meta, "feeds": [feed]}) + ";\n" + expand
+                  + self.line("const SCORES =") + self.line("const METRICS =")
+                  + self.line("const round1 =") + self.line("const delta1 =") + self.functions("diff")
+                  + "const g = DATA.feeds[0].generations;\n"
+                  + f"console.log(JSON.stringify({json.dumps(pairs)}.map(([o, n]) => diff(g[o], g[n]))));\n")
+        proc = subprocess.run(["node", "-e", source], capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        for (o, n), page in zip(pairs, json.loads(proc.stdout)):
+            with self.subTest(old=o + 1, new=n + 1):
+                ref = build_diff(docs[o], docs[n])
+                self.assertEqual(page["scores"], {s: v["delta"] for s, v in ref["scores"].items()})
+                self.assertEqual(page["metrics"], {m: ref["metrics"][m]["delta"] for m in page["metrics"]})
+                self.assertEqual(set(page["metrics"]), set(ref["metrics"]))
+                self.assertEqual({b: {r["id"]: {"before": r["before"], "after": r["after"]} for r in rows}
+                                  for b, rows in page["rules"].items()}, ref["rules"])
+                # severity shown is the newer side's, or the older side's for a fixed rule
+                for rows in page["rules"].values():
+                    for r in rows:
+                        side = docs[n]["rules"].get(r["id"]) or docs[o]["rules"][r["id"]]
+                        self.assertEqual(r["sev"], side["severity"], r["id"])
+
+
+def rule(count, severity):
+    return {"count": count, "severity": severity, "class": "QUALITY"}
 
 
 if __name__ == "__main__":
