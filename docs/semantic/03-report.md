@@ -122,6 +122,33 @@ Per file: counts of added, removed and changed rows; the classified share; and t
 
 The validation diff (scores, rule counts) already produced by the monitoring pipeline.
 
+### 8. Events and mappings
+
+With `report.events`, the report also lists every conclusion of sections 1–5 as one **event** of
+a fixed type, for readers that process reports rather than read them (notifications, summaries,
+other tools). Events add no judgement of their own; they are the report's findings in one list.
+
+| Event | From | Evidence (raw differences of) |
+|---|---|---|
+| `STOP_ADDED`, `STOP_REMOVED`, `STOP_RENAMED`, `STOP_MOVED` | a place (`place`) | `stops.txt` rows of the place's stops |
+| `ROUTE_ADDED`, `ROUTE_DISCONTINUED`, `ROUTE_RENAMED`, `ROUTE_MERGED`, `ROUTE_SPLIT`, `ROUTE_RESTRUCTURED` | a line's status (`line`) | `routes.txt` rows of its routes; for added and discontinued lines also their `trips.txt` rows |
+| `PATTERN_EXTENDED`, `PATTERN_SHORTENED`, `STOP_INSERTED`, `STOP_SKIPPED`, `DETOUR_ADDED`, `DETOUR_REMOVED`, `STOPS_REORDERED`, `DETOUR_SHIFTED` | a pattern edit (`line`, `direction`, `places`, `count`) | `stop_times.txt` rows of the trips showing it |
+| `SERVICE_INCREASED`, `SERVICE_REDUCED` | trips of a line and day type (`before`, `after`) | rows of the trips without a counterpart and the calendar rows of their services |
+| `TRIPS_RETIMED` | retimed trip pairs of a line and day type (`count`) | `stop_times.txt` / `frequencies.txt` rows of those trips |
+| `FIRST_LAST_CHANGED` | first or last departure of a line, direction and day type | rows of the first and last trips of both sides |
+| `TRIPS_MOVED` | trips moved from one line to another (`line`, `to_line`, `count`) | `trips.txt` / `stop_times.txt` rows of those trips |
+| `FARE_CHANGED`, `OTHER_CHANGED` (`topic`) | section 5 | the differences of that topic |
+
+Evidence is the ids of raw differences (Part 1) in order, consecutive ids written as one range
+(`c0000012-c0000340`). Raw differences are not stored but rebuilt from the two ZIPs with the same
+ids. When the rows of the trips behind a trip event did not change, the difference lies in which
+services run on the compared days, and the evidence is the calendar rows of their services. An
+event without evidence comes from the choice of compared days alone (no row changed).
+
+**Mappings** list the ids that changed between the publications, old → new: the stops of matched
+places, the routes of matched lines and paired trips (exact or not, and trips moved to another
+line). An id not listed kept its value, or belongs to an added or removed place, line or trip.
+
 ## Storage
 
 Per reported pair (data-model §11), under the feed's

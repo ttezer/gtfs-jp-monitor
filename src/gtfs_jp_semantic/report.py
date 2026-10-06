@@ -15,6 +15,7 @@ from pathlib import Path
 
 from . import ENGINE_VERSION
 from .accounting import Evidence, classify
+from .events import Facts, build_events, build_mappings
 from .holidays import HolidayTable, default_table
 from .lines import Line, LineMatch, build_lines, match_lines
 from .places import PlaceMatch, build_places, match_places, place_of_stop
@@ -501,6 +502,7 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
     # variant of the same corridor): matched again across lines with stricter rules.
     moves: list[dict] = []
     moved: set[tuple[str, str, str, str, int]] = set()  # (side, group key, direction, day type, trip index)
+    facts = Facts()  # source ids behind the report's conclusions, for report.events
     for dt in comparison.day_types:
         left_old = [(k, p.old) for k, (a, b, pairs) in sorted(combos.items()) if k[2] == dt for p in pairs if p.new is None]
         left_new = [(k, p.new) for k, (a, b, pairs) in sorted(combos.items()) if k[2] == dt for p in pairs if p.old is None]
@@ -519,6 +521,10 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
                           "new": {"line": kn[0], "direction": kn[1], "trip": j},
                           "edits": [{"kind": e.kind, "places": list(e.places)} for e in edits]})
             moved.update({("old", *ko, i), ("new", *kn, j)})
+            facts.trip_ids.add((lo[p.old].trip_id, ln[p.new].trip_id))
+            if ko[0] != kn[0]:
+                facts.moves[(ko[0], kn[0], dt)][0] += 1
+                facts.moves[(ko[0], kn[0], dt)][1].update((lo[p.old].trip_id, ln[p.new].trip_id))
     moves.sort(key=lambda m: (m["old"]["line"], m["old"]["direction"], day_type_order(m["day_type"]), m["old"]["trip"]))
     lines_with_moves = {m[s]["line"] for m in moves for s in ("old", "new")}
 
@@ -589,6 +595,8 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
 
     shift = cfg["first_last_min_shift"]
     first_last_changed = 0
+    service_facts: dict[tuple[str, str], list] = {}  # (line, day type) -> [trips before, after, unpaired trip ids, their services]
+    retimed_facts: dict[tuple[str, str], list] = {}  # (line, day type) -> [retimed pairs, their trip ids]
     line_docs = []
     by_group: dict[str, dict[str, dict[str, tuple]]] = collections.defaultdict(lambda: collections.defaultdict(dict))
     for (gkey, direction, dt), combo in combos.items():
@@ -602,16 +610,21 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
         for direction in sorted(by_dir):
             # Pattern edits seen on paired trips of this line, with the number of trips showing them.
             seen: collections.Counter = collections.Counter()
+            seen_trips: dict[tuple[str, tuple[str, ...]], set[str]] = collections.defaultdict(set)
             for dt, (a, b, pairs) in by_dir[direction].items():
                 for p in pairs:
                     if p.kind in ("rerouted", "retimed_rerouted"):
                         for e in pattern_edits(a[p.old].places, b[p.new].places):
                             seen[(e.kind, e.places)] += 1
+                            seen_trips[(e.kind, e.places)].update((a[p.old].trip_id, b[p.new].trip_id))
             # Trips of this line that changed direction key (no direction_id, new end points).
             for m in moves:
                 if m["old"]["line"] == m["new"]["line"] == g.key and m["new"]["direction"] == direction:
+                    move_trips = {combos[(m["old"]["line"], m["old"]["direction"], m["day_type"])][0][m["old"]["trip"]].trip_id,
+                                  combos[(m["new"]["line"], m["new"]["direction"], m["day_type"])][1][m["new"]["trip"]].trip_id}
                     for e in m["edits"]:
                         seen[(e["kind"], tuple(e["places"]))] += 1
+                        seen_trips[(e["kind"], tuple(e["places"]))].update(move_trips)
             if config.report.get("pattern_shifts"):
                 seen = collections.Counter(shift_edits(seen))
             edits = [{"kind": k, "places": list(ps), "trips": n} for (k, ps), n in sorted(seen.items(), key=lambda x: (-x[1], x[0]))]
@@ -619,11 +632,20 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
             # direction can hold trips of both ways, whose dominant patterns would compare as noise.
             all_paired = cfg.get("direction_align") and all(
                 p.old is not None and p.new is not None for _, _, pairs in by_dir[direction].values() for p in pairs)
+            for e in edits:
+                same_set = {k for k in seen_trips if frozenset(k[1]) == frozenset(e["places"])}
+                trips = seen_trips.get((e["kind"], tuple(e["places"])), set()) if e["kind"] != "shifted" else \
+                    set().union(*(seen_trips[k] for k in same_set))
+                facts.edits.append((g.key, direction, e["kind"], e["places"], e["trips"], trips))
             if not edits and not all_paired:  # no paired trip changed route: compare the dominant patterns of both sides
                 all_old = [t for a, _, _ in by_dir[direction].values() for t in a]
                 all_new = [t for _, b, _ in by_dir[direction].values() for t in b]
+                dom_old, dom_new = dominant_pattern(all_old), dominant_pattern(all_new)
                 edits = [{"kind": e.kind, "places": list(e.places), "trips": None}
-                         for e in pattern_edits(dominant_pattern(all_old), dominant_pattern(all_new))]
+                         for e in pattern_edits(dom_old, dom_new)]
+                dom_trips = {t.trip_id for t in all_old if t.places == dom_old} | {t.trip_id for t in all_new if t.places == dom_new}
+                for e in edits:
+                    facts.edits.append((g.key, direction, e["kind"], e["places"], None, dom_trips))
             if edits:
                 changed = True
                 places.use(x for e in edits for x in e["places"])
@@ -633,9 +655,24 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
                     continue
                 a, b, pairs = by_dir[direction][dt]
                 combo_changed = False
+                service = service_facts.setdefault((g.key, dt), [0, 0, set(), set()])
+                service[0] += len(a)
+                service[1] += len(b)
                 for p in pairs:
                     ta = a[p.old] if p.old is not None else None
                     tb = b[p.new] if p.new is not None else None
+                    if ta is not None and tb is not None:
+                        facts.trip_ids.add((ta.trip_id, tb.trip_id))
+                        if p.kind in ("retimed", "retimed_rerouted"):
+                            retimed = retimed_facts.setdefault((g.key, dt), [0, set()])
+                            retimed[0] += 1
+                            retimed[1].update((ta.trip_id, tb.trip_id))
+                    elif ta is not None:
+                        service[2].add(ta.trip_id)
+                        service[3].add(old_service.get(ta.trip_id, ""))
+                    else:
+                        service[2].add(tb.trip_id)
+                        service[3].add(new_service.get(tb.trip_id, ""))
                     if p.kind != "exact":
                         combo_changed = True
                     if p.kind != "exact" or ta.trip_id != tb.trip_id:
@@ -665,9 +702,18 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
                 if any(x["before"] is not None and x["after"] is not None and abs(x["after"] - x["before"]) >= shift
                        for x in (first, last)):
                     first_last_changed += 1
+                    ends = set()
+                    for side in (a, b):
+                        timed = [t for t in side if t.first_departure is not None]
+                        ends.update(t.trip_id for t in side[:1])
+                        if timed:
+                            ends.add(max(timed, key=lambda t: t.first_departure).trip_id)
+                    facts.first_last.append((g.key, direction, dt, ends))
         changed = changed or route_moved
         relation = g.match.relation
         status = ("changed" if changed else "unchanged") if relation == "same" else relation
+        facts.lines.append((g.key, status, tuple(r for l in g.old for r in l.route_ids), tuple(r for l in g.new for r in l.route_ids),
+                            {t.trip_id for d in by_dir.values() for a, b, _ in d.values() for t in a + b}))
         if status != "unchanged":
             ev.changed_routes.update(r for l in g.old + g.new for r in l.route_ids)
         else:
@@ -819,6 +865,18 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
                        "unclassified_details": unclassified_details, "unclassified_truncated": unclassified_truncated},
         "quality": {"analysis_key": analysis_key} if analysis_key else None,
     }
+    if config.report.get("events"):
+        for (key, dt), (before, after, trips, services) in sorted(service_facts.items()):
+            facts.service.append((key, dt, before, after, trips, services - {""}))
+        facts.retimed = [(key, dt, n, trips) for (key, dt), (n, trips) in sorted(retimed_facts.items())]
+        facts.places = [(places.index.get(places.ref(m)), m.status, m.old.members if m.old else (), m.new.members if m.new else ())
+                        for m in place_matches]
+        facts.edits = [(key, d, kind, [places[r] for r in refs], n, trips) for key, d, kind, refs, n, trips in facts.edits]
+        facts.other = acc.other
+        for trip_id, service_id in (*old_service.items(), *new_service.items()):
+            facts.trip_services[trip_id].add(service_id)
+        report["events"] = build_events(facts, raw)
+        report["mappings"] = build_mappings(facts)
     problems = check_report(report)
     if problems:
         raise ReportInconsistent("; ".join(problems[:10]))

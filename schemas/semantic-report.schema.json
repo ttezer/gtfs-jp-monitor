@@ -552,6 +552,44 @@
       }
     },
 
+    "events": {
+      "description": "With report.events: every conclusion of the report as one event, with the raw differences that caused it (docs/semantic/03-report.md, Events).",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "evidence"],
+        "properties": {
+          "type": { "enum": ["STOP_ADDED", "STOP_MOVED", "STOP_REMOVED", "STOP_RENAMED", "ROUTE_ADDED", "ROUTE_DISCONTINUED", "ROUTE_MERGED", "ROUTE_RENAMED", "ROUTE_RESTRUCTURED", "ROUTE_SPLIT", "DETOUR_ADDED", "DETOUR_REMOVED", "DETOUR_SHIFTED", "PATTERN_EXTENDED", "PATTERN_SHORTENED", "STOPS_REORDERED", "STOP_INSERTED", "STOP_SKIPPED", "SERVICE_INCREASED", "SERVICE_REDUCED", "TRIPS_RETIMED", "FIRST_LAST_CHANGED", "TRIPS_MOVED", "FARE_CHANGED", "OTHER_CHANGED"] },
+          "place": { "anyOf": [{ "$ref": "#/$defs/place_ref" }, { "type": "null" }] },
+          "line": { "$ref": "#/$defs/line_ref" },
+          "to_line": { "$ref": "#/$defs/line_ref" },
+          "direction": { "$ref": "#/$defs/direction" },
+          "day_type": { "$ref": "#/$defs/day_type" },
+          "places": { "type": "array", "items": { "$ref": "#/$defs/place_ref" }, "minItems": 1 },
+          "count": { "type": ["integer", "null"], "minimum": 1, "description": "Trips showing it; null for a pattern edit from the dominant patterns." },
+          "before": { "$ref": "#/$defs/count" },
+          "after": { "$ref": "#/$defs/count" },
+          "topic": { "type": "string" },
+          "evidence": { "$ref": "#/$defs/evidence_ranges" }
+        }
+      }
+    },
+
+    "mappings": {
+      "description": "With report.events: ids that changed, old -> new. An id not listed kept its value or is in an added or removed event.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stops", "routes", "trips"],
+      "properties": {
+        "stops": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["old", "new"],
+          "properties": { "old": { "type": "array", "items": { "type": "string" }, "minItems": 1 }, "new": { "type": "array", "items": { "type": "string" }, "minItems": 1 } } } },
+        "routes": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["line", "old", "new"],
+          "properties": { "line": { "$ref": "#/$defs/line_ref" }, "old": { "type": "array", "items": { "type": "string" }, "minItems": 1 }, "new": { "type": "array", "items": { "type": "string" }, "minItems": 1 } } } },
+        "trips": { "type": "array", "items": { "type": "array", "prefixItems": [{ "type": "string" }, { "type": "string" }], "minItems": 2, "maxItems": 2 } }
+      }
+    },
+
     "quality": {
       "description": "Key of the validation diff this report belongs to, if one exists.",
       "oneOf": [
@@ -754,6 +792,12 @@
       "description": "Raw difference ids (Part 1), in order.",
       "type": "array",
       "items": { "type": "string", "pattern": "^c[0-9]{7}$" },
+      "uniqueItems": true
+    },
+    "evidence_ranges": {
+      "description": "Raw difference ids (Part 1) in order, consecutive ids as one range: \"c0000012-c0000340\".",
+      "type": "array",
+      "items": { "type": "string", "pattern": "^c[0-9]{7}(-c[0-9]{7})?$" },
       "uniqueItems": true
     }
   }
