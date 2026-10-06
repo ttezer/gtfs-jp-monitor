@@ -149,6 +149,39 @@ class WebPageTest(unittest.TestCase):
             [["07-08", -25], ["08-09", 25]],
         ])
 
+    @unittest.skipUnless(shutil.which("node"), "node is not installed")
+    def test_impact_summary(self):
+        start = self.html.index("const R = {")
+        texts = self.html[start:self.html.index("\n};\n", start) + 3]
+        start = self.html.index("const IMP_ORDER =")
+        impact = self.html[start:self.html.index("const pname =", start)]
+        source = (texts + "const state = { lang: \"en\" };\n"
+                  + "const esc = s => String(s ?? \"\");\n"
+                  + "".join(self.line(p) for p in ("const rt =", "const CATS =", "const LEGACY_DT =", "const dtCats =",
+                                                   "const byDt =", "const dayTypes ="))
+                  + self.functions("dtLabel") + impact)
+        cases = """
+        const imp = { class: "major",
+          types: { ROUTE_MERGED: { major: 2 }, STOP_ADDED: { major: 1, technical: 3 }, STOP_RENAMED: { minor: 1 } },
+          lines: { A: { class: "major", types: { ROUTE_MERGED: 1, PATTERN_EXTENDED: 1 } }, B: { class: "minor", types: { SERVICE_REDUCED: 2 } },
+                   C: { class: "technical", types: { SERVICE_REDUCED: 1 } } },
+          trips: { "mon,tue,wed,thu,fri": { added: 0, removed: 5, retimed: 3 } }, service_lines: {} };
+        const rep = { impact: imp };
+        console.log(JSON.stringify([impactSummary(imp), impactSummary(null), lineImpact(rep, { key: "A" }), lineImpact(rep, { key: "Z" }),
+          impactSummary({ class: "technical", types: {}, lines: {}, trips: {}, service_lines: {} })]));
+        """
+        proc = subprocess.run(["node", "-e", source + cases], capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(json.loads(proc.stdout), [
+            # technical changes (3 stops no line serves, line C) are left out
+            '<p class="impsum"><span class="imp imp-major">Major impact</span> 2 line mergers, 1 stop added, 1 stop renamed, '
+            'route changed on 1 line, fewer trips on 1 line, Mon–Fri: 5 trips removed</p>',
+            "",
+            '<span class="imp imp-major">Major impact</span><span class="lt">merged · route extended</span>',
+            "",
+            '<p class="impsum"><span class="imp imp-technical">Technical</span> No passenger-facing change.</p>',
+        ])
+
     def line(self, prefix):
         """One top-level line of the page script, such as a `const` helper."""
         start = self.html.index(prefix)

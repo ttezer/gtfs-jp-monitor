@@ -35,5 +35,16 @@
       "passenger_facing": ["stop_headsign", "pickup_type", "drop_off_type", "continuous_pickup", "continuous_drop_off"],
       "technical": ["shape_dist_traveled", "timepoint"]
     }
+  },
+  "impact": {
+    "description": "Impact classes of report events (data-model §12.1): major, minor or technical. Thresholds of the changes that count as major.",
+    "major": ["ROUTE_ADDED", "ROUTE_DISCONTINUED", "ROUTE_MERGED", "ROUTE_SPLIT", "ROUTE_RESTRUCTURED"],
+    "major_if_fare_price": ["FARE_CHANGED"],
+    "major_if_served": ["STOP_ADDED", "STOP_REMOVED"],
+    "major_if_service_share": ["SERVICE_INCREASED", "SERVICE_REDUCED"],
+    "major_if_pattern_share": ["PATTERN_EXTENDED", "PATTERN_SHORTENED", "DETOUR_ADDED", "DETOUR_REMOVED", "STOP_SKIPPED"],
+    "service_major_share": 0.1,
+    "service_major_min_trips": 2,
+    "pattern_major_share": 0.5
   }
 }

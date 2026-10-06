@@ -20,6 +20,7 @@ from .canonical import write_json
 from .catalog import load_catalog
 from .classify import EQUIVALENT, MEANINGFUL, TECHNICAL, classify_report, load_rules
 from .ids import feed_dir
+from .impact import assess
 from .metrics import build_metrics
 from .ordering import GenerationRef, order_generations
 from .store import content_digest, generation_path, list_analyses, load_content, load_feed_index, summary_digest
@@ -95,11 +96,15 @@ def report_files(root: Path, feeds: list[dict], engine_version: str,
             doc = json.loads(gzip.decompress(path.read_bytes()).decode("utf-8"))
             h = doc["header"]
             pair = f"{h['old']['uid']}__{h['new']['uid']}"
+            impact = assess(doc, rules)
+            if impact is not None:
+                doc["impact"] = impact  # site copy only; the stored report is unchanged
             files[f"{f['org_id']}/{f['feed_id']}/{pair}"] = doc
             index[pair] = {"feed": [f["org_id"], f["feed_id"]],
                            "dates": [h["old"]["from_date"], h["new"]["from_date"]],
                            "summary": doc["summary"], "coverage": h["coverage"],
-                           "classification": classify_report(doc, rules)}
+                           "classification": classify_report(doc, rules),
+                           **({"impact": impact["class"]} if impact else {})}
     return index, files
 
 

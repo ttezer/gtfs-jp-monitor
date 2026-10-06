@@ -346,6 +346,30 @@ kind the file does not place. The rules are applied to stored reports when the s
 so changing them needs no new reports. The report index carries each report's class with its
 reasons, the rule codes that decided it.
 
+### §12.1 Impact
+
+Reports with events (docs/semantic/03-report.md §8, engine 0.7.0 with `report.events`) also get an
+impact when the site is built (`src/gtfs_jp_monitor/impact.py`, rules in the `impact` section of
+`classification.json`, so changing them needs no new reports). Every event is:
+
+- **major**: a line added, discontinued, merged, split or restructured; a stop a line serves
+  added or removed; the trips of a line and day type changing by at least 10% and at least two
+  trips; a route extended or shortened, a detour added or removed or a stop skipped on at least
+  half of the trips of that direction (or on its dominant pattern); fare prices, or the number
+  of fare classes, changed;
+- **technical**: what the pair classification counts as technical (§12), and a stop no line
+  serves added or removed;
+- **minor**: every other change (renamed or moved stops and lines, retimed trips, first and last
+  departures, trips moved between lines, smaller service and route changes, fare rules rewritten
+  without a price change, other passenger-facing topics).
+
+A line takes the highest class of its own events (a stop change reaches a line through the
+line's pattern events); the report the highest of all, and at least minor when its pair is
+meaningful, so technical means exactly the pair class T. The impact is kept in the site copy of
+the report (`impact`: classes per line and per event type, trips added, removed and retimed per
+day type, lines with fewer or more trips) and its class in the report index; the page shows it
+as a badge and words a short summary of the feed and of each line in the page language.
+
 ## §13 Metrics over time
 
 `export-web` writes `metrics.json` (`src/gtfs_jp_monitor/metrics.py`) per feed and in total, over

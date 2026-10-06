@@ -195,6 +195,9 @@ footer { margin-top: 24px; color: var(--faint); font-size: 12px; }
 .st-discontinued, .st-removed { background: var(--bad-soft); color: var(--bad); }
 .st-renamed, .st-moved, .st-renamed_moved, .st-merged, .st-split, .st-restructured, .st-changed { background: var(--warn-soft); color: var(--warn); }
 .st-unchanged { background: var(--surface-2); color: var(--muted); }
+.imp { display: inline-block; font-size: 11px; font-weight: 700; border-radius: 4px; padding: 0 6px; white-space: nowrap; border: 1px solid currentColor; }
+.imp-major { color: var(--bad); } .imp-minor { color: var(--warn); } .imp-technical { color: var(--muted); }
+.impsum { margin: 6px 0; }
 details.line { border: 1px solid var(--hair); border-radius: 6px; }
 details.line > summary { cursor: pointer; padding: 8px 10px; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
 details.line > summary .ln { font-weight: 700; }
@@ -462,6 +465,11 @@ const R = {
     mode: { same_days: "Aynı günler karşılaştırıldı", successive_periods: "Ardışık dönemler: her yayının baskın tarifesi karşılaştırıldı" },
     ls: { added: "Eklendi", discontinued: "Kaldırıldı", renamed: "Adı değişti", merged: "Birleşti", split: "Bölündü", restructured: "Yeniden düzenlendi", changed: "Değişti", unchanged: "Değişmedi" },
     ps: { added: "Eklendi", removed: "Kaldırıldı", renamed: "Adı değişti", moved: "Taşındı", renamed_moved: "Adı değişti · taşındı", unchanged: "Değişmedi" },
+    imp: { major: "Büyük etki", minor: "Küçük etki", technical: "Teknik" },
+    evt: { ROUTE_MERGED: n => `${n} hat birleşmesi`, ROUTE_SPLIT: n => `${n} hat bölünmesi`, ROUTE_RESTRUCTURED: n => `${n} hat yeniden düzenlendi`, ROUTE_ADDED: n => `${n} hat eklendi`, ROUTE_DISCONTINUED: n => `${n} hat kaldırıldı`, ROUTE_RENAMED: n => `${n} hattın adı değişti`, STOP_ADDED: n => `${n} durak eklendi`, STOP_REMOVED: n => `${n} durak kaldırıldı`, STOP_RENAMED: n => `${n} durağın adı değişti`, STOP_MOVED: n => `${n} durak taşındı`, FARE_CHANGED: () => "ücretler değişti" },
+    impPattern: n => `${n} hatta güzergâh değişti`, impReduced: n => `${n} hatta sefer azaldı`, impIncreased: n => `${n} hatta sefer arttı`,
+    impTripsAdded: (d, n) => `${d}: ${n} sefer eklendi`, impTripsRemoved: (d, n) => `${d}: ${n} sefer kaldırıldı`, impNone: "Yolcuya dönük değişiklik yok.",
+    evtShort: { ROUTE_ADDED: "yeni hat", ROUTE_DISCONTINUED: "kaldırıldı", ROUTE_RENAMED: "adı değişti", ROUTE_MERGED: "birleşti", ROUTE_SPLIT: "bölündü", ROUTE_RESTRUCTURED: "yeniden düzenlendi", STOP_ADDED: "durak eklendi", STOP_REMOVED: "durak kaldırıldı", STOP_RENAMED: "durak adı değişti", STOP_MOVED: "durak taşındı", PATTERN_EXTENDED: "güzergâh uzadı", PATTERN_SHORTENED: "güzergâh kısaldı", STOP_INSERTED: "güzergâha durak eklendi", STOP_SKIPPED: "durak atlandı", DETOUR_ADDED: "sapma eklendi", DETOUR_REMOVED: "sapma kaldırıldı", STOPS_REORDERED: "durak sırası değişti", DETOUR_SHIFTED: "sapma başka seferlere geçti", SERVICE_INCREASED: "sefer arttı", SERVICE_REDUCED: "sefer azaldı", TRIPS_RETIMED: "saatler değişti", FIRST_LAST_CHANGED: "ilk/son sefer değişti", TRIPS_MOVED: "seferler başka hatta geçti" },
     ek: { extended: "Uzatıldı", shortened: "Kısaltıldı", inserted: "Durak eklendi", removed: "Durak çıkarıldı", detour_added: "Sapma eklendi", detour_removed: "Sapma kaldırıldı", shifted: "Başka seferlere geçti", reordered: "Sırası değişti" },
     topic: { fares: "Ücretler", calendar_exceptions: "Takvim istisnaları", agency: "İşletici", office: "Şube", translations: "Çeviriler", feed_info: "Feed bilgisi", shapes: "Güzergâh şekilleri", transfers: "Aktarmalar", other_files: "Diğer dosyalar", formatting: "Yalnız biçim değişti (değer aynı)", attributes: "Öznitelik değişiklikleri (yön tabelası, binme/inme kuralı, kodlar, küçük koordinat düzeltmeleri)" },
     ck: { added: "eklenen satır", removed: "kaldırılan satır", changed_fields: "değişen alan" },
@@ -527,6 +535,11 @@ const R = {
     mode: { same_days: "Same days compared", successive_periods: "Successive periods: each publication's dominant timetable compared" },
     ls: { added: "Added", discontinued: "Discontinued", renamed: "Renamed", merged: "Merged", split: "Split", restructured: "Restructured", changed: "Changed", unchanged: "Unchanged" },
     ps: { added: "Added", removed: "Removed", renamed: "Renamed", moved: "Moved", renamed_moved: "Renamed · moved", unchanged: "Unchanged" },
+    imp: { major: "Major impact", minor: "Minor impact", technical: "Technical" },
+    evt: { ROUTE_MERGED: n => `${n} line merger${n > 1 ? "s" : ""}`, ROUTE_SPLIT: n => `${n} line split${n > 1 ? "s" : ""}`, ROUTE_RESTRUCTURED: n => `${n} line${n > 1 ? "s" : ""} restructured`, ROUTE_ADDED: n => `${n} line${n > 1 ? "s" : ""} added`, ROUTE_DISCONTINUED: n => `${n} line${n > 1 ? "s" : ""} discontinued`, ROUTE_RENAMED: n => `${n} line${n > 1 ? "s" : ""} renamed`, STOP_ADDED: n => `${n} stop${n > 1 ? "s" : ""} added`, STOP_REMOVED: n => `${n} stop${n > 1 ? "s" : ""} removed`, STOP_RENAMED: n => `${n} stop${n > 1 ? "s" : ""} renamed`, STOP_MOVED: n => `${n} stop${n > 1 ? "s" : ""} moved`, FARE_CHANGED: () => "fares changed" },
+    impPattern: n => `route changed on ${n} line${n > 1 ? "s" : ""}`, impReduced: n => `fewer trips on ${n} line${n > 1 ? "s" : ""}`, impIncreased: n => `more trips on ${n} line${n > 1 ? "s" : ""}`,
+    impTripsAdded: (d, n) => `${d}: ${n} trip${n > 1 ? "s" : ""} added`, impTripsRemoved: (d, n) => `${d}: ${n} trip${n > 1 ? "s" : ""} removed`, impNone: "No passenger-facing change.",
+    evtShort: { ROUTE_ADDED: "new line", ROUTE_DISCONTINUED: "discontinued", ROUTE_RENAMED: "renamed", ROUTE_MERGED: "merged", ROUTE_SPLIT: "split", ROUTE_RESTRUCTURED: "restructured", STOP_ADDED: "stop added", STOP_REMOVED: "stop removed", STOP_RENAMED: "stop renamed", STOP_MOVED: "stop moved", PATTERN_EXTENDED: "route extended", PATTERN_SHORTENED: "route shortened", STOP_INSERTED: "stop inserted", STOP_SKIPPED: "stop skipped", DETOUR_ADDED: "detour added", DETOUR_REMOVED: "detour removed", STOPS_REORDERED: "stop order changed", DETOUR_SHIFTED: "detour moved to other trips", SERVICE_INCREASED: "more trips", SERVICE_REDUCED: "fewer trips", TRIPS_RETIMED: "retimed", FIRST_LAST_CHANGED: "first/last trip changed", TRIPS_MOVED: "trips moved to another line" },
     ek: { extended: "Extended", shortened: "Shortened", inserted: "Stop inserted", removed: "Stop removed", detour_added: "Detour added", detour_removed: "Detour removed", shifted: "Moved to other trips", reordered: "Moved in order" },
     topic: { fares: "Fares", calendar_exceptions: "Calendar exceptions", agency: "Agency", office: "Office", translations: "Translations", feed_info: "Feed info", shapes: "Shapes", transfers: "Transfers", other_files: "Other files", formatting: "Formatting only (same value)", attributes: "Attribute changes (headsigns, pickup/drop-off rules, codes, small coordinate fixes)" },
     ck: { added: "rows added", removed: "rows removed", changed_fields: "fields changed" },
@@ -592,6 +605,11 @@ const R = {
     mode: { same_days: "同じ日付で比較", successive_periods: "連続する期間：各公開の主要ダイヤを比較" },
     ls: { added: "新設", discontinued: "廃止", renamed: "改称", merged: "統合", split: "分割", restructured: "再編", changed: "変更", unchanged: "変更なし" },
     ps: { added: "新設", removed: "廃止", renamed: "改称", moved: "移設", renamed_moved: "改称・移設", unchanged: "変更なし" },
+    imp: { major: "影響大", minor: "影響小", technical: "技術的" },
+    evt: { ROUTE_MERGED: n => `路線統合${n}件`, ROUTE_SPLIT: n => `路線分割${n}件`, ROUTE_RESTRUCTURED: n => `路線再編${n}件`, ROUTE_ADDED: n => `路線新設${n}件`, ROUTE_DISCONTINUED: n => `路線廃止${n}件`, ROUTE_RENAMED: n => `路線名変更${n}件`, STOP_ADDED: n => `停留所新設${n}件`, STOP_REMOVED: n => `停留所廃止${n}件`, STOP_RENAMED: n => `停留所名変更${n}件`, STOP_MOVED: n => `停留所移設${n}件`, FARE_CHANGED: () => "運賃変更" },
+    impPattern: n => `${n}路線で経路変更`, impReduced: n => `${n}路線で減便`, impIncreased: n => `${n}路線で増便`,
+    impTripsAdded: (d, n) => `${d}：${n}便増`, impTripsRemoved: (d, n) => `${d}：${n}便減`, impNone: "利用者に関わる変更はありません。",
+    evtShort: { ROUTE_ADDED: "新設路線", ROUTE_DISCONTINUED: "廃止", ROUTE_RENAMED: "名称変更", ROUTE_MERGED: "統合", ROUTE_SPLIT: "分割", ROUTE_RESTRUCTURED: "再編", STOP_ADDED: "停留所新設", STOP_REMOVED: "停留所廃止", STOP_RENAMED: "停留所名変更", STOP_MOVED: "停留所移設", PATTERN_EXTENDED: "経路延長", PATTERN_SHORTENED: "経路短縮", STOP_INSERTED: "停留所追加", STOP_SKIPPED: "停留所通過", DETOUR_ADDED: "経由追加", DETOUR_REMOVED: "経由廃止", STOPS_REORDERED: "停留所順序変更", DETOUR_SHIFTED: "経由便の入替", SERVICE_INCREASED: "増便", SERVICE_REDUCED: "減便", TRIPS_RETIMED: "時刻変更", FIRST_LAST_CHANGED: "始発・終発変更", TRIPS_MOVED: "他路線へ移管" },
     ek: { extended: "延長", shortened: "短縮", inserted: "停留所追加", removed: "停留所削除", detour_added: "経由追加", detour_removed: "経由廃止", shifted: "経由便の入替", reordered: "順序変更" },
     topic: { fares: "運賃", calendar_exceptions: "運行日の例外", agency: "事業者", office: "営業所", translations: "翻訳", feed_info: "フィード情報", shapes: "経路形状", transfers: "乗継", other_files: "その他のファイル", formatting: "表記のみの変更（値は同じ）", attributes: "属性の変更（行先表示、乗降の扱い、コード、座標の微修正）" },
     ck: { added: "行追加", removed: "行削除", changed_fields: "項目変更" },
@@ -735,9 +753,36 @@ function panelSemantic() {
     const x = s.trips_by_day_type[d], dv = x.after - x.before;
     return `<tr><td>${esc(dtLabel(d))}</td><td class="r">${x.before}</td><td class="r">${x.after}</td><td class="r ${dv > 0 ? "up" : dv < 0 ? "down" : "flat"}">${signed(dv)}</td></tr>`;
   }).join("");
-  return `${classLine(entry.classification, false)}<p class="hint">${esc(rt("panelLines", s.lines))}<br>${esc(rt("panelPlaces", s.places))}${s.date_changes ? `<br>${esc(rt("dcCard", s.date_changes))}` : ""}<br>${esc(rt("panelCov", pct))}</p>
+  return `${classLine(entry.classification, false)}${entry.impact ? `<p>${impChip(entry.impact)}</p>` : ""}<p class="hint">${esc(rt("panelLines", s.lines))}<br>${esc(rt("panelPlaces", s.places))}${s.date_changes ? `<br>${esc(rt("dcCard", s.date_changes))}` : ""}<br>${esc(rt("panelCov", pct))}</p>
     <table class="mini"><thead><tr><th>${esc(rt("trips"))}</th><th class="r">${esc(t("before"))}</th><th class="r">${esc(t("after"))}</th><th class="r">Δ</th></tr></thead><tbody>${trips}</tbody></table>
     <p><button type="button" class="linkbtn" id="open-report">${esc(rt("panelOpen"))}</button></p>`;
+}
+
+// Impact of a report (data-model §12.1), worded here from language-neutral counts.
+const IMP_ORDER = ["ROUTE_MERGED", "ROUTE_SPLIT", "ROUTE_RESTRUCTURED", "ROUTE_ADDED", "ROUTE_DISCONTINUED", "ROUTE_RENAMED", "STOP_ADDED", "STOP_REMOVED", "STOP_RENAMED", "STOP_MOVED", "FARE_CHANGED"];
+const PATTERN_EVENTS = ["PATTERN_EXTENDED", "PATTERN_SHORTENED", "STOP_INSERTED", "STOP_SKIPPED", "DETOUR_ADDED", "DETOUR_REMOVED", "STOPS_REORDERED", "DETOUR_SHIFTED"];
+const impChip = cls => cls ? `<span class="imp imp-${esc(cls)}">${esc(rt("imp")[cls])}</span>` : "";
+function impactSummary(imp) {
+  if (!imp) return "";
+  const n = t => { const c = imp.types[t] || {}; return (c.major || 0) + (c.minor || 0); };  // technical ones are not news
+  const lines = Object.values(imp.lines), withType = t => lines.filter(l => l.class !== "technical" && l.types[t]).length;
+  const parts = IMP_ORDER.filter(t => n(t)).map(t => rt("evt")[t](n(t)));
+  const pattern = lines.filter(l => l.class !== "technical" && PATTERN_EVENTS.some(t => l.types[t])).length;
+  if (pattern) parts.push(rt("impPattern", pattern));
+  if (withType("SERVICE_REDUCED")) parts.push(rt("impReduced", withType("SERVICE_REDUCED")));
+  if (withType("SERVICE_INCREASED")) parts.push(rt("impIncreased", withType("SERVICE_INCREASED")));
+  dayTypes(imp.trips).forEach(d => {
+    const x = imp.trips[d];
+    if (x.added) parts.push(rt("impTripsAdded", dtLabel(d), x.added));
+    if (x.removed) parts.push(rt("impTripsRemoved", dtLabel(d), x.removed));
+  });
+  return `<p class="impsum">${impChip(imp.class)} ${esc(parts.length ? parts.join(state.lang === "ja" ? "、" : ", ") : rt("impNone"))}</p>`;
+}
+function lineImpact(rep, line) {
+  const l = rep.impact && rep.impact.lines[line.key];
+  if (!l) return "";
+  const labels = [...new Set(Object.keys(l.types).map(t => rt("evtShort")[t]).filter(Boolean))].slice(0, 5);
+  return `${impChip(l.class)}<span class="lt">${esc(labels.join(" · "))}</span>`;
 }
 
 const pname = (rep, i) => { const p = rep.places[i]; return p ? (p.new || p.old).name : "?"; };
@@ -991,7 +1036,7 @@ function lineBlock(rep, line) {
       <p class="hint">${esc(rt("routeLegend"))}</p><ul class="edits">${routeText.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>` : "";
     inner = `<div class="lb">${changeTable}${pat}${routeMap}${fl}${travelTable}${dwellTable}${hourTable}${tts}</div>`;
   }
-  return `<details class="line" data-key="${esc(line.key)}"${open ? " open" : ""}><summary>${stChip(line.status, rt("ls")[line.status])}<span class="ln">${esc(lineNames(line))}</span><span class="lt">${esc(tot)}</span></summary>${inner}</details>`;
+  return `<details class="line" data-key="${esc(line.key)}"${open ? " open" : ""}><summary>${stChip(line.status, rt("ls")[line.status])}<span class="ln">${esc(lineNames(line))}</span><span class="lt">${esc(tot)}</span>${lineImpact(rep, line)}</summary>${inner}</details>`;
 }
 
 function bindLine(rep, el) {
@@ -1043,7 +1088,7 @@ function reportMatches(items, query) {
 function reportRows(query) {
   const all = reportItems(), hits = reportMatches(all, query);
   if (!hits.length) return `<p class="hint">${esc(rt("rnone"))}</p>`;
-  const rows = hits.slice(0, LIST_MAX).map(({ pair, e, f }) => `<li><button type="button" class="linkbtn" data-pick="${esc(pair)}">${esc(f.organization_name)} — ${esc(f.name)} · ${esc(e.dates[0])} → ${esc(e.dates[1])}</button></li>`).join("");
+  const rows = hits.slice(0, LIST_MAX).map(({ pair, e, f }) => `<li><button type="button" class="linkbtn" data-pick="${esc(pair)}">${esc(f.organization_name)} — ${esc(f.name)} · ${esc(e.dates[0])} → ${esc(e.dates[1])}</button> ${impChip(e.impact)}</li>`).join("");
   return `<ul>${rows}</ul>${hits.length > LIST_MAX ? `<p class="hint">${esc(rt("rmore", LIST_MAX, hits.length))}</p>` : ""}`;
 }
 function reportList(intro = true) {
@@ -1416,6 +1461,7 @@ function renderReport() {
       ${backwards ? `<p class="hint">${esc(rt("backward"))}</p>` : ""}
       ${skip.n ? `<p class="fmt">${esc(rt("skipped", skip.n, skip.fatal))}</p>` : ""}
       ${classLine(entry.classification, true)}
+      ${impactSummary(rep.impact)}
       <div class="pubs">${pubBox(rt("old"), h.old)}${pubBox(rt("new"), h.new)}</div></div>
     ${notes}
     <div class="seg rview">${[["report", "rvReport"], ["verify", "rvVerify"]].map(([v, k]) => `<button type="button" data-rview="${v}" aria-pressed="${state.rview === v}">${esc(rt(k))}</button>`).join("")}</div>
