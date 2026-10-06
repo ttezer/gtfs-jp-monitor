@@ -204,6 +204,8 @@ def run_analysis(
                 feed_meta = FeedMeta(item.org_id, item.feed_id, feed_row.get("feed_name", ""))
                 run = run_validate(binary, zip_path, entry["from_date"], profile, work, timeout=timeout)
                 record["duration_ms"] = run.duration_ms
+                if run.evidence is not None:
+                    record["evidence"] = dict(run.evidence, exit_code=run.exit_code)
                 if run.report is None:
                     doc = build_fatal(feed_meta, meta, identity, run.error_code or "ANALYZER_ERROR")
                     record["message"] = run.stderr_tail[-2000:] or None

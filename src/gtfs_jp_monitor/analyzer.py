@@ -202,6 +202,9 @@ class AnalyzerRun:
     duration_ms: int
     error_code: str | None  # TIMEOUT, ANALYZER_CRASH, INVALID_REPORT, ... when report is None
     stderr_tail: str
+    # SHA-256 of what the run produced (report file, stdout, stderr; None when absent), kept in the
+    # run record as execution evidence. Not in the generation record: stderr may vary between runs.
+    evidence: dict | None = None
 
 
 def iso_to_today_arg(iso_date: str) -> str:
@@ -238,18 +241,21 @@ def run_validate(
         return AnalyzerRun(None, None, int((time.monotonic() - start) * 1000), "TIMEOUT", tail)
     duration_ms = int((time.monotonic() - start) * 1000)
     tail = proc.stderr[-2000:].decode("utf-8", "replace")
+    raw = out.read_bytes() if out.is_file() else None
+    out.unlink(missing_ok=True)
+    evidence = {"report_sha256": hashlib.sha256(raw).hexdigest() if raw is not None else None,
+                "stdout_sha256": hashlib.sha256(proc.stdout).hexdigest(),
+                "stderr_sha256": hashlib.sha256(proc.stderr).hexdigest()}
     if proc.returncode not in EXIT_OK and proc.returncode != EXIT_FATAL:
-        return AnalyzerRun(None, proc.returncode, duration_ms, "ANALYZER_CRASH", tail)
-    if not out.is_file():
-        return AnalyzerRun(None, proc.returncode, duration_ms, "NO_REPORT", tail)
+        return AnalyzerRun(None, proc.returncode, duration_ms, "ANALYZER_CRASH", tail, evidence)
+    if raw is None:
+        return AnalyzerRun(None, proc.returncode, duration_ms, "NO_REPORT", tail, evidence)
     try:
-        report = json.loads(out.read_text(encoding="utf-8"))
+        report = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError):
-        return AnalyzerRun(None, proc.returncode, duration_ms, "INVALID_REPORT", tail)
-    finally:
-        out.unlink(missing_ok=True)
+        return AnalyzerRun(None, proc.returncode, duration_ms, "INVALID_REPORT", tail, evidence)
     status = report.get("status") if isinstance(report, dict) else None
     # Exit 2 must come with a fatal report and vice versa; anything else is a CLI error.
     if (proc.returncode == EXIT_FATAL) != (status == "fatal"):
-        return AnalyzerRun(None, proc.returncode, duration_ms, "INCONSISTENT_EXIT", tail)
-    return AnalyzerRun(report, proc.returncode, duration_ms, None, tail)
+        return AnalyzerRun(None, proc.returncode, duration_ms, "INCONSISTENT_EXIT", tail, evidence)
+    return AnalyzerRun(report, proc.returncode, duration_ms, None, tail, evidence)

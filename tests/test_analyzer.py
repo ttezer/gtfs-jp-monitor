@@ -251,6 +251,14 @@ class RunValidateTest(unittest.TestCase):
                 self.assertEqual(run.error_code, code)
         self.assertIn("boom", self.run_mode("crash").stderr_tail)
 
+    def test_outputs_are_hashed_as_evidence(self):
+        run = self.run_mode("ok")
+        self.assertEqual(set(run.evidence), {"report_sha256", "stdout_sha256", "stderr_sha256"})
+        self.assertTrue(all(len(v) == 64 for v in run.evidence.values()))
+        self.assertEqual(run.evidence, self.run_mode("ok").evidence)  # the same run gives the same hashes
+        self.assertIsNone(self.run_mode("noreport").evidence["report_sha256"])
+        self.assertNotEqual(self.run_mode("crash").evidence["stderr_sha256"], run.evidence["stderr_sha256"])
+
     def test_timeout(self):
         run = self.run_mode("slow", timeout=0.5)
         self.assertEqual(run.error_code, "TIMEOUT")

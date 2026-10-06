@@ -150,6 +150,21 @@ class WebPageTest(unittest.TestCase):
         ])
 
     @unittest.skipUnless(shutil.which("node"), "node is not installed")
+    def test_comparator_state(self):
+        cases = """
+        const g = (uid, extra) => Object.assign({ uid, status: "COMPLETE", method: "m" }, extra);
+        const f = { generations: [g("a"), g("b", { cmp: "SAME_FEED" }), g("c", { cmp: "COMPARABLE" }), g("d", { method: "x" }), g("e", { status: "PARTIAL" })] };
+        const [a, b, c, d, e] = f.generations;
+        console.log(JSON.stringify([comparatorState(f, a, b), comparatorState(f, b, a), comparatorState(f, a, c),
+                                    comparatorState(f, b, c), comparatorState(f, c, d), comparatorState(f, a, e)]));
+        """
+        proc = subprocess.run(["node", "-e", self.functions("comparatorState") + cases], capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        # same file only known for neighbours (a, c are two apart)
+        self.assertEqual(json.loads(proc.stdout), ["SAME_FEED", "SAME_FEED", "COMPARABLE", "COMPARABLE", "INCOMPATIBLE_METHOD",
+                                                   "UNVERIFIED_INPUT"])
+
+    @unittest.skipUnless(shutil.which("node"), "node is not installed")
     def test_impact_summary(self):
         start = self.html.index("const R = {")
         texts = self.html[start:self.html.index("\n};\n", start) + 3]

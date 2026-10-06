@@ -127,6 +127,10 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(doc["fatal"], {"code": "ANALYZER_CRASH"})
         item = [i for i in result.items if i["uid"] == uid(2)][0]
         self.assertEqual(item["error_code"], "ANALYZER_CRASH")
+        self.assertIsNone(item["evidence"]["report_sha256"])
+        ok = [i for i in result.items if i["uid"] == uid(1)][0]
+        self.assertEqual(len(ok["evidence"]["report_sha256"]), 64)
+        self.assertEqual(ok["evidence"]["exit_code"], 1)
 
     def test_next_release_keeps_the_canonical_key(self):
         from gtfs_jp_monitor.webexport import build_status

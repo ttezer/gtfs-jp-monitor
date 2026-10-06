@@ -71,7 +71,10 @@ different releases or profiles live side by side and are never compared with eac
 ### §4.1 Commit policy
 
 - A run that changes no data writes no file, so it produces no commit.
-- Run records are written only when data changed or a warning or failure occurred.
+- Run records are written only when data changed or a warning or failure occurred. Each analysed
+  generation's entry keeps the SHA-256 of the analyzer's report file, stdout and stderr and its
+  exit code as `evidence` (runs from 2026-10 on); they are not in the generation record, since
+  stderr may differ between runs of the same input.
 - Time-dependent values (run times, durations, observed `rid`) appear only in run records and
   the catalog, never in generation or diff files.
 
@@ -369,6 +372,31 @@ meaningful, so technical means exactly the pair class T. The impact is kept in t
 the report (`impact`: classes per line and per event type, trips added, removed and retimed per
 day type, lines with fewer or more trips) and its class in the report index; the page shows it
 as a badge and words a short summary of the feed and of each line in the page language.
+
+### §12.2 Comparison method and comparator states
+
+Validation results of two publications are compared under the same method: every option that can
+change a result except the validation date, which is each publication's own `from_date` by design
+(§6.1; this operational comparison asks how each publication fared when it came into service). The
+export lists these options once per method in `methods` (analyzer version, release tag, binary
+hash, platform, GTFS-JP profile, the validation date rule, and the fixed command line options:
+English output, no rule switched off), keyed by a fingerprint, the first 16 hex digits of the
+SHA-256 of the options; every publication carries the fingerprint of its analysis as `method`.
+
+Every exported publication after the first carries `cmp`, the comparator state of the pair it
+forms with the publication before it, in this order:
+
+| State | When |
+|---|---|
+| `INVALID_INPUT` | either side failed validation (`FATAL`) |
+| `UNVERIFIED_INPUT` | either side is `PARTIAL`, or its file was replaced at the source after the analysis (§3.3) |
+| `INCOMPATIBLE_METHOD` | the two methods differ (does not arise within one analysis key) |
+| `SAME_FEED` | both analyses read the same ZIP (equal SHA-256): any difference comes from the validation date alone |
+| `COMPARABLE` | otherwise |
+
+Pairs are always of one feed, so a comparison across sources does not arise. `SAME_FEED` is about
+the file; an equivalent publication (§4.2) may be a different file with the same content. The page
+says why a selected pair is not `COMPARABLE`; it knows `SAME_FEED` for neighbours only.
 
 ## §13 Metrics over time
 

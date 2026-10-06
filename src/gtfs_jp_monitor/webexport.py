@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import gzip
+import hashlib
 import json
 import subprocess
 from pathlib import Path
@@ -122,6 +123,47 @@ def estimate_pair(old: dict | None, new: dict | None) -> str | None:
     a, b = old["files"], new["files"]
     changed = {n for n in set(a) | set(b) if (a.get(n) or {}).get("hash") != (b.get(n) or {}).get("hash")}
     return "~T" if changed <= ESTIMATE_TECHNICAL_FILES else "~M"
+
+
+# Every option of an analysis that can change its result, apart from the validation date: that is
+# each publication's own from_date by design (§6.1) and is compared separately. The CLI arguments
+# are fixed by run_validate (--json, --lang en; no rule switched off).
+METHOD_FIELDS = ("version", "release_tag", "binary_sha256", "platform", "gtfs_jp_profile", "validate_date_source")
+CLI_OPTIONS = {"lang": "en", "disabled_rules": []}
+
+
+def method_fingerprint(doc: dict) -> tuple[str, dict]:
+    """(fingerprint, validation options) of a generation record's analysis (data-model §12.2)."""
+    options = {k: doc["analyzer"][k] for k in METHOD_FIELDS} | CLI_OPTIONS
+    return hashlib.sha256(json.dumps(options, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()[:16], options
+
+
+COMPARABLE, SAME_FEED, INCOMPATIBLE_METHOD, UNVERIFIED_INPUT, INVALID_INPUT = (
+    "COMPARABLE", "SAME_FEED", "INCOMPATIBLE_METHOD", "UNVERIFIED_INPUT", "INVALID_INPUT")
+
+
+def comparator_state(old: dict, new: dict, old_sha: str | None, new_sha: str | None) -> str:
+    """Whether the validation results of two publications of one feed can be compared (§12.2):
+    INVALID_INPUT when either failed validation, UNVERIFIED_INPUT when either is partial or its file
+    was replaced at the source, INCOMPATIBLE_METHOD when their validation options differ,
+    SAME_FEED when both analysed the same ZIP, else COMPARABLE."""
+    if "FATAL" in (old["status"], new["status"]):
+        return INVALID_INPUT
+    if "PARTIAL" in (old["status"], new["status"]) or old.get("source_changed") or new.get("source_changed"):
+        return UNVERIFIED_INPUT
+    if old["method"] != new["method"]:
+        return INCOMPATIBLE_METHOD
+    if old_sha is not None and old_sha == new_sha:
+        return SAME_FEED
+    return COMPARABLE
+
+
+def comparator_states(feeds: list[dict], zip_sha: dict[str, str]) -> None:
+    """`cmp` of every exported publication after the first: the comparator state of the pair it
+    forms with the publication before it."""
+    for f in feeds:
+        for prev, g in zip(f["generations"], f["generations"][1:]):
+            g["cmp"] = comparator_state(prev, g, zip_sha.get(prev["uid"]), zip_sha.get(g["uid"]))
 
 
 def classify_pairs(root: Path, feeds: list[dict], index: dict[str, dict], engine_version: str) -> None:
@@ -297,6 +339,8 @@ def build_export(data_dir: Path, key: str, analyzer: Path | None = None,
     feeds = []
     fields: dict[str, dict] = {}  # uid -> field shares, written as fields.json
     check = {"same_content_pairs": 0, "different_results": 0, "examples": []}  # analyzer determinism
+    methods: dict[str, dict] = {}  # method fingerprint -> validation options (§12.2)
+    zip_sha: dict[str, str] = {}  # uid -> SHA-256 of the analysed ZIP, for SAME_FEED; not exported
     rule_ids: set[str] = set()
     for fk in sorted(catalog_gens):
         analyses = list_analyses(root, *fk)
@@ -312,6 +356,10 @@ def build_export(data_dir: Path, key: str, analyzer: Path | None = None,
                 continue
             doc = json.loads(generation_path(root, *fk, ref.uid, key).read_text(encoding="utf-8"))
             gens.append(_summary(entries[ref.uid], doc))
+            fp, options = method_fingerprint(doc)
+            gens[-1]["method"] = fp
+            methods[fp] = options
+            zip_sha[ref.uid] = doc["generation"]["sha256"]
             if ref.uid in replaced:  # the file was replaced at the source after an earlier analysis (§3.3)
                 gens[-1]["source_changed"] = True
             content = load_content(root, *fk, ref.uid)
@@ -357,6 +405,7 @@ def build_export(data_dir: Path, key: str, analyzer: Path | None = None,
             wanted[fk] = {f"{o}__{n}" for _, (o, n) in wanted_pairs(index_doc, key, catalog_gens.get(fk, {}))}
     report_index, files = report_files(root, feeds, ENGINE_VERSION, wanted)
     classify_pairs(root, feeds, report_index, ENGINE_VERSION)
+    comparator_states(feeds, zip_sha)
     metrics = build_metrics(feeds, catalog_gens, report_index, key, ENGINE_VERSION,
                             _dt.datetime.now(_dt.timezone.utc).date())  # before compact_rules
     return {
@@ -365,6 +414,7 @@ def build_export(data_dir: Path, key: str, analyzer: Path | None = None,
         "feeds": feeds,
         "rule_titles": rule_titles(analyzer, rule_ids) if analyzer else {lang: {} for lang in LANGS},
         "rule_meta": compact_rules(feeds),  # publications keep counts only (see compact_rules)
+        "methods": dict(sorted(methods.items())),
         "engine_version": ENGINE_VERSION,
         "report_index": report_index,
         "status": build_status(root, key, next_key=next_key),

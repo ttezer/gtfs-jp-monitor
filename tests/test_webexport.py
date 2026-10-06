@@ -10,8 +10,8 @@ from gtfs_jp_monitor.catalog import sync_catalog
 from gtfs_jp_monitor.store import change_path, generation_path
 from gtfs_jp_semantic import ENGINE_VERSION
 from gtfs_jp_semantic.rawdiff import gzip_bytes
-from gtfs_jp_monitor.webexport import (build_export, compact_rules, estimate_pair, growth, read_stages, record_storage,
-                                       storage_warnings)
+from gtfs_jp_monitor.webexport import (build_export, compact_rules, comparator_state, estimate_pair, growth, method_fingerprint,
+                                       read_stages, record_storage, storage_warnings)
 
 from .schema_support import FIXTURES, load_json
 from .test_catalog import FEED, ORG, FakeClient, feed_record, gen, uid
@@ -39,6 +39,9 @@ class WebExportTest(unittest.TestCase):
         self.assertEqual(g["rid"], "current")
         self.assertNotIn("pair", feed["generations"][0])  # the first publication forms no pair
         self.assertEqual(g["pair"], "U/NOT_REPORTED")
+        self.assertEqual(g["cmp"], "SAME_FEED")  # both records carry the fixture's ZIP hash
+        self.assertEqual(g["method"], feed["generations"][0]["method"])
+        self.assertEqual(export["methods"][g["method"]]["gtfs_jp_profile"], "auto")
         self.assertEqual((g["rules"]["JPN_030"], export["rule_meta"]["JPN_030"]), (4, ["MEDIUM", "QUALITY"]))
         self.assertEqual(export["rule_titles"], {"tr": {}, "en": {}, "ja": {}})
         self.assertEqual((export["report_index"], files), ({}, {}))
@@ -113,6 +116,29 @@ class WebExportTest(unittest.TestCase):
             current.parent.mkdir(parents=True)
             current.write_bytes(gzip_bytes(report))
             self.assertEqual(shown({(ORG, FEED): set()}), [pair])  # a report of this version is always shown
+
+
+class ComparatorTest(unittest.TestCase):
+    def test_fingerprint_leaves_out_the_validation_date(self):
+        base = load_json(FIXTURES / "generation" / "complete.json")
+        other_day = copy.deepcopy(base)
+        other_day["analyzer"]["validate_date"] = "2026-10-01"
+        other_binary = copy.deepcopy(base)
+        other_binary["analyzer"]["binary_sha256"] = "f" * 64
+        fp, options = method_fingerprint(base)
+        self.assertEqual(method_fingerprint(other_day)[0], fp)
+        self.assertNotEqual(method_fingerprint(other_binary)[0], fp)
+        self.assertNotIn("validate_date", options)
+        self.assertEqual((options["validate_date_source"], options["lang"], options["disabled_rules"]), ("from_date", "en", []))
+
+    def test_states(self):
+        g = lambda **kw: {"status": "COMPLETE", "method": "m"} | kw
+        self.assertEqual(comparator_state(g(), g(), "a", "b"), "COMPARABLE")
+        self.assertEqual(comparator_state(g(), g(), "a", "a"), "SAME_FEED")
+        self.assertEqual(comparator_state(g(), g(method="x"), "a", "a"), "INCOMPATIBLE_METHOD")
+        self.assertEqual(comparator_state(g(status="PARTIAL"), g(), "a", "a"), "UNVERIFIED_INPUT")
+        self.assertEqual(comparator_state(g(), g(source_changed=True), "a", "b"), "UNVERIFIED_INPUT")
+        self.assertEqual(comparator_state(g(status="PARTIAL"), g(status="FATAL"), "a", "b"), "INVALID_INPUT")  # FATAL first
 
 
 class CompactRulesTest(unittest.TestCase):

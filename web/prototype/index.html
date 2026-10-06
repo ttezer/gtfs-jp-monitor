@@ -329,6 +329,7 @@ const T = {
     prev: n => `${n} önceki`, current: "Güncel", delta: "Δ",
     noChange: "±0 değişiklik yok", routes: "hat", stops: "durak", trips: "sefer",
     fixed: n => `${n} kural düzeldi`, newRules: n => `${n} yeni kural`,
+    cmpNote: { SAME_FEED: "İki yayın aynı ZIP dosyası: aradaki doğrulama farkı yalnız doğrulama tarihinden gelir (her yayın kendi başlangıç tarihinde doğrulanır).", INCOMPATIBLE_METHOD: "İki yayın farklı doğrulama yöntemiyle (analyzer, profil veya platform) analiz edildi; sonuçlar doğrudan karşılaştırılamaz.", UNVERIFIED_INPUT: "Yayınlardan birinin analizi kısmi (PARTIAL); karşılaştırma eksik kapsamla yapıldı." },
     nextChip: (n, d) => `Sonraki: ${d}${n > 1 ? ` (+${n - 1})` : ""} · karşılaştır`, clickNext: "Güncel ile yaklaşan yayını karşılaştır", jpFiles: "JP dosyaları", formatDiff: (a, b) => `Biçim farkı: eski yayındaki JP dosyaları [${a}], yenideki [${b}]. Kural farklarının bir kısmı hizmet değişikliğinden değil biçim değişikliğinden kaynaklanabilir.`, mergedChip: n => `×${n} yayın`,
     fatal: "ANALİZ YOK", lastPub: "Son yayın",
     pickOld: "Eski", pickNew: "Yeni", backwards: "Eski taraf yeniden sonra seçildi; fark geriye doğru gösteriliyor.",
@@ -377,6 +378,7 @@ const T = {
     prev: n => `${n} back`, current: "Current", delta: "Δ",
     noChange: "±0 no change", routes: "routes", stops: "stops", trips: "trips",
     fixed: n => `${n} rules fixed`, newRules: n => `${n} new rules`,
+    cmpNote: { SAME_FEED: "Both publications are the same ZIP file: any validation difference comes from the validation date alone (each publication is validated on its own start date).", INCOMPATIBLE_METHOD: "The publications were validated with different methods (analyzer, profile or platform); their results are not directly comparable.", UNVERIFIED_INPUT: "One publication was only partly analysed (PARTIAL); the comparison has incomplete coverage." },
     nextChip: (n, d) => `Next: ${d}${n > 1 ? ` (+${n - 1})` : ""} · compare`, clickNext: "Compare the current publication with the upcoming one", jpFiles: "JP files", formatDiff: (a, b) => `Format difference: JP files in the old publication [${a}], in the new one [${b}]. Some rule differences may come from the format change rather than from service changes.`, mergedChip: n => `×${n} publications`,
     fatal: "NOT ANALYSED", lastPub: "Latest publication",
     pickOld: "Old", pickNew: "New", backwards: "The old side is newer; the difference is shown backwards.",
@@ -425,6 +427,7 @@ const T = {
     prev: n => `${n}つ前`, current: "現行", delta: "Δ",
     noChange: "±0 変更なし", routes: "路線", stops: "停留所", trips: "便",
     fixed: n => `${n}件のルール解消`, newRules: n => `${n}件の新規ルール`,
+    cmpNote: { SAME_FEED: "2つの公開は同じZIPファイルです。検証結果の差は検証日の違いだけによるものです（各公開は自身の開始日で検証）。", INCOMPATIBLE_METHOD: "2つの公開は異なる検証方法（アナライザー、プロファイル、プラットフォーム）で解析されたため、結果を直接比較できません。", UNVERIFIED_INPUT: "一方の公開の解析が部分的（PARTIAL）です。比較の対象範囲は不完全です。" },
     nextChip: (n, d) => `次回: ${d}${n > 1 ? `（+${n - 1}）` : ""}・比較`, clickNext: "現行と次回の公開を比較", jpFiles: "JPファイル", formatDiff: (a, b) => `形式の違い：旧公開のJPファイル［${a}］、新公開［${b}］。ルール差分の一部はサービス変更ではなく形式の変更による可能性があります。`, mergedChip: n => `×${n}回公開`,
     fatal: "解析なし", lastPub: "最新の公開",
     pickOld: "旧", pickNew: "新", backwards: "旧側の方が新しいため、差分を逆方向に表示しています。",
@@ -1707,6 +1710,16 @@ function genLabel(gr) {
   return `${range} · ${pub}${memo ? " · " + memo : ""}${n}`;
 }
 
+// Whether two publications' validation results can be compared (data-model §12.2). SAME_FEED is known
+// for neighbours only (`cmp`, from the analysed files' hashes, which the page does not carry).
+function comparatorState(f, a, b) {
+  if ([a.status, b.status].includes("FATAL")) return "INVALID_INPUT";
+  if ([a.status, b.status].includes("PARTIAL") || a.source_changed || b.source_changed) return "UNVERIFIED_INPUT";
+  if (a.method && b.method && a.method !== b.method) return "INCOMPATIBLE_METHOD";
+  const gens = f.generations, ia = gens.indexOf(a), ib = gens.indexOf(b);
+  if (Math.abs(ia - ib) === 1 && gens[Math.max(ia, ib)].cmp === "SAME_FEED") return "SAME_FEED";
+  return "COMPARABLE";
+}
 function renderPanel() {
   const panel = $("panel");
   const f = DATA.feeds.find(x => key(x) === state.selected);
@@ -1765,7 +1778,9 @@ function renderPanel() {
     const fa = (a.jp_files || []).join(", "), fb = (b.jp_files || []).join(", ");
     const replacedNote = [a, b].filter((g, i, xs) => g.source_changed && xs.indexOf(g) === i)
       .map(g => `<p class="fmt">${esc(t("sourceChanged", (g.published_at || "").slice(0, 10)))}</p>`).join("");
-    const fmtNote = (fa !== fb ? `<p class="fmt">${esc(t("formatDiff", fa || "—", fb || "—"))}</p>` : "") + replacedNote + scopeNote(f, a, b);
+    const cmp = comparatorState(f, a, b);  // data-model §12.2; a replaced file has its own note above
+    const cmpNote = cmp !== "COMPARABLE" && !(cmp === "UNVERIFIED_INPUT" && replacedNote) ? `<p class="fmt">${esc(t("cmpNote")[cmp])}</p>` : "";
+    const fmtNote = (fa !== fb ? `<p class="fmt">${esc(t("formatDiff", fa || "—", fb || "—"))}</p>` : "") + replacedNote + cmpNote + scopeNote(f, a, b);
     body = `${backwards ? `<p class="hint">${esc(t("backwards"))}</p>` : ""}${fmtNote}
       <div><h3>1. ${esc(t("s1"))}</h3><div class="cards">${cards}</div></div>
       <div><h3>2. ${esc(t("s2"))}</h3><table class="mini"><thead><tr><th></th><th class="r">${esc(t("before"))}</th><th class="r">${esc(t("after"))}</th><th class="r">Δ</th></tr></thead><tbody>${metricRows}</tbody></table></div>
