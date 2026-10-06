@@ -26,6 +26,10 @@ güncelleme sıklığı, değişiklik oranları, doğrulama gerilemeleri ve kaps
 tekerlekli sandalye bilgisi gibi seçilmiş isteğe bağlı alanların ne kadar dolu olduğunu verir ve
 Japonya dışında kalan ya da koordinatları yer değiştirmiş durakları işaretler (§15).
 
+Değişiklikler büyük, küçük ya da teknik olarak derecelendirilir (§12.1). Büyük değişiklikler
+herhangi bir feed okuyucusuyla takip edilebilir: feed başına `atom/<dil>/<org_id>/<feed_id>.xml`,
+tüm feed'ler için `atom/<dil>/all.xml`; `dil` `tr`, `en` ya da `ja` (§10.3).
+
 ## Nasıl çalışır
 
 Bir GitHub Actions workflow'u (`.github/workflows/gtfs-jp-monitor.yml`) her gün 04:10 JST'de çalışır

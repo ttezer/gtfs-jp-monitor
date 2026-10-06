@@ -219,6 +219,8 @@ metrics.json                                        metrics of the last 365 days
 fields.json.gz                                      field filling per publication (§15), loaded after the page
 reports/index.json.gz                               summary of every report, loaded after the page
 reports/<org_id>/<feed_id>/<old_uid>__<new_uid>.json.gz   one semantic report (§11)
+atom/<lang>/<org_id>/<feed_id>.xml                  major changes of one feed (§10.3)
+atom/<lang>/all.xml                                 major changes of all feeds (§10.3)
 ```
 
 The embedded data keeps per publication only the count of each rule; the rule's severity and
@@ -276,6 +278,19 @@ A watchdog workflow in the data repository (private, and committed to every nigh
 disabled for inactivity like a public repository's schedule) reads the published `status.json`
 daily and fails when `built_at` is more than 30 hours old; GitHub then notifies by e-mail. It
 catches a monitoring workflow that fails and one that does not start at all.
+
+### §10.3 Atom feeds
+
+People who want to hear of important changes subscribe in a feed reader; nothing is sent and
+nothing needs an account (`src/gtfs_jp_monitor/atom.py`). For each page language (`tr`, `en`, `ja`)
+the site has one Atom feed per transit feed with at least one report of major impact (§12.1), its
+20 newest such reports, and one for all feeds with the 50 newest. An entry is one report: its id a
+`tag:` URI of the pair, its time the new publication's `published_at` (else its start date), its
+link the report on the page (§10.1), and as text the changed lines, major first, with the page's
+short labels in order of importance (a test keeps the two equal), then the stop changes. The
+files depend only on the reports, so an unchanged site writes the same bytes. `export-web
+--site-url` sets the address used in the links. The page links the feed of the selected transit
+feed and the one for all feeds, and names the latter in its head for readers that look there.
 
 ## §11 Semantic change reports
 

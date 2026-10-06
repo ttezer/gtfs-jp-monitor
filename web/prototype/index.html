@@ -2,6 +2,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GTFS-JP Monitor</title>
 <meta name="description" content="Feed quality, publication readiness and change history for gtfs-data.jp feeds">
+<link rel="alternate" type="application/atom+xml" hreflang="ja" title="GTFS-JP Monitor・主な変更" href="atom/ja/all.xml">
+<link rel="alternate" type="application/atom+xml" hreflang="en" title="GTFS-JP Monitor · major changes" href="atom/en/all.xml">
+<link rel="alternate" type="application/atom+xml" hreflang="tr" title="GTFS-JP Monitor · önemli değişiklikler" href="atom/tr/all.xml">
 <script>
 // Google Analytics (G-2R410JP5N2), loaded only on the published site so that local and preview
 // builds send no page views.
@@ -330,6 +333,7 @@ const T = {
     noChange: "±0 değişiklik yok", routes: "hat", stops: "durak", trips: "sefer",
     fixed: n => `${n} kural düzeldi`, newRules: n => `${n} yeni kural`,
     cmpNote: { SAME_FEED: "İki yayın aynı ZIP dosyası: aradaki doğrulama farkı yalnız doğrulama tarihinden gelir (her yayın kendi başlangıç tarihinde doğrulanır).", INCOMPATIBLE_METHOD: "İki yayın farklı doğrulama yöntemiyle (analyzer, profil veya platform) analiz edildi; sonuçlar doğrudan karşılaştırılamaz.", UNVERIFIED_INPUT: "Yayınlardan birinin analizi kısmi (PARTIAL); karşılaştırma eksik kapsamla yapıldı." },
+    atomFeed: "Atom ile takip et", atomAll: "Tüm önemli değişiklikler (Atom)", atomHint: "Büyük etkili değişikliklerin akışı; bir feed okuyucusuna ekleyin.",
     nextChip: (n, d) => `Sonraki: ${d}${n > 1 ? ` (+${n - 1})` : ""} · karşılaştır`, clickNext: "Güncel ile yaklaşan yayını karşılaştır", jpFiles: "JP dosyaları", formatDiff: (a, b) => `Biçim farkı: eski yayındaki JP dosyaları [${a}], yenideki [${b}]. Kural farklarının bir kısmı hizmet değişikliğinden değil biçim değişikliğinden kaynaklanabilir.`, mergedChip: n => `×${n} yayın`,
     fatal: "ANALİZ YOK", lastPub: "Son yayın",
     pickOld: "Eski", pickNew: "Yeni", backwards: "Eski taraf yeniden sonra seçildi; fark geriye doğru gösteriliyor.",
@@ -379,6 +383,7 @@ const T = {
     noChange: "±0 no change", routes: "routes", stops: "stops", trips: "trips",
     fixed: n => `${n} rules fixed`, newRules: n => `${n} new rules`,
     cmpNote: { SAME_FEED: "Both publications are the same ZIP file: any validation difference comes from the validation date alone (each publication is validated on its own start date).", INCOMPATIBLE_METHOD: "The publications were validated with different methods (analyzer, profile or platform); their results are not directly comparable.", UNVERIFIED_INPUT: "One publication was only partly analysed (PARTIAL); the comparison has incomplete coverage." },
+    atomFeed: "Follow with Atom", atomAll: "All major changes (Atom)", atomHint: "Feed of the changes with a major impact; add it to a feed reader.",
     nextChip: (n, d) => `Next: ${d}${n > 1 ? ` (+${n - 1})` : ""} · compare`, clickNext: "Compare the current publication with the upcoming one", jpFiles: "JP files", formatDiff: (a, b) => `Format difference: JP files in the old publication [${a}], in the new one [${b}]. Some rule differences may come from the format change rather than from service changes.`, mergedChip: n => `×${n} publications`,
     fatal: "NOT ANALYSED", lastPub: "Latest publication",
     pickOld: "Old", pickNew: "New", backwards: "The old side is newer; the difference is shown backwards.",
@@ -428,6 +433,7 @@ const T = {
     noChange: "±0 変更なし", routes: "路線", stops: "停留所", trips: "便",
     fixed: n => `${n}件のルール解消`, newRules: n => `${n}件の新規ルール`,
     cmpNote: { SAME_FEED: "2つの公開は同じZIPファイルです。検証結果の差は検証日の違いだけによるものです（各公開は自身の開始日で検証）。", INCOMPATIBLE_METHOD: "2つの公開は異なる検証方法（アナライザー、プロファイル、プラットフォーム）で解析されたため、結果を直接比較できません。", UNVERIFIED_INPUT: "一方の公開の解析が部分的（PARTIAL）です。比較の対象範囲は不完全です。" },
+    atomFeed: "Atomで購読", atomAll: "すべての主な変更（Atom）", atomHint: "影響の大きい変更のフィードです。フィードリーダーに追加してください。",
     nextChip: (n, d) => `次回: ${d}${n > 1 ? `（+${n - 1}）` : ""}・比較`, clickNext: "現行と次回の公開を比較", jpFiles: "JPファイル", formatDiff: (a, b) => `形式の違い：旧公開のJPファイル［${a}］、新公開［${b}］。ルール差分の一部はサービス変更ではなく形式の変更による可能性があります。`, mergedChip: n => `×${n}回公開`,
     fatal: "解析なし", lastPub: "最新の公開",
     pickOld: "旧", pickNew: "新", backwards: "旧側の方が新しいため、差分を逆方向に表示しています。",
@@ -472,7 +478,7 @@ const R = {
     evt: { ROUTE_MERGED: n => `${n} hat birleşmesi`, ROUTE_SPLIT: n => `${n} hat bölünmesi`, ROUTE_RESTRUCTURED: n => `${n} hat yeniden düzenlendi`, ROUTE_ADDED: n => `${n} hat eklendi`, ROUTE_DISCONTINUED: n => `${n} hat kaldırıldı`, ROUTE_RENAMED: n => `${n} hattın adı değişti`, STOP_ADDED: n => `${n} durak eklendi`, STOP_REMOVED: n => `${n} durak kaldırıldı`, STOP_RENAMED: n => `${n} durağın adı değişti`, STOP_MOVED: n => `${n} durak taşındı`, FARE_CHANGED: () => "ücretler değişti" },
     impPattern: n => `${n} hatta güzergâh değişti`, impReduced: n => `${n} hatta sefer azaldı`, impIncreased: n => `${n} hatta sefer arttı`,
     impTripsAdded: (d, n) => `${d}: ${n} sefer eklendi`, impTripsRemoved: (d, n) => `${d}: ${n} sefer kaldırıldı`, impNone: "Yolcuya dönük değişiklik yok.",
-    evtShort: { ROUTE_ADDED: "yeni hat", ROUTE_DISCONTINUED: "kaldırıldı", ROUTE_RENAMED: "adı değişti", ROUTE_MERGED: "birleşti", ROUTE_SPLIT: "bölündü", ROUTE_RESTRUCTURED: "yeniden düzenlendi", STOP_ADDED: "durak eklendi", STOP_REMOVED: "durak kaldırıldı", STOP_RENAMED: "durak adı değişti", STOP_MOVED: "durak taşındı", PATTERN_EXTENDED: "güzergâh uzadı", PATTERN_SHORTENED: "güzergâh kısaldı", STOP_INSERTED: "güzergâha durak eklendi", STOP_SKIPPED: "durak atlandı", DETOUR_ADDED: "sapma eklendi", DETOUR_REMOVED: "sapma kaldırıldı", STOPS_REORDERED: "durak sırası değişti", DETOUR_SHIFTED: "sapma başka seferlere geçti", SERVICE_INCREASED: "sefer arttı", SERVICE_REDUCED: "sefer azaldı", TRIPS_RETIMED: "saatler değişti", FIRST_LAST_CHANGED: "ilk/son sefer değişti", TRIPS_MOVED: "seferler başka hatta geçti" },
+    evtShort: { ROUTE_ADDED: "yeni hat", ROUTE_DISCONTINUED: "kaldırıldı", ROUTE_MERGED: "birleşti", ROUTE_SPLIT: "bölündü", ROUTE_RESTRUCTURED: "yeniden düzenlendi", ROUTE_RENAMED: "adı değişti", SERVICE_REDUCED: "sefer azaldı", SERVICE_INCREASED: "sefer arttı", PATTERN_EXTENDED: "güzergâh uzadı", PATTERN_SHORTENED: "güzergâh kısaldı", STOP_SKIPPED: "durak atlandı", STOP_INSERTED: "güzergâha durak eklendi", DETOUR_ADDED: "sapma eklendi", DETOUR_REMOVED: "sapma kaldırıldı", DETOUR_SHIFTED: "sapma başka seferlere geçti", STOPS_REORDERED: "durak sırası değişti", TRIPS_MOVED: "seferler başka hatta geçti", FIRST_LAST_CHANGED: "ilk/son sefer değişti", TRIPS_RETIMED: "saatler değişti", STOP_ADDED: "durak eklendi", STOP_REMOVED: "durak kaldırıldı", STOP_RENAMED: "durak adı değişti", STOP_MOVED: "durak taşındı" },
     ek: { extended: "Uzatıldı", shortened: "Kısaltıldı", inserted: "Durak eklendi", removed: "Durak çıkarıldı", detour_added: "Sapma eklendi", detour_removed: "Sapma kaldırıldı", shifted: "Başka seferlere geçti", reordered: "Sırası değişti" },
     topic: { fares: "Ücretler", calendar_exceptions: "Takvim istisnaları", agency: "İşletici", office: "Şube", translations: "Çeviriler", feed_info: "Feed bilgisi", shapes: "Güzergâh şekilleri", transfers: "Aktarmalar", other_files: "Diğer dosyalar", formatting: "Yalnız biçim değişti (değer aynı)", attributes: "Öznitelik değişiklikleri (yön tabelası, binme/inme kuralı, kodlar, küçük koordinat düzeltmeleri)" },
     ck: { added: "eklenen satır", removed: "kaldırılan satır", changed_fields: "değişen alan" },
@@ -542,7 +548,7 @@ const R = {
     evt: { ROUTE_MERGED: n => `${n} line merger${n > 1 ? "s" : ""}`, ROUTE_SPLIT: n => `${n} line split${n > 1 ? "s" : ""}`, ROUTE_RESTRUCTURED: n => `${n} line${n > 1 ? "s" : ""} restructured`, ROUTE_ADDED: n => `${n} line${n > 1 ? "s" : ""} added`, ROUTE_DISCONTINUED: n => `${n} line${n > 1 ? "s" : ""} discontinued`, ROUTE_RENAMED: n => `${n} line${n > 1 ? "s" : ""} renamed`, STOP_ADDED: n => `${n} stop${n > 1 ? "s" : ""} added`, STOP_REMOVED: n => `${n} stop${n > 1 ? "s" : ""} removed`, STOP_RENAMED: n => `${n} stop${n > 1 ? "s" : ""} renamed`, STOP_MOVED: n => `${n} stop${n > 1 ? "s" : ""} moved`, FARE_CHANGED: () => "fares changed" },
     impPattern: n => `route changed on ${n} line${n > 1 ? "s" : ""}`, impReduced: n => `fewer trips on ${n} line${n > 1 ? "s" : ""}`, impIncreased: n => `more trips on ${n} line${n > 1 ? "s" : ""}`,
     impTripsAdded: (d, n) => `${d}: ${n} trip${n > 1 ? "s" : ""} added`, impTripsRemoved: (d, n) => `${d}: ${n} trip${n > 1 ? "s" : ""} removed`, impNone: "No passenger-facing change.",
-    evtShort: { ROUTE_ADDED: "new line", ROUTE_DISCONTINUED: "discontinued", ROUTE_RENAMED: "renamed", ROUTE_MERGED: "merged", ROUTE_SPLIT: "split", ROUTE_RESTRUCTURED: "restructured", STOP_ADDED: "stop added", STOP_REMOVED: "stop removed", STOP_RENAMED: "stop renamed", STOP_MOVED: "stop moved", PATTERN_EXTENDED: "route extended", PATTERN_SHORTENED: "route shortened", STOP_INSERTED: "stop inserted", STOP_SKIPPED: "stop skipped", DETOUR_ADDED: "detour added", DETOUR_REMOVED: "detour removed", STOPS_REORDERED: "stop order changed", DETOUR_SHIFTED: "detour moved to other trips", SERVICE_INCREASED: "more trips", SERVICE_REDUCED: "fewer trips", TRIPS_RETIMED: "retimed", FIRST_LAST_CHANGED: "first/last trip changed", TRIPS_MOVED: "trips moved to another line" },
+    evtShort: { ROUTE_ADDED: "new line", ROUTE_DISCONTINUED: "discontinued", ROUTE_MERGED: "merged", ROUTE_SPLIT: "split", ROUTE_RESTRUCTURED: "restructured", ROUTE_RENAMED: "renamed", SERVICE_REDUCED: "fewer trips", SERVICE_INCREASED: "more trips", PATTERN_EXTENDED: "route extended", PATTERN_SHORTENED: "route shortened", STOP_SKIPPED: "stop skipped", STOP_INSERTED: "stop inserted", DETOUR_ADDED: "detour added", DETOUR_REMOVED: "detour removed", DETOUR_SHIFTED: "detour moved to other trips", STOPS_REORDERED: "stop order changed", TRIPS_MOVED: "trips moved to another line", FIRST_LAST_CHANGED: "first/last trip changed", TRIPS_RETIMED: "retimed", STOP_ADDED: "stop added", STOP_REMOVED: "stop removed", STOP_RENAMED: "stop renamed", STOP_MOVED: "stop moved" },
     ek: { extended: "Extended", shortened: "Shortened", inserted: "Stop inserted", removed: "Stop removed", detour_added: "Detour added", detour_removed: "Detour removed", shifted: "Moved to other trips", reordered: "Moved in order" },
     topic: { fares: "Fares", calendar_exceptions: "Calendar exceptions", agency: "Agency", office: "Office", translations: "Translations", feed_info: "Feed info", shapes: "Shapes", transfers: "Transfers", other_files: "Other files", formatting: "Formatting only (same value)", attributes: "Attribute changes (headsigns, pickup/drop-off rules, codes, small coordinate fixes)" },
     ck: { added: "rows added", removed: "rows removed", changed_fields: "fields changed" },
@@ -612,7 +618,7 @@ const R = {
     evt: { ROUTE_MERGED: n => `路線統合${n}件`, ROUTE_SPLIT: n => `路線分割${n}件`, ROUTE_RESTRUCTURED: n => `路線再編${n}件`, ROUTE_ADDED: n => `路線新設${n}件`, ROUTE_DISCONTINUED: n => `路線廃止${n}件`, ROUTE_RENAMED: n => `路線名変更${n}件`, STOP_ADDED: n => `停留所新設${n}件`, STOP_REMOVED: n => `停留所廃止${n}件`, STOP_RENAMED: n => `停留所名変更${n}件`, STOP_MOVED: n => `停留所移設${n}件`, FARE_CHANGED: () => "運賃変更" },
     impPattern: n => `${n}路線で経路変更`, impReduced: n => `${n}路線で減便`, impIncreased: n => `${n}路線で増便`,
     impTripsAdded: (d, n) => `${d}：${n}便増`, impTripsRemoved: (d, n) => `${d}：${n}便減`, impNone: "利用者に関わる変更はありません。",
-    evtShort: { ROUTE_ADDED: "新設路線", ROUTE_DISCONTINUED: "廃止", ROUTE_RENAMED: "名称変更", ROUTE_MERGED: "統合", ROUTE_SPLIT: "分割", ROUTE_RESTRUCTURED: "再編", STOP_ADDED: "停留所新設", STOP_REMOVED: "停留所廃止", STOP_RENAMED: "停留所名変更", STOP_MOVED: "停留所移設", PATTERN_EXTENDED: "経路延長", PATTERN_SHORTENED: "経路短縮", STOP_INSERTED: "停留所追加", STOP_SKIPPED: "停留所通過", DETOUR_ADDED: "経由追加", DETOUR_REMOVED: "経由廃止", STOPS_REORDERED: "停留所順序変更", DETOUR_SHIFTED: "経由便の入替", SERVICE_INCREASED: "増便", SERVICE_REDUCED: "減便", TRIPS_RETIMED: "時刻変更", FIRST_LAST_CHANGED: "始発・終発変更", TRIPS_MOVED: "他路線へ移管" },
+    evtShort: { ROUTE_ADDED: "新設路線", ROUTE_DISCONTINUED: "廃止", ROUTE_MERGED: "統合", ROUTE_SPLIT: "分割", ROUTE_RESTRUCTURED: "再編", ROUTE_RENAMED: "名称変更", SERVICE_REDUCED: "減便", SERVICE_INCREASED: "増便", PATTERN_EXTENDED: "経路延長", PATTERN_SHORTENED: "経路短縮", STOP_SKIPPED: "停留所通過", STOP_INSERTED: "停留所追加", DETOUR_ADDED: "経由追加", DETOUR_REMOVED: "経由廃止", DETOUR_SHIFTED: "経由便の入替", STOPS_REORDERED: "停留所順序変更", TRIPS_MOVED: "他路線へ移管", FIRST_LAST_CHANGED: "始発・終発変更", TRIPS_RETIMED: "時刻変更", STOP_ADDED: "停留所新設", STOP_REMOVED: "停留所廃止", STOP_RENAMED: "停留所名変更", STOP_MOVED: "停留所移設" },
     ek: { extended: "延長", shortened: "短縮", inserted: "停留所追加", removed: "停留所削除", detour_added: "経由追加", detour_removed: "経由廃止", shifted: "経由便の入替", reordered: "順序変更" },
     topic: { fares: "運賃", calendar_exceptions: "運行日の例外", agency: "事業者", office: "営業所", translations: "翻訳", feed_info: "フィード情報", shapes: "経路形状", transfers: "乗継", other_files: "その他のファイル", formatting: "表記のみの変更（値は同じ）", attributes: "属性の変更（行先表示、乗降の扱い、コード、座標の微修正）" },
     ck: { added: "行追加", removed: "行削除", changed_fields: "項目変更" },
@@ -784,7 +790,8 @@ function impactSummary(imp) {
 function lineImpact(rep, line) {
   const l = rep.impact && rep.impact.lines[line.key];
   if (!l) return "";
-  const labels = [...new Set(Object.keys(l.types).map(t => rt("evtShort")[t]).filter(Boolean))].slice(0, 5);
+  const short = rt("evtShort");  // in order of importance
+  const labels = [...new Set(Object.keys(short).filter(t => l.types[t]).map(t => short[t]))].slice(0, 5);
   return `${impChip(l.class)}<span class="lt">${esc(labels.join(" · "))}</span>`;
 }
 
@@ -1074,6 +1081,14 @@ function pubBox(label, p) {
 // All reports, searchable; only the first LIST_MAX matches are drawn.
 const LIST_MAX = 100;
 let reportItemsCache = null;
+// Feeds with a major change in a report have an Atom feed of such changes (data-model §10.3).
+let atomCache = null;
+function atomFeeds() {
+  if (!atomCache || atomCache.of !== REPORTS) {
+    atomCache = { of: REPORTS, keys: new Set(Object.values(REPORTS).filter(e => e.impact === "major").map(e => `${e.feed[0]}/${e.feed[1]}`)) };
+  }
+  return atomCache.keys;
+}
 function reportItems() {
   if (reportItemsCache && reportItemsCache.of === REPORTS) return reportItemsCache.items;
   const byKey = new Map(DATA.feeds.map(f => [key(f), f]));
@@ -1095,7 +1110,8 @@ function reportRows(query) {
   return `<ul>${rows}</ul>${hits.length > LIST_MAX ? `<p class="hint">${esc(rt("rmore", LIST_MAX, hits.length))}</p>` : ""}`;
 }
 function reportList(intro = true) {
-  return `${intro ? `<p>${esc(rt("pick", reportItems().length))}</p>` : ""}<input type="search" class="rsearch" data-rsearch placeholder="${esc(rt("rsearch"))}" value="${esc(state.rsearch || "")}"><div data-rlist>${reportRows(state.rsearch)}</div>`;
+  const atom = atomFeeds().size ? ` <a href="atom/${state.lang}/all.xml" title="${esc(t("atomHint"))}">${esc(t("atomAll"))}</a>` : "";
+  return `${intro ? `<p>${esc(rt("pick", reportItems().length))}${atom}</p>` : ""}<input type="search" class="rsearch" data-rsearch placeholder="${esc(rt("rsearch"))}" value="${esc(state.rsearch || "")}"><div data-rlist>${reportRows(state.rsearch)}</div>`;
 }
 function bindReportList(box) {
   const pick = root => root.querySelectorAll("button[data-pick]").forEach(b => b.addEventListener("click", () => openPair(b.dataset.pick)));
@@ -1791,7 +1807,8 @@ function renderPanel() {
   }
   panel.innerHTML = `<div class="ph"><h2>${esc(f.name)}</h2>
       <div class="meta"><span>${esc(f.organization_name)}</span><span>${esc(prefName(f.pref_id))}</span><span>${esc(t("license"))}: ${esc(f.license)}</span></div>
-      <div class="meta"><span>${esc(t("lastPub"))}: <span class="num">${esc((f.generations[f.generations.length - 1].published_at || "").slice(0, 16).replace("T", " "))}</span> JST</span></div>
+      <div class="meta"><span>${esc(t("lastPub"))}: <span class="num">${esc((f.generations[f.generations.length - 1].published_at || "").slice(0, 16).replace("T", " "))}</span> JST</span>${
+        atomFeeds().has(key(f)) ? `<a href="atom/${state.lang}/${esc(key(f))}.xml" title="${esc(t("atomHint"))}">${esc(t("atomFeed"))}</a>` : ""}</div>
       ${cur.scores ? `<span class="state ${cur.publishable ? "ok" : "no"}">${cur.publishable ? "●" : "○"} ${esc(cur.publishable ? t("ready") : t("notReady"))}</span>` : ""}
     </div>
     ${usable.length > 1 ? `<div><h3>${esc(t("compare"))}</h3><p class="hint">${esc(t("compareHint"))}</p></div>

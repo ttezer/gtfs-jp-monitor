@@ -226,6 +226,15 @@ def _cmd_export_web(args: argparse.Namespace) -> int:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(gzip_bytes(doc) if ext == ".json.gz" else dumps(doc).encode("utf-8"))
         (Path(args.html).parent / "metrics.json").write_text(dumps(export["metrics"]) + "\n", encoding="utf-8")
+        from .atom import build_atom
+
+        atom_dir = Path(args.html).parent / "atom"
+        for old in atom_dir.rglob("*.xml"):  # feeds of an earlier export
+            old.unlink()
+        for name, body in build_atom(export["feeds"], files, args.site_url).items():
+            path = Path(args.html).parent / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(body)
         fields = gzip_bytes(export["fields"]) if ext == ".json.gz" else dumps(export["fields"]).encode("utf-8")
         (Path(args.html).parent / f"fields{ext}").write_bytes(fields)
         # Operational status for monitoring (watchdog, storage check): the export's status plus the
@@ -368,6 +377,8 @@ def main(argv: list[str] | None = None) -> int:
     web.add_argument("--bundle-format", choices=("gz", "json"), default="gz",
                      help="report files next to the page: gzip (default) or plain JSON for hosts that do not serve .gz")
     web.add_argument("--stages", help="stage times written by the workflow, added to status.json")
+    web.add_argument("--site-url", default="https://ttezer.github.io/gtfs-jp-monitor/",
+                     help="address the site is published at, for the links of the Atom feeds")
     web.set_defaults(func=_cmd_export_web)
 
     rec = sub.add_parser("record-storage", help="add today's sizes to status/storage-history.json (data-model §10.2)")

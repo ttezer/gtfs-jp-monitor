@@ -26,6 +26,10 @@ days: publication and meaningful-update frequency, change ratios, validation reg
 coverage (§13); `fields.json.gz` gives how often selected optional fields such as wheelchair
 information are filled and flags stops outside Japan or with swapped coordinates (§15).
 
+Changes are graded as major, minor or technical (§12.1). Major changes can be followed in any
+feed reader: `atom/<lang>/<org_id>/<feed_id>.xml` per feed and `atom/<lang>/all.xml` for all
+feeds, with `lang` one of `tr`, `en`, `ja` (§10.3).
+
 ## How it runs
 
 A GitHub Actions workflow (`.github/workflows/gtfs-jp-monitor.yml`) runs every day at 04:10 JST
