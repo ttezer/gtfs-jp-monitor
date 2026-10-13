@@ -114,9 +114,11 @@ class LicenseTest(unittest.TestCase):
         self.assertEqual(normalize_license("CC0 1.0"), "CC0-1.0")
         self.assertEqual(normalize_license("CC BY 2.1 JP"), "CC-BY-2.1-JP")
         self.assertEqual(normalize_license("  CC BY   4.0 "), "CC-BY-4.0")
+        self.assertEqual(normalize_license("lov2"), "etalab-2.0")
+        self.assertEqual(normalize_license("odc-odbl"), "ODbL-1.0")
 
     def test_ambiguous_or_unknown(self):
-        for raw in ("CC-BY", "", None, "MIT"):
+        for raw in ("CC-BY", "", None, "MIT", "fr-lo", "notspecified"):
             self.assertIsNone(normalize_license(raw), raw)
 
 

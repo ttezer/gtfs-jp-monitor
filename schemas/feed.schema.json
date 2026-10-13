@@ -16,10 +16,10 @@
       "additionalProperties": false,
       "required": ["raw", "id"],
       "properties": {
-        "raw": { "type": "string", "description": "Value published by gtfs-data.jp, verbatim." },
+        "raw": { "type": "string", "description": "Value published by the source, verbatim." },
         "id": {
           "type": ["string", "null"],
-          "enum": ["CC-BY-4.0", "CC0-1.0", "CC-BY-2.1-JP", null],
+          "enum": ["CC-BY-4.0", "CC0-1.0", "CC-BY-2.1-JP", "etalab-2.0", "ODbL-1.0", null],
           "description": "Normalized identifier; null when the raw value is not recognised (a warning is logged in the run)."
         }
       }
