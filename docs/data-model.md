@@ -300,7 +300,9 @@ The same page and feeds serve another source's site (the French monitor builds o
 - `site` is embedded in the export as `site` and read by the page; every field is optional:
   `name`, `langs`, `default_lang`, `locale` (name sorting), `time_zone` (update times),
   `regions` (`feed_pref_id` → name), `tiles` (`url` with `{z}/{x}/{y}`, `label`, `link`),
-  `tabs`, and `text` (`{lang: {key: text}}`, replacing the page's texts of that language).
+  `tabs`, `hide` (feed history columns to leave out: `rid`, `jpFiles`, `memo`), and `text`
+  (`{lang: {key: text}}`, replacing the page's texts of that language; `"{0}"`, `"{1}"` stand for
+  the arguments of the page's own text).
 - `head` replaces the page's site block between `<!--site-head-->` and `<!--/site-head-->`
   (title, description, feed links, analytics), so another site never sends this site's page views.
 - `atom` sets `langs`, `titles`, `author` and `tag` (part of entry ids) of the Atom feeds.

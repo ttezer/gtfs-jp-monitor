@@ -297,6 +297,8 @@ const DATA = JSON.parse(document.getElementById("export-data").textContent);
 // Every field is optional; without it the page is the gtfs-data.jp site.
 const SITE = DATA.site || {};
 const LANGS = SITE.langs || ["tr", "en", "ja"], LOCALE = SITE.locale || "ja", TIME_ZONE = SITE.time_zone || "Asia/Tokyo";
+// Feed history columns; a source without gtfs-data.jp positions, JP files or notes hides them (site.hide).
+const HIST_COLS = ["period", "published", "status", "publish", "overall", "rid", "jpFiles", "memo"].filter(c => !(SITE.hide || []).includes(c));
 const TILES = SITE.tiles || { url: "https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png", label: "地理院タイル", link: "https://maps.gsi.go.jp/development/ichiran.html" };
 // The export keeps only rule counts per publication (rule_meta holds severity and class); expand
 // them back to [count, severity, class] once, so the rest of the page reads them as before.
@@ -1989,13 +1991,21 @@ function renderHistory() {
     const g = gr.rep, first = gr.members[0];
     const rids = [...new Set(gr.members.map(m => m.rid).filter(Boolean))].join(", ");
     const pubs = gr.members.length > 1 ? `${(first.published_at || "").slice(0, 10)} … ${(g.published_at || "").slice(0, 10)}` : (g.published_at || "").slice(0, 10);
-    return `<tr><td class="num">${esc(g.from_date)} – ${esc(g.to_date || "…")}</td><td class="num">${esc(pubs)}${gr.members.length > 1 ? ` <span class="merged">${esc(t("mergedChip", gr.members.length))}</span>` : ""}</td>
-      <td>${esc(g.status)}</td><td class="r">${g.scores ? fmt1(g.scores.publish) : "—"}</td><td class="r">${g.scores ? fmt1(g.scores.overall) : "—"}</td>
-      <td class="num">${esc(rids)}</td><td class="num">${esc((g.jp_files || []).map(n => n.replace(".txt", "")).join(", ") || "—")}</td><td>${esc((g.memo || "").replace(/\s+/g, " ").slice(0, 80))}</td></tr>`;
+    const cells = {
+      period: `<td class="num">${esc(g.from_date)} – ${esc(g.to_date || "…")}</td>`,
+      published: `<td class="num">${esc(pubs)}${gr.members.length > 1 ? ` <span class="merged">${esc(t("mergedChip", gr.members.length))}</span>` : ""}</td>`,
+      status: `<td>${esc(g.status)}</td>`, publish: `<td class="r">${g.scores ? fmt1(g.scores.publish) : "—"}</td>`,
+      overall: `<td class="r">${g.scores ? fmt1(g.scores.overall) : "—"}</td>`, rid: `<td class="num">${esc(rids)}</td>`,
+      jpFiles: `<td class="num">${esc((g.jp_files || []).map(n => n.replace(".txt", "")).join(", ") || "—")}</td>`,
+      memo: `<td>${esc((g.memo || "").replace(/\s+/g, " ").slice(0, 80))}</td>`,
+    };
+    return `<tr>${HIST_COLS.map(c => cells[c]).join("")}</tr>`;
   }).join("");
+  const heads = { period: `<th>${esc(t("period"))}</th>`, published: `<th>${esc(t("published"))}</th>`, status: `<th>${esc(t("status"))}</th>`,
+    publish: `<th class="r">Publish</th>`, overall: `<th class="r">Overall</th>`, rid: `<th>${esc(t("rid"))}</th>`,
+    jpFiles: `<th>${esc(t("jpFiles"))}</th>`, memo: `<th>${esc(t("memo"))}</th>` };
   $("history").innerHTML = `<h3>${esc(f.name)} <small>${esc(f.org_id)}/${esc(f.feed_id)}</small></h3><p class="hint">${esc(t("histIntro"))}</p>
-    <div class="scroll" style="border:0"><table class="mini"><thead><tr><th>${esc(t("period"))}</th><th>${esc(t("published"))}</th><th>${esc(t("status"))}</th>
-    <th class="r">Publish</th><th class="r">Overall</th><th>${esc(t("rid"))}</th><th>${esc(t("jpFiles"))}</th><th>${esc(t("memo"))}</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    <div class="scroll" style="border:0"><table class="mini"><thead><tr>${HIST_COLS.map(c => heads[c]).join("")}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 // Metrics of the last 365 days (data-model §13), from metrics.json loaded after the page.
