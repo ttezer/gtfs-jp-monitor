@@ -95,6 +95,20 @@ class ReportRunTest(unittest.TestCase):
         self.assertEqual(again.counts["pending"], 0)
         self.assertEqual(len(dl.calls), 2)
 
+    def test_another_engine_profile(self):
+        import dataclasses
+
+        from gtfs_jp_semantic.reader import Config
+        base = Config.load()
+        config = dataclasses.replace(base, matching=dict(base.matching, compare_from_publication=True))
+        holidays = self.root / "holidays.json"
+        holidays.write_text(json.dumps({"schema": "gtfs-jp-semantic-holidays/1", "version": "test-1", "first_year": 2000,
+                                        "last_year": 2040, "holidays": {"2026-07-14": "x"}}), encoding="utf-8")
+        run_reports(self.root, KEY, downloader=FakeDownloader(self.blobs), engine_version="0.1.0", config=config, holidays_path=holidays)
+        report = json.loads(gzip.decompress(change_path(self.root, *FK, "0.1.0", uid(1), uid(2)).read_bytes()))
+        engine = report["header"]["engine"]
+        self.assertEqual((engine["holidays_version"], engine["config"]["matching"]["compare_from_publication"]), ("test-1", True))
+
     def test_pairs_follow_the_page(self):
         index = {"generations": [
             {"uid": u, "source_status": "AVAILABLE", "analyses": [

@@ -29,7 +29,9 @@ from typing import Callable
 
 import gtfs_jp_semantic
 from gtfs_jp_semantic import ENGINE_VERSION
+from gtfs_jp_semantic.holidays import HolidayTable
 from gtfs_jp_semantic.rawdiff import gzip_bytes
+from gtfs_jp_semantic.reader import Config
 from gtfs_jp_semantic.report import build_report
 
 from .canonical import write_json
@@ -185,9 +187,12 @@ def _publication(entry: dict) -> dict:
 def run_reports(data_dir: Path, key: str, limit: int | None = None, only: set[FeedKey] | None = None,
                 downloader: Callable[..., object] = download_zip, engine_version: str = ENGINE_VERSION,
                 max_seconds: float | None = None, clock: Callable[[], float] = time.monotonic,
-                child_timeout: float = CHILD_TIMEOUT_S, child_memory: int = CHILD_MEMORY_BYTES) -> ReportRun:
+                child_timeout: float = CHILD_TIMEOUT_S, child_memory: int = CHILD_MEMORY_BYTES,
+                config: Config | None = None, holidays_path: Path | None = None) -> ReportRun:
     """Build pending reports. max_seconds is a time budget: no new pair starts after it, so the
-    workflow never reaches its own time limit and loses the run; the rest waits for the next run."""
+    workflow never reaches its own time limit and loses the run; the rest waits for the next run.
+    config and holidays_path: another source's engine configuration and holiday table (default:
+    the engine's own, for gtfs-data.jp)."""
     root = Path(data_dir)
     deadline = None if max_seconds is None else clock() + max_seconds
     split_key(key)
@@ -247,6 +252,8 @@ def run_reports(data_dir: Path, key: str, limit: int | None = None, only: set[Fe
                         "feed": {"org_id": p.org_id, "feed_id": p.feed_id},
                         "old_pub": _publication(entries[p.old_uid]), "new_pub": _publication(entries[p.new_uid]),
                         "summary_quality": quality, "analysis_key": key if path.is_file() else None,
+                        "config": config.as_dict() if config else None,
+                        "holidays": str(holidays_path) if holidays_path else None,
                         "out": str(Path(tmp) / "report.json.gz")}
                 error = _build_in_child(spec, child_timeout, child_memory)
                 if error is not None:  # any engine failure is recorded, never fatal to the run
@@ -274,8 +281,11 @@ def run_reports(data_dir: Path, key: str, limit: int | None = None, only: set[Fe
 def _child() -> None:
     """Build one report from a JSON spec on stdin (see run_reports)."""
     spec = json.loads(sys.stdin.read())
-    report, _ = build_report(Path(spec["old_zip"]), Path(spec["new_zip"]), feed=spec["feed"], old_pub=spec["old_pub"],
-                             new_pub=spec["new_pub"], summary_quality=spec["summary_quality"], analysis_key=spec["analysis_key"])
+    config = Config.from_dict(spec["config"]) if spec.get("config") else None
+    holidays = HolidayTable.load(Path(spec["holidays"])) if spec.get("holidays") else None
+    report, _ = build_report(Path(spec["old_zip"]), Path(spec["new_zip"]), config=config, holidays=holidays,
+                             feed=spec["feed"], old_pub=spec["old_pub"], new_pub=spec["new_pub"],
+                             summary_quality=spec["summary_quality"], analysis_key=spec["analysis_key"])
     Path(spec["out"]).write_bytes(gzip_bytes(report))
 
 

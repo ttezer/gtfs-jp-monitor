@@ -36,6 +36,11 @@ class Config:
         doc = json.loads(Path(path).read_text(encoding="utf-8"))
         if doc.get("schema") != CONFIG_SCHEMA:
             raise ValueError(f"{path}: unexpected schema {doc.get('schema')!r}")
+        return cls.from_dict(doc)
+
+    @classmethod
+    def from_dict(cls, doc: dict) -> "Config":
+        """From a configuration document (default_config.json, or as_dict() of another Config)."""
         return cls(int(doc["bulk_threshold"]), int(doc["max_rows_per_file"]), int(doc["max_uncompressed_bytes"]),
                    int(doc["special_max_days"]), int(doc["min_overlap_days"]), dict(doc.get("matching", {})),
                    dict(doc.get("report", {})))
