@@ -518,9 +518,13 @@ try {
   if (saved && T[saved] && LANGS.includes(saved)) state.lang = saved;
 } catch (e) { /* storage unavailable */ }
 
+// A profile text is plain JSON: "{0}", "{1}" … stand for the arguments the page's own text takes.
+const SITE_TEXT = (lang, key) => { const own = SITE.text && SITE.text[lang] && SITE.text[lang][key]; return typeof own === "string" ? own : null; };
+const fill = (text, args) => text.replace(/\{(\d)\}/g, (m, i) => (args[i] !== undefined ? String(args[i]) : m));
 const t = (key, ...args) => {
   const own = SITE.text && SITE.text[state.lang] && SITE.text[state.lang][key];
-  const v = own !== undefined && own !== null ? own : T[state.lang][key];
+  if (typeof own === "string") return fill(own, args);
+  const v = T[state.lang][key];
   return typeof v === "function" ? v(...args) : v;
 };
 
@@ -2032,20 +2036,21 @@ function fieldsBlock(a, b) {
 }
 const STALE_HOURS = 36;
 // Freshness and pending work from the export's status block (data-model §10.2).
-function statusNote(st, lang, nowMs, timeZone = "Asia/Tokyo") {
+function statusNote(st, lang, nowMs, timeZone = "Asia/Tokyo", updated = null) {
+  // updated: a site profile's "updated" text, "{0}" the time ago and "{1}" the local time
   if (!st || !st.built_at) return "";
   const built = Date.parse(st.built_at), mins = Math.max(0, Math.floor((nowMs - built) / 60000));
   const units = T[lang].ago, ago = mins < 60 ? units.m(mins) : mins < 48 * 60 ? units.h(Math.floor(mins / 60)) : units.d(Math.floor(mins / 1440));
   const when = new Date(built).toLocaleString("sv-SE", { timeZone }).slice(0, 16);
   const b = st.backlog || {};
-  return [T[lang].updated(ago, when), mins >= STALE_HOURS * 60 ? T[lang].stale(Math.floor(mins / 60)) : "",
+  return [updated ? updated.replace("{0}", ago).replace("{1}", when) : T[lang].updated(ago, when), mins >= STALE_HOURS * 60 ? T[lang].stale(Math.floor(mins / 60)) : "",
           b.unanalysed || b.reports_pending ? T[lang].backlog(b.unanalysed || 0, b.reports_pending || 0) : ""].filter(Boolean).join(" ");
 }
 function renderStatic() {
   document.documentElement.lang = state.lang;
   $("tagline").textContent = t("tagline");
   const [rel, prof] = (DATA.analysis_key || "").split("__");
-  $("notice").innerHTML = `<span>${t("notice", DATA.feeds.length, DATA.feeds.reduce((n, f) => n + f.generations.length, 0), esc(rel || ""), esc(prof || ""))}${state.linkMissing ? ` ${esc(t("linkMissing"))}` : ""}<br><b class="${DATA.status && Date.now() - Date.parse(DATA.status.built_at) >= STALE_HOURS * 3600000 ? "stale" : "fresh"}">${esc(statusNote(DATA.status, state.lang, Date.now(), TIME_ZONE))}</b></span>`;
+  $("notice").innerHTML = `<span>${t("notice", DATA.feeds.length, DATA.feeds.reduce((n, f) => n + f.generations.length, 0), esc(rel || ""), esc(prof || ""))}${state.linkMissing ? ` ${esc(t("linkMissing"))}` : ""}<br><b class="${DATA.status && Date.now() - Date.parse(DATA.status.built_at) >= STALE_HOURS * 3600000 ? "stale" : "fresh"}">${esc(statusNote(DATA.status, state.lang, Date.now(), TIME_ZONE, SITE_TEXT(state.lang, "updated")))}</b></span>`;
   document.querySelectorAll("[data-t]").forEach(el => { el.textContent = t(el.dataset.t); });
   document.querySelectorAll("nav.tabs button").forEach(b => { b.textContent = t(b.dataset.tab); b.setAttribute("aria-selected", String(b.dataset.tab === state.tab)); });
   document.querySelectorAll(".langs button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.lang === state.lang)));
