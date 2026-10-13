@@ -73,6 +73,13 @@ header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20p
 .brand { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
 .brand h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.01em; }
 .brand p { margin: 0; color: var(--muted); }
+.tools { display: flex; gap: 10px; align-items: center; }
+a, .linkbtn { color: var(--link, var(--accent)); }
+a:hover, .linkbtn:hover { text-decoration: underline; }
+summary { cursor: pointer; }
+summary::marker { color: var(--link, var(--accent)); }
+.fname { color: var(--link, var(--ink)); }
+table.grid td.pickable:hover { box-shadow: inset 0 0 0 2px var(--link, var(--accent)); }
 .langs { display: flex; gap: 2px; background: var(--surface-2); border-radius: 999px; padding: 3px; }
 .langs button { border: 0; background: transparent; padding: 4px 12px; border-radius: 999px; cursor: pointer; color: var(--muted); }
 .langs button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgb(0 0 0 / .08); }
@@ -226,6 +233,23 @@ table.tt td.rem { background: var(--bad-soft); }
 table.tt td.chg { background: var(--warn-soft); }
 table.tt tr.only-new td.pl { color: var(--good); }
 table.tt tr.only-old td.pl { color: var(--bad); }
+/* Report tables: framed, with a header row, room in the cells and banded rows. */
+.rp table.mini, .section table.mini { font-size: 13px; border: 1px solid var(--hair); border-radius: 6px; border-collapse: separate; border-spacing: 0; overflow: hidden; }
+.rp table.mini th, .section table.mini th { background: var(--surface-2); color: var(--muted); font-weight: 600; padding: 7px 10px; border-bottom: 1px solid var(--hair); }
+.rp table.mini td, .section table.mini td { padding: 6px 10px; border-bottom: 1px solid var(--hair); }
+.rp table.mini tbody tr:last-child td, .section table.mini tbody tr:last-child td { border-bottom: 0; }
+.rp table.mini tbody tr:nth-child(even) td, .section table.mini tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--surface-2) 50%, transparent); }
+.rp table.mini tbody tr:hover td, .section table.mini tbody tr:hover td { background: var(--accent-soft); }
+table.tt { border: 1px solid var(--hair); }
+table.tt thead th { background: var(--surface-2); color: var(--muted); padding: 5px 8px; }
+table.tt td { padding: 4px 8px; }
+.rp h3 { font-size: 16px; margin-top: 6px; }
+.rp .card .k { font-weight: 600; }
+.pgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px 28px; padding: 10px 0; }
+.pgrid h4 { margin: 0 0 6px; font-size: 13px; }
+.ptable td.dt { white-space: nowrap; font-weight: 600; }
+.pchip { display: inline-block; margin: 2px 4px 2px 0; padding: 1px 7px; border-radius: 4px; background: var(--surface-2); font-size: 12px; white-space: nowrap; }
+details.periods > summary { font-weight: 600; margin: 8px 0; }
 .edits { margin: 0; padding-left: 18px; font-size: 13px; }
 .chips { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; font-family: var(--mono); font-size: 13px; }
 .pmap { position: relative; height: 420px; border: 1px solid var(--hair); border-radius: 6px; background: var(--surface-2); z-index: 0; }
@@ -249,7 +273,10 @@ details.other > summary { cursor: pointer; }
       <h1 id="brand">GTFS-JP Monitor</h1>
       <p id="tagline"></p>
     </div>
-    <div class="langs" role="group" aria-label="Language" id="langs"></div>
+    <div class="tools">
+      <div class="langs" role="group" aria-label="Theme" id="themes"></div>
+      <div class="langs" role="group" aria-label="Language" id="langs"></div>
+    </div>
   </header>
   <div class="notice" id="notice"></div>
 
@@ -1517,8 +1544,16 @@ function renderReport() {
     const cmp = h.comparison.day_types[d] || {}, ad = sd.day_types[d].active_days;
     return `<tr><td>${esc(dtLabel(d))}</td><td class="num">${esc(cmp.old_date || "—")}</td><td class="num">${esc(cmp.new_date || "—")}</td><td class="r">${ad.before}</td><td class="r">${ad.after}</td></tr>`;
   }).join("");
-  const periods = side => sd.periods[side].map(p => `${dtLabel(p.day_type)} ${p.start} – ${p.end}`).join("; ");
-  const specials = side => { const l = sd.special_days[side]; return l.length ? `${l.length}: ${l.slice(0, 30).join(", ")}${l.length > 30 ? " …" : ""}` : "—"; };
+  // Periods per day type as one table per publication, each period a chip (a single day shows once).
+  const pchip = (a, b) => `<span class="pchip num">${esc(a === b ? a : `${a} → ${b}`)}</span>`;
+  const periodTable = side => {
+    const by = new Map();
+    for (const p of sd.periods[side]) { if (!by.has(p.day_type)) by.set(p.day_type, []); by.get(p.day_type).push(p); }
+    const rows = [...by].map(([d, ps]) => `<tr><td class="dt">${esc(dtLabel(d))}</td><td class="r">${ps.length}</td><td>${ps.map(p => pchip(p.start, p.end)).join("")}</td></tr>`).join("");
+    const sp = sd.special_days[side];
+    return `<div><h4>${esc(side === "old" ? rt("old") : rt("new"))}</h4><table class="mini ptable"><thead><tr><th>${esc(rt("dcCols")[1])}</th><th class="r">${esc(rt("periods"))}</th><th></th></tr></thead><tbody>${rows || `<tr><td colspan="3">—</td></tr>`}</tbody></table>
+      <p class="hint">${esc(rt("special"))} (${sp.length})</p><div>${sp.map(d => pchip(d, d)).join("") || "—"}</div></div>`;
+  };
   const ls = s.lines;
   const lineCard = Object.keys(ls).filter(k => ls[k]).map(k => `${stChip(k, rt("ls")[k])} ${ls[k]}`).join(" ");
   const pl = s.places;
@@ -1600,8 +1635,7 @@ function renderReport() {
     <div><h3>2. ${esc(rt("sService"))} <small>${esc(rt("mode")[h.comparison.mode])}</small></h3>
       <div class="scroll" style="border:0"><table class="mini"><thead><tr><th></th><th>${esc(rt("compared"))} · ${esc(rt("old"))}</th><th>${esc(rt("compared"))} · ${esc(rt("new"))}</th><th class="r">${esc(rt("activeDays"))} · ${esc(t("before"))}</th><th class="r">${esc(t("after"))}</th></tr></thead><tbody>${dayRows}</tbody></table></div>
       ${irregularTable}
-      <details><summary class="hint">${esc(rt("periodsTitle"))}</summary><p class="hint">${esc(rt("periods"))} · ${esc(rt("old"))}: ${esc(periods("old") || "—")}<br>${esc(rt("periods"))} · ${esc(rt("new"))}: ${esc(periods("new") || "—")}</p></details>
-      <p class="hint">${esc(rt("special"))} · ${esc(rt("old"))}: ${esc(specials("old"))}<br>${esc(rt("special"))} · ${esc(rt("new"))}: ${esc(specials("new"))}</p>
+      <details class="periods"><summary>${esc(rt("periodsTitle"))}</summary><div class="pgrid">${periodTable("old")}${periodTable("new")}</div></details>
       ${h.comparison.groups ? `<p class="hint">${esc(rt("dtGroups", h.comparison.groups.old.map(dtLabel).join(" | ") || "—", h.comparison.groups.new.map(dtLabel).join(" | ") || "—"))}</p>` : ""}
       ${dateTable}${bandTable(rep)}</div>
     <div><h3>3. ${esc(rt("sLines"))}</h3>${rep.lines.some(l => (l.geometry || []).length) ? `${mapShell("netmap", "pmap netmap")}<p class="hint">${esc(rt("netLegend"))}</p>` : ""}${changed.length ? `<div class="lines" style="display:grid;gap:6px">${changed.map(l => lineBlock(rep, l)).join("")}</div>` : `<p class="hint">${esc(s.date_changes ? rt("noLineChangeDates", s.date_changes) : rt("noLineChange"))}</p>`}
@@ -2034,7 +2068,7 @@ function renderStatic() {
   $("notice").innerHTML = `<span>${t("notice", DATA.feeds.length, DATA.feeds.reduce((n, f) => n + f.generations.length, 0), esc(rel || ""), esc(prof || ""))}${state.linkMissing ? ` ${esc(t("linkMissing"))}` : ""}<br><b class="${DATA.status && Date.now() - Date.parse(DATA.status.built_at) >= STALE_HOURS * 3600000 ? "stale" : "fresh"}">${esc(statusNote(DATA.status, state.lang, Date.now(), TIME_ZONE, SITE_TEXT(state.lang, "updated")))}</b></span>`;
   document.querySelectorAll("[data-t]").forEach(el => { el.textContent = t(el.dataset.t); });
   document.querySelectorAll("nav.tabs button").forEach(b => { b.textContent = t(b.dataset.tab); b.setAttribute("aria-selected", String(b.dataset.tab === state.tab)); });
-  document.querySelectorAll(".langs button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.lang === state.lang)));
+  document.querySelectorAll("#langs button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.lang === state.lang)));
   ["overview", "history", "reports", "gtfsjp"].forEach(id => { $("tab-" + id).hidden = id !== state.tab; });
   document.querySelectorAll("nav.tabs button").forEach(b => { b.hidden = !TABS.includes(b.dataset.tab); });
   $("brand").textContent = SITE.name || "GTFS-JP Monitor";
@@ -2070,8 +2104,24 @@ function renderTotals() {
 }
 function renderAll() { renderStatic(); renderTotals(); renderGrid(); renderPanel(); renderHistory(); renderReport(); writeLink(); }
 
+// Light, dark or the system's: kept per browser; maps read their colours when drawn, so all is redrawn.
+const THEMES = [["light", "☀", "Light"], ["dark", "☾", "Dark"], ["auto", "A", "Auto"]];
+let theme = "auto";
+try { theme = localStorage.getItem("gjm-theme") || "auto"; } catch (e) { /* storage unavailable */ }
+const applyTheme = () => {
+  if (theme === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = theme;
+  document.querySelectorAll("#themes button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.theme === theme)));
+};
+$("themes").innerHTML = THEMES.map(([v, icon, label]) => `<button type="button" data-theme="${v}" title="${label}" aria-label="${label}">${icon}</button>`).join("");
+document.querySelectorAll("#themes button").forEach(b => b.addEventListener("click", () => {
+  theme = b.dataset.theme;
+  try { localStorage.setItem("gjm-theme", theme); } catch (e) { /* ignore */ }
+  applyTheme();
+  renderAll();
+}));
+applyTheme();
 $("langs").innerHTML = LANGS.map(l => `<button type="button" data-lang="${esc(l)}">${esc(l.toUpperCase())}</button>`).join("");
-document.querySelectorAll(".langs button").forEach(b => b.addEventListener("click", () => {
+document.querySelectorAll("#langs button").forEach(b => b.addEventListener("click", () => {
   state.lang = b.dataset.lang;
   try { localStorage.setItem("gjm-lang", state.lang); } catch (e) { /* ignore */ }
   renderAll();
