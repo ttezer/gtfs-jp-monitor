@@ -13,10 +13,10 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from dataclasses import dataclass, field
 from typing import Callable
 
 from .ids import InvalidIdentifier, is_path_id, is_uid, rid_rank
+from .source import ApiError, FeedGenerations, FeedRecord, GenerationRecord, Rejected  # noqa: F401 (re-exported)
 
 BASE_URL = "https://api.gtfs-data.jp/v2"
 API_HOST = "api.gtfs-data.jp"
@@ -31,73 +31,8 @@ RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
 Transport = Callable[[str, float], tuple[int, dict[str, str], bytes]]
 
 
-class ApiError(RuntimeError):
-    """The API answered with an unusable status or body."""
-
-
 class NotFound(ApiError):
     """The API answered 404."""
-
-
-@dataclass(frozen=True)
-class Rejected:
-    """An API record that was skipped instead of trusted."""
-
-    code: str
-    org_id: str | None
-    feed_id: str | None
-    uid: str | None
-    detail: str
-
-
-@dataclass(frozen=True)
-class FeedRecord:
-    org_id: str
-    feed_id: str
-    feed_name: str
-    organization_name: str
-    feed_pref_id: int | None
-    license_raw: str
-    license_url: str | None
-    is_discontinued: bool
-    discontinued_date: str | None
-    last_published_at: str | None
-    latest_feed_start_date: str | None
-    latest_feed_end_date: str | None
-    memo: str
-
-
-@dataclass(frozen=True)
-class GenerationRecord:
-    uid: str
-    rid: str
-    gtfs_url: str
-    from_date: str | None
-    to_date: str | None
-    published_at: str | None
-    memo: str
-
-
-@dataclass(frozen=True)
-class FeedGenerations:
-    org_id: str
-    feed_id: str
-    license_raw: str
-    reported_max_prev: int | None
-    reported_max_next: int | None
-    generations: tuple[GenerationRecord, ...]
-    rejected: tuple[Rejected, ...] = field(default=())
-
-    @property
-    def complete(self) -> bool:
-        """True when the returned prev_/next_ counts match what the API says exists."""
-        prev = sum(1 for g in self.generations if g.rid.startswith("prev_"))
-        nxt = sum(1 for g in self.generations if g.rid.startswith("next_"))
-        rejected_prev = sum(1 for r in self.rejected if r.detail.startswith("rid=prev_"))
-        rejected_next = sum(1 for r in self.rejected if r.detail.startswith("rid=next_"))
-        return (self.reported_max_prev is None or prev + rejected_prev == self.reported_max_prev) and (
-            self.reported_max_next is None or nxt + rejected_next == self.reported_max_next
-        )
 
 
 def urllib_transport(url: str, timeout: float) -> tuple[int, dict[str, str], bytes]:

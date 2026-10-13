@@ -1,6 +1,6 @@
 """Temporary download of one generation ZIP (data-model §1).
 
-The gtfs_url answers 302 to a signed S3 URL that carries temporary AWS credentials. That URL
+The URL must pass the source's host check (gtfs-data.jp by default). On gtfs-data.jp the gtfs_url answers 302 to a signed S3 URL that carries temporary AWS credentials. That URL
 is followed but never logged, returned or stored. Only https redirects are accepted and the
 size is capped both by Content-Length and while streaming.
 """
@@ -45,9 +45,9 @@ class _HttpsOnlyRedirects(urllib.request.HTTPRedirectHandler):
 Opener = Callable[[str, float], tuple[int, dict[str, str], BinaryIO]]
 
 
-def urllib_opener(url: str, timeout: float) -> tuple[int, dict[str, str], BinaryIO]:
+def urllib_opener(url: str, timeout: float, user_agent: str = USER_AGENT) -> tuple[int, dict[str, str], BinaryIO]:
     opener = urllib.request.build_opener(_HttpsOnlyRedirects())
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    request = urllib.request.Request(url, headers={"User-Agent": user_agent})
     try:
         response = opener.open(request, timeout=timeout)
     except urllib.error.HTTPError as err:
@@ -61,10 +61,14 @@ def download_zip(
     max_bytes: int = DEFAULT_MAX_BYTES,
     timeout: float = 300,
     opener: Opener = urllib_opener,
+    allowed: Callable[[object], bool] = is_api_download_url,
 ) -> Downloaded:
-    """Stream `url` to `dest`, hashing on the way. `dest` is removed on any failure."""
-    if not is_api_download_url(url):
-        raise DownloadError("UNTRUSTED_URL", "download URL is not on the gtfs-data.jp API host")
+    """Stream `url` to `dest`, hashing on the way. `dest` is removed on any failure.
+
+    `allowed` is the source's host check; another source passes its own (and its opener for its User-Agent).
+    """
+    if not allowed(url):
+        raise DownloadError("UNTRUSTED_URL", "download URL is not on the source's download host")
     dest = Path(dest)
     dest.parent.mkdir(parents=True, exist_ok=True)
     try:

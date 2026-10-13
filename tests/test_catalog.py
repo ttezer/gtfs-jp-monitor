@@ -179,6 +179,24 @@ class CatalogSyncTest(unittest.TestCase):
         self.assertIn("ORDERING_UNKNOWN", [w["code"] for w in result.warnings])
         self.assertEqual(read(self.data, "generations.json")["generations"][-1]["uid"], uid(0))
 
+    def test_source_without_rid(self):
+        # Another source has no gtfs-data.jp positions; ordering comes from from_date/published_at alone.
+        class PlainSource:
+            def list_feeds(self):
+                return [feed_record()], []
+
+            def get_generations(self, org_id, feed_id):
+                return FeedGenerations(org_id, feed_id, "CC BY 4.0", None, None,
+                                       tuple(replace(g, rid=None) for g in reversed(BASE_GENS)))
+
+        result = self.sync(PlainSource())
+        self.assertEqual([w["code"] for w in result.warnings], [])
+        gens = read(self.data, "generations.json")["generations"]
+        self.assertEqual([g["uid"] for g in gens], [uid(1), uid(2), uid(3)])
+        self.assertEqual({g["rid_observed"] for g in gens}, {None})
+        if HAVE_JSONSCHEMA:
+            self.assertEqual(errors(validator("catalog-generations.schema.json"), read(self.data, "generations.json")), [])
+
     @unittest.skipUnless(HAVE_JSONSCHEMA, "jsonschema (dev dependency) is not installed")
     def test_outputs_match_schemas(self):
         self.sync(FakeClient([feed_record(), feed_record(org="x-org", feed="X", license_raw="CC-BY")],

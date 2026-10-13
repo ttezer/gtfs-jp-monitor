@@ -1,4 +1,4 @@
-"""Catalog sync: gtfs-data.jp -> catalog/feeds.json and catalog/generations/<org>/<feed>.json (data-model §7).
+"""Catalog sync: a feed source (gtfs-data.jp by default) -> catalog/feeds.json and catalog/generations/<org>/<feed>.json (data-model §7).
 
 Generations are stored one file per feed so a new generation rewrites only that feed's file,
 not a multi-megabyte catalog (keeps the data repository history small).
@@ -16,10 +16,10 @@ from pathlib import Path
 from typing import Callable, Iterable
 
 from .canonical import write_json_if_changed
-from .gtfsdatajp import ApiError, FeedRecord, GenerationRecord, GtfsDataJpClient, Rejected
 from .ids import is_path_id, require_path_id
 from .licenses import normalize_license
 from .ordering import GenerationRef, order_generations, rid_order_matches
+from .source import ApiError, CatalogSource, FeedRecord, GenerationRecord, Rejected
 
 FEEDS_SCHEMA = "gtfs-jp-monitor-catalog-feeds/1"
 GENERATIONS_SCHEMA = "gtfs-jp-monitor-catalog-generations/1"
@@ -165,7 +165,7 @@ def _merge_feed(
 
 
 def sync_catalog(
-    client: GtfsDataJpClient,
+    client: CatalogSource,
     data_dir: Path,
     only: set[FeedKey] | None = None,
     progress: Callable[[int, int, FeedKey], None] | None = None,

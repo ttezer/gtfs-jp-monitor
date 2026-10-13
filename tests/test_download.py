@@ -44,6 +44,16 @@ class DownloadTest(unittest.TestCase):
             download_zip("https://evil.example.com/feed.zip", self.dest, opener=opener_for())
         self.assertEqual(ctx.exception.code, "UNTRUSTED_URL")
 
+    def test_source_host_check(self):
+        other = "https://files.example.org/feed.zip"
+        with self.assertRaises(DownloadError):
+            download_zip(other, self.dest, opener=opener_for())  # default: gtfs-data.jp only
+        result = download_zip(other, self.dest, opener=opener_for(), allowed=lambda u: u.startswith("https://files.example.org/"))
+        self.assertEqual(result.size, 8)
+        with self.assertRaises(DownloadError) as ctx:
+            download_zip(URL, self.dest, opener=opener_for(), allowed=lambda u: u.startswith("https://files.example.org/"))
+        self.assertEqual(ctx.exception.code, "UNTRUSTED_URL")
+
     def test_error_codes_and_cleanup(self):
         cases = [
             (opener_for(status=404), "SOURCE_UNAVAILABLE"),
