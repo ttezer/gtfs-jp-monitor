@@ -51,6 +51,21 @@ LABELS = {
             "STOP_MOVED": "stop moved",
         },
     },
+    "fr": {
+        "imp": {"major": "Impact majeur", "minor": "Impact mineur", "technical": "Technique"},
+        "evt": {
+            "ROUTE_ADDED": "nouvelle ligne", "ROUTE_DISCONTINUED": "supprimée", "ROUTE_MERGED": "fusionnée",
+            "ROUTE_SPLIT": "scindée", "ROUTE_RESTRUCTURED": "restructurée", "ROUTE_RENAMED": "renommée",
+            "SERVICE_REDUCED": "moins de courses", "SERVICE_INCREASED": "plus de courses",
+            "PATTERN_EXTENDED": "itinéraire prolongé", "PATTERN_SHORTENED": "itinéraire raccourci",
+            "STOP_SKIPPED": "arrêt non desservi", "STOP_INSERTED": "arrêt ajouté à l'itinéraire",
+            "DETOUR_ADDED": "détour ajouté", "DETOUR_REMOVED": "détour supprimé",
+            "DETOUR_SHIFTED": "détour reporté sur d'autres courses", "STOPS_REORDERED": "ordre des arrêts modifié",
+            "TRIPS_MOVED": "courses transférées à une autre ligne", "FIRST_LAST_CHANGED": "première/dernière course modifiée",
+            "TRIPS_RETIMED": "horaires modifiés", "STOP_ADDED": "arrêt créé", "STOP_REMOVED": "arrêt supprimé",
+            "STOP_RENAMED": "arrêt renommé", "STOP_MOVED": "arrêt déplacé",
+        },
+    },
     "ja": {
         "imp": {"major": "影響大", "minor": "影響小", "technical": "技術的"},
         "evt": {
@@ -66,7 +81,8 @@ LABELS = {
 }
 TITLE = {"tr": "GTFS-JP Monitor · önemli değişiklikler", "en": "GTFS-JP Monitor · major changes",
          "ja": "GTFS-JP Monitor・主な変更"}
-STOPS = {"tr": "Duraklar", "en": "Stops", "ja": "停留所"}
+STOPS = {"tr": "Duraklar", "en": "Stops", "fr": "Arrêts", "ja": "停留所"}
+LANGS = ("tr", "en", "ja")  # this site's feeds; the other labels serve other sites (langs=)
 
 
 def _updated(pub: dict) -> str:
@@ -131,7 +147,7 @@ def build_atom(feeds: list[dict], files: dict[str, dict], site_url: str = SITE_U
     order = lambda item: (_updated(item[1]["header"]["new"]), item[1]["header"]["new"]["uid"])
     major.sort(key=order, reverse=True)
     out: dict[str, bytes] = {}
-    for lang in langs or list(LABELS):
+    for lang in langs or LANGS:
         by_feed: dict[tuple[str, str], list] = {}
         for feed, doc in major:
             h = doc["header"]["feed"]

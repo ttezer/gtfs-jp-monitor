@@ -25,7 +25,7 @@ class LabelsTest(unittest.TestCase):
         html = PAGE.read_text(encoding="utf-8")
         short = re.findall(r"evtShort: (\{[^}]*\})", html)
         imp = re.findall(r"\n    imp: (\{[^}]*\})", html)
-        for lang, s, i in zip(("tr", "en", "ja"), short, imp, strict=True):
+        for lang, s, i in zip(("tr", "en", "fr", "ja"), short, imp, strict=True):
             with self.subTest(lang=lang):
                 self.assertEqual(list(js_object(s).items()), list(LABELS[lang]["evt"].items()))  # order too
                 self.assertEqual(js_object(i), LABELS[lang]["imp"])

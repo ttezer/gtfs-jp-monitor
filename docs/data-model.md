@@ -292,6 +292,22 @@ files depend only on the reports, so an unchanged site writes the same bytes. `e
 --site-url` sets the address used in the links. The page links the feed of the selected transit
 feed and the one for all feeds, and names the latter in its head for readers that look there.
 
+### §10.4 Site profile
+
+The same page and feeds serve another source's site (the French monitor builds on this code).
+`export-web --site-profile <json>` reads `{"site": {...}, "head": "...", "atom": {...}}`:
+
+- `site` is embedded in the export as `site` and read by the page; every field is optional:
+  `name`, `langs`, `default_lang`, `locale` (name sorting), `time_zone` (update times),
+  `regions` (`feed_pref_id` → name), `tiles` (`url` with `{z}/{x}/{y}`, `label`, `link`),
+  `tabs`, and `text` (`{lang: {key: text}}`, replacing the page's texts of that language).
+- `head` replaces the page's site block between `<!--site-head-->` and `<!--/site-head-->`
+  (title, description, feed links, analytics), so another site never sends this site's page views.
+- `atom` sets `langs`, `titles`, `author` and `tag` (part of entry ids) of the Atom feeds.
+
+Without a profile the site is this one: languages `tr`, `en`, `ja`, prefectures, GSI tiles, JST.
+The page carries texts in `tr`, `en`, `fr` and `ja`; a test keeps their keys equal.
+
 ## §11 Semantic change reports
 
 - Reports cover only the publications the page shows: grouped as the page groups them, from

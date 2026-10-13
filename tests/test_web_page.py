@@ -31,6 +31,25 @@ class WebPageTest(unittest.TestCase):
             webexport.apply_site_head(page, head)  # no markers left
 
     @unittest.skipUnless(shutil.which("node"), "node is not installed")
+    def test_languages_have_the_same_texts(self):
+        # A text missing in one language shows as "undefined" on the page.
+        block = lambda name: self.html[self.html.index(f"const {name} = {{"):self.html.index("\n};\n", self.html.index(f"const {name} = {{")) + 3]
+        js = block("T") + block("R") + """
+const shape = o => Object.fromEntries(Object.entries(o).map(([k, v]) =>
+  [k, v && typeof v === "object" && !Array.isArray(v) ? shape(v) : Array.isArray(v) ? v.length : typeof v]));
+const out = {};
+for (const [name, table] of [["T", T], ["R", R]])
+  for (const lang of Object.keys(table)) out[`${name}.${lang}`] = shape(table[lang]);
+console.log(JSON.stringify(out));"""
+        proc = subprocess.run(["node", "-e", "const state = {};" + js], capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        shapes = json.loads(proc.stdout)
+        for name in ("T", "R"):
+            for lang in ("tr", "ja", "fr"):
+                with self.subTest(table=name, lang=lang):
+                    self.assertEqual(shapes[f"{name}.{lang}"], shapes[f"{name}.en"])
+
+    @unittest.skipUnless(shutil.which("node"), "node is not installed")
     def test_script_parses(self):
         # The page script is written by hand; a syntax error would leave the whole site blank.
         script = self.html[self.html.rindex("<script>") + len("<script>"):self.html.rindex("</script>")]
