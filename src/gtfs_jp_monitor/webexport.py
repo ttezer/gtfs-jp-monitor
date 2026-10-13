@@ -31,10 +31,10 @@ LANGS = ("tr", "en", "ja")
 JP_FILES = frozenset({"agency_jp.txt", "office_jp.txt", "routes_jp.txt", "pattern_jp.txt"})
 
 
-def rule_titles(analyzer: Path, rule_ids: set[str], timeout: float = 60) -> dict[str, dict[str, str]]:
+def rule_titles(analyzer: Path, rule_ids: set[str], timeout: float = 60, langs=LANGS) -> dict[str, dict[str, str]]:
     """{lang: {rule_id: title}} from `gtfs-analyzer rules --json --lang <lang>`."""
     titles: dict[str, dict[str, str]] = {}
-    for lang in LANGS:
+    for lang in langs:
         proc = subprocess.run([str(analyzer), "rules", "--json", "--lang", lang],
                               capture_output=True, timeout=timeout, check=True)
         rules = json.loads(proc.stdout)
@@ -343,9 +343,9 @@ def apply_site_head(template: str, head: str) -> str:
 
 
 def build_export(data_dir: Path, key: str, analyzer: Path | None = None,
-                 next_key: str | None = None) -> tuple[dict, dict[str, dict]]:
+                 next_key: str | None = None, langs=LANGS) -> tuple[dict, dict[str, dict]]:
     """(export for the page, report files to write next to it). `next_key` only adds the coverage of
-    a release being filled in the background to the status."""
+    a release being filled in the background to the status; `langs` are the rule title languages."""
     root = Path(data_dir)
     catalog_feeds, catalog_gens = load_catalog(root)
     feeds = []
@@ -424,7 +424,7 @@ def build_export(data_dir: Path, key: str, analyzer: Path | None = None,
         "schema": SCHEMA,
         "analysis_key": key,
         "feeds": feeds,
-        "rule_titles": rule_titles(analyzer, rule_ids) if analyzer else {lang: {} for lang in LANGS},
+        "rule_titles": rule_titles(analyzer, rule_ids, langs=langs) if analyzer else {lang: {} for lang in langs},
         "rule_meta": compact_rules(feeds),  # publications keep counts only (see compact_rules)
         "methods": dict(sorted(methods.items())),
         "engine_version": ENGINE_VERSION,

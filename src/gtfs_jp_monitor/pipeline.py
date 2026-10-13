@@ -138,9 +138,11 @@ def run_analysis(
     signature_limit: int = SIGNATURE_LIMIT,
     fields_limit: int = FIELDS_LIMIT,
     canonical_key: str | None = None,
+    areas: tuple | None = None,
 ) -> RunReport:
     """canonical_key: the key the site uses, kept as the canonical analysis in feed.json while a
-    newer release is filled in the background (data-model §8.1); defaults to this run's key."""
+    newer release is filled in the background (data-model §8.1); defaults to this run's key.
+    areas: another source's stop areas for the content signature's outside count (default Japan)."""
     root = Path(data_dir)
     check_writable(root, binary.is_pinned)
     release_tag = binary.pinned_release or f"v{binary.version}"
@@ -195,7 +197,7 @@ def run_analysis(
                     report.warnings.append({"code": "SOURCE_CHANGED", "org_id": item.org_id, "feed_id": item.feed_id,
                                             "uid": uid, "detail": "ZIP checksum differs from the stored analysis"})
 
-                if _write_signature(root, item.org_id, item.feed_id, uid, zip_path, downloaded.sha256):
+                if _write_signature(root, item.org_id, item.feed_id, uid, zip_path, downloaded.sha256, areas):
                     report.changed_files.append(str(content_path(root, item.org_id, item.feed_id, uid).relative_to(root)))
 
                 # Missing source values stay null; nothing is guessed (data-model §5).
@@ -251,7 +253,7 @@ def run_analysis(
                     counts["signature_failed"] = counts.get("signature_failed", 0) + 1
                     report.changed_files.append(str(mark_replaced(root, *fk, uid, downloaded.sha256).relative_to(root)))
                     continue
-                if _write_signature(root, *fk, uid, zip_path, downloaded.sha256):
+                if _write_signature(root, *fk, uid, zip_path, downloaded.sha256, areas):
                     report.changed_files.append(str(content_path(root, *fk, uid).relative_to(root)))
                     counts["signed"] = counts.get("signed", 0) + 1
             finally:
@@ -288,12 +290,13 @@ def run_analysis(
     return report
 
 
-def _write_signature(root: Path, org_id: str, feed_id: str, uid: str, zip_path: Path, sha256: str) -> bool:
+def _write_signature(root: Path, org_id: str, feed_id: str, uid: str, zip_path: Path, sha256: str, areas=None) -> bool:
     """Write the content signature unless one exists for these ZIP bytes."""
     current = load_content(root, org_id, feed_id, uid)
     if current is not None and current.get("zip_sha256") == sha256 and "fields" in current:
         return False
-    write_json(content_path(root, org_id, feed_id, uid), content_signature(zip_path, sha256))
+    write_json(content_path(root, org_id, feed_id, uid),
+               content_signature(zip_path, sha256, areas) if areas else content_signature(zip_path, sha256))
     return True
 
 

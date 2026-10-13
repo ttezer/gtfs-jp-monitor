@@ -71,6 +71,18 @@ class SignatureTest(unittest.TestCase):
         coords = self.sig({"stops.txt": stops})["fields"]["stops.txt"]["coordinates"]
         self.assertEqual(coords, {"outside_japan": 1, "swapped": 1})
 
+    def test_another_source_area(self):
+        # Rennes, a swapped Rennes stop, Réunion; areas: metropolitan France and Réunion.
+        stops = "stop_id,stop_name,stop_lat,stop_lon\nA,x,48.11,-1.68\nB,y,-1.68,48.11\nC,z,-21.0,55.5\n"
+        path = self.dir / "fr.zip"
+        with zipfile.ZipFile(path, "w") as zf:
+            zf.writestr("stops.txt", stops)
+        areas = (((41.0, 51.5), (-5.5, 10.0)), ((-21.5, -20.8), (55.2, 55.9)))
+        doc = content_signature(path, "0" * 64, areas)
+        self.assertEqual(doc["fields"]["stops.txt"]["coordinates"], {"outside_japan": 0, "swapped": 1})
+        self.assertEqual(content_signature(path, "0" * 64)["fields"]["stops.txt"]["coordinates"], {"outside_japan": 3, "swapped": 0})
+        self.assertEqual(doc["signature"], content_signature(path, "0" * 64)["signature"])  # areas change counts only
+
     def test_unreadable_zip_uses_the_zip_digest(self):
         doc = self.sig({}, raw=b"not a zip")
         self.assertEqual((doc["files"], doc["fields"], doc["signature"]), (None, None, "0" * 64))

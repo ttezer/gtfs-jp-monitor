@@ -473,7 +473,9 @@ stores it in `content.json` as `fields`: per file, its rows and, per field, the 
 A tracked column the file does not have counts as never filled. For `stops.txt` it also counts
 stops outside Japan (latitude 20–46, longitude 122–154) and, among them, those that fit only with
 latitude and longitude swapped (`coordinates`); the page warns about them, since their lines look
-wrong on maps and in route comparisons. For `wheelchair_boarding`,
+wrong on maps and in route comparisons. Another source passes its own areas (`run_analysis(areas=)`,
+a list of latitude/longitude boxes); the count keeps its name `outside_japan` and then means outside
+those areas. The signature itself does not depend on the areas. For `wheelchair_boarding`,
 `wheelchair_accessible` and `bikes_allowed` only 1 and 2 count, since 0 means "no information".
 
 | File | Fields |

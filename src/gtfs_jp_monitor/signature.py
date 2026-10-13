@@ -13,8 +13,8 @@ as raw bytes. File paths are part of the signature.
 
 The same pass counts how often selected optional fields are filled (`fields`, data-model §15):
 rows per file and, per field, the rows with a value. For accessibility fields, where "0" means
-"no information", only the values 1 and 2 count. Stops outside Japan, and those whose latitude and
-longitude look swapped, are counted as well.
+"no information", only the values 1 and 2 count. Stops outside the source's area (Japan by default),
+and those whose latitude and longitude look swapped, are counted as well.
 """
 
 from __future__ import annotations
@@ -36,6 +36,7 @@ FIELDS = {
     "stop_times.txt": ("stop_headsign", "pickup_type", "drop_off_type", "timepoint"),
 }
 JAPAN = ((20.0, 46.0), (122.0, 154.0))  # latitude and longitude range of the stops check (data-model §15)
+Area = tuple[tuple[float, float], tuple[float, float]]  # ((lat min, lat max), (lon min, lon max))
 INFO_ONLY = frozenset({"wheelchair_boarding", "wheelchair_accessible", "bikes_allowed"})  # "0" = no information
 _MOD = 1 << 256
 _CHUNK = 1 << 20
@@ -49,20 +50,20 @@ def _raw(zf: zipfile.ZipFile, info: zipfile.ZipInfo) -> str:
     return h.hexdigest()
 
 
-def _place(lat: str, lon: str) -> str | None:
-    """"swapped" when latitude and longitude only fit Japan the other way round, "outside" for
-    other coordinates outside it, None inside or when not numeric."""
+def _place(lat: str, lon: str, areas: tuple[Area, ...] = (JAPAN,)) -> str | None:
+    """"swapped" when latitude and longitude only fit an area the other way round, "outside" for
+    other coordinates outside every area, None inside one or when not numeric."""
     try:
         y, x = float(lat), float(lon)
     except ValueError:
         return None
-    (y0, y1), (x0, x1) = JAPAN
-    if y0 <= y <= y1 and x0 <= x <= x1:
+    inside = lambda a, b: any(y0 <= a <= y1 and x0 <= b <= x1 for (y0, y1), (x0, x1) in areas)
+    if inside(y, x):
         return None
-    return "swapped" if y0 <= x <= y1 and x0 <= y <= x1 else "outside"
+    return "swapped" if inside(x, y) else "outside"
 
 
-def _csv(zf: zipfile.ZipFile, info: zipfile.ZipInfo, fields: dict | None = None) -> str:
+def _csv(zf: zipfile.ZipFile, info: zipfile.ZipInfo, fields: dict | None = None, areas: tuple[Area, ...] = (JAPAN,)) -> str:
     """Canonical hash; fills `fields` with {"rows", "filled": {field: rows with a value}} when the
     file has tracked fields."""
     with zf.open(info) as f:
@@ -90,7 +91,7 @@ def _csv(zf: zipfile.ZipFile, info: zipfile.ZipInfo, fields: dict | None = None)
                 if v and not (c in INFO_ONLY and v == "0"):
                     filled[c] += 1
             if coords:
-                where = _place(row[coords[0]], row[coords[1]])
+                where = _place(row[coords[0]], row[coords[1]], areas)
                 outside += where == "outside"
                 swapped += where == "swapped"
     if fields is not None and info.filename in FIELDS:
@@ -101,24 +102,25 @@ def _csv(zf: zipfile.ZipFile, info: zipfile.ZipInfo, fields: dict | None = None)
     return hashlib.sha256(key.encode("utf-8")).hexdigest()
 
 
-def _file(zf: zipfile.ZipFile, info: zipfile.ZipInfo, fields: dict) -> dict:
+def _file(zf: zipfile.ZipFile, info: zipfile.ZipInfo, fields: dict, areas: tuple[Area, ...] = (JAPAN,)) -> dict:
     if info.filename.lower().endswith(".txt"):
         try:
-            return {"method": "canonical_csv", "hash": _csv(zf, info, fields)}
+            return {"method": "canonical_csv", "hash": _csv(zf, info, fields, areas)}
         except (UnicodeDecodeError, csv.Error, ValueError, StopIteration):
             pass
     return {"method": "raw_bytes", "hash": _raw(zf, info)}
 
 
-def content_signature(zip_path: Path, zip_sha256: str) -> dict:
-    """Signature record for a downloaded ZIP; `zip_sha256` ties it to the analysed bytes."""
+def content_signature(zip_path: Path, zip_sha256: str, areas: tuple[Area, ...] = (JAPAN,)) -> dict:
+    """Signature record for a downloaded ZIP; `zip_sha256` ties it to the analysed bytes. `areas`:
+    where the source's stops lie, for the outside count only (the signature does not depend on it)."""
     try:
         with zipfile.ZipFile(zip_path) as zf:
             members = [info for info in zf.infolist() if not info.is_dir()]
             if len({info.filename for info in members}) != len(members):
                 raise zipfile.BadZipFile("duplicate member names")
             fields: dict = {}
-            files = {info.filename: _file(zf, info, fields) for info in members}
+            files = {info.filename: _file(zf, info, fields, areas) for info in members}
         parts = [[name, v["method"], v["hash"]] for name, v in sorted(files.items())]
         signature = hashlib.sha256(json.dumps(parts, ensure_ascii=False).encode("utf-8")).hexdigest()
     except (zipfile.BadZipFile, zipfile.LargeZipFile, NotImplementedError, OSError, EOFError, zlib.error):

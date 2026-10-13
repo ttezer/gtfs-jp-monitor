@@ -196,11 +196,13 @@ def _cmd_export_web(args: argparse.Namespace) -> int:
 
     key = f"{args.release_tag}__{args.profile}"
     next_key = f"{args.next_release_tag}__{args.profile}" if args.next_release_tag else None
-    export, files = build_export(Path(args.data_dir), key, Path(args.analyzer) if args.analyzer else None, next_key)
-    ext = ".json.gz" if args.bundle_format == "gz" else ".json"
-    export["report_bundle_ext"] = ext
     # Another source's site (data-model §10.4): {"site": page profile, "head": <head> block, "atom": {...}}.
     profile = json.loads(Path(args.site_profile).read_text(encoding="utf-8")) if args.site_profile else {}
+    langs = tuple((profile.get("site") or {}).get("langs") or ()) or None
+    export, files = build_export(Path(args.data_dir), key, Path(args.analyzer) if args.analyzer else None, next_key,
+                                 **({"langs": langs} if langs else {}))
+    ext = ".json.gz" if args.bundle_format == "gz" else ".json"
+    export["report_bundle_ext"] = ext
     if profile.get("site"):
         export["site"] = profile["site"]
     if args.json:
