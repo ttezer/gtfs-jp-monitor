@@ -1,5 +1,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!--site-head-->
 <title>GTFS-JP Monitor</title>
 <meta name="description" content="Feed quality, publication readiness and change history for gtfs-data.jp feeds">
 <link rel="alternate" type="application/atom+xml" hreflang="ja" title="GTFS-JP Monitor・主な変更" href="atom/ja/all.xml">
@@ -19,6 +20,7 @@ if (location.hostname === "ttezer.github.io") {
   document.head.appendChild(tag);
 }
 </script>
+<!--/site-head-->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
@@ -243,14 +245,10 @@ details.other > summary { cursor: pointer; }
 <div class="wrap">
   <header class="top">
     <div class="brand">
-      <h1>GTFS-JP Monitor</h1>
+      <h1 id="brand">GTFS-JP Monitor</h1>
       <p id="tagline"></p>
     </div>
-    <div class="langs" role="group" aria-label="Language">
-      <button type="button" data-lang="tr">TR</button>
-      <button type="button" data-lang="en">EN</button>
-      <button type="button" data-lang="ja">JA</button>
-    </div>
+    <div class="langs" role="group" aria-label="Language" id="langs"></div>
   </header>
   <div class="notice" id="notice"></div>
 
@@ -295,6 +293,11 @@ details.other > summary { cursor: pointer; }
 (() => {
 "use strict";
 const DATA = JSON.parse(document.getElementById("export-data").textContent);
+// The site profile (data-model §10.4): another source's languages, regions, map tiles and texts.
+// Every field is optional; without it the page is the gtfs-data.jp site.
+const SITE = DATA.site || {};
+const LANGS = SITE.langs || ["tr", "en", "ja"], LOCALE = SITE.locale || "ja", TIME_ZONE = SITE.time_zone || "Asia/Tokyo";
+const TILES = SITE.tiles || { url: "https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png", label: "地理院タイル", link: "https://maps.gsi.go.jp/development/ichiran.html" };
 // The export keeps only rule counts per publication (rule_meta holds severity and class); expand
 // them back to [count, severity, class] once, so the rest of the page reads them as before.
 if (DATA.rule_meta) for (const f of DATA.feeds) for (const g of f.generations) {
@@ -459,13 +462,17 @@ const T = {
 const SCORES = ["publish", "overall", "spec", "interop", "quality", "analytics"];
 const METRICS = [["routes", "mRoutes"], ["stops", "mStops"], ["trips", "mTrips"], ["shapes", "mShapes"], ["active_service_days", "mDays"], ["avg_daily_trips", "mAvg"]];
 
-const state = { lang: "tr", tab: "overview", selected: null, merge: true, oldIdx: null, newIdx: null, showSame: false, collapsed: new Set() };
+const state = { lang: SITE.default_lang || "tr", tab: "overview", selected: null, merge: true, oldIdx: null, newIdx: null, showSame: false, collapsed: new Set() };
 try {
   const saved = localStorage.getItem("gjm-lang");
-  if (saved && T[saved]) state.lang = saved;
+  if (saved && T[saved] && LANGS.includes(saved)) state.lang = saved;
 } catch (e) { /* storage unavailable */ }
 
-const t = (key, ...args) => { const v = T[state.lang][key]; return typeof v === "function" ? v(...args) : v; };
+const t = (key, ...args) => {
+  const own = SITE.text && SITE.text[state.lang] && SITE.text[state.lang][key];
+  const v = own !== undefined && own !== null ? own : T[state.lang][key];
+  return typeof v === "function" ? v(...args) : v;
+};
 
 // ---- Semantic change report (gtfs-jp-semantic-report/1) ----
 const R = {
@@ -1095,7 +1102,7 @@ function reportItems() {
   const items = Object.entries(REPORTS).map(([pair, e]) => {
     const f = byKey.get(`${e.feed[0]}/${e.feed[1]}`);
     return f ? { pair, e, f, text: `${f.organization_name} ${f.name} ${key(f)} ${e.dates[0]} ${e.dates[1]}`.toLowerCase() } : null;
-  }).filter(Boolean).sort((a, b) => a.f.organization_name.localeCompare(b.f.organization_name, "ja") || a.f.name.localeCompare(b.f.name, "ja") || a.e.dates[1].localeCompare(b.e.dates[1]));
+  }).filter(Boolean).sort((a, b) => a.f.organization_name.localeCompare(b.f.organization_name, LOCALE) || a.f.name.localeCompare(b.f.name, LOCALE) || a.e.dates[1].localeCompare(b.e.dates[1]));
   reportItemsCache = { of: REPORTS, items };
   return items;
 }
@@ -1135,7 +1142,7 @@ function pairIndices(gs, pairKey) {
 }
 // ---- Shareable links: #feed=<org>/<feed>&old=<uid>&new=<uid>&tab=<tab>&view=<report|verify> ----
 // Links hold publication uids, never group indices, so they survive merging and changes in grouping.
-const TABS = ["overview", "history", "reports", "gtfsjp"], VIEWS = ["report", "verify"];
+const TABS = SITE.tabs || ["overview", "history", "reports", "gtfsjp"], VIEWS = ["report", "verify"];
 function parseLink(hash) {
   const p = new URLSearchParams(String(hash || "").replace(/^#/, ""));
   const get = k => p.get(k) || null;
@@ -1198,8 +1205,8 @@ function openPair(pairKey) {
   renderAll();
 }
 
-// ---- Stop change map: static GSI tiles (地理院タイル) with an SVG overlay, no map library. ----
-const TILE = 256, GSI = (z, x, y) => `https://cyberjapandata.gsi.go.jp/xyz/pale/${z}/${x}/${y}.png`;
+// ---- Stop change map: static tiles (default GSI, 地理院タイル) with an SVG overlay, no map library. ----
+const TILE = 256, GSI = (z, x, y) => TILES.url.replace("{z}", z).replace("{x}", x).replace("{y}", y);
 const wx = (lon, z) => (lon + 180) / 360 * TILE * 2 ** z;
 const wy = (lat, z) => { const r = lat * Math.PI / 180; return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * TILE * 2 ** z; };
 const MAP_COLOR = { added: "var(--good)", removed: "var(--bad)", renamed: "var(--warn)", moved: "var(--warn)", renamed_moved: "var(--warn)", unchanged: "var(--faint)" };
@@ -1213,7 +1220,7 @@ function mapPoints(rep) {
 function mapShell(id, cls = "pmap") {
   return `<div class="${cls}" id="${id}"><div class="tiles"></div><svg aria-label="${esc(rt("map"))}"></svg>
     <div class="mapctl"><button type="button" data-z="+" aria-label="+">+</button><button type="button" data-z="-" aria-label="−">−</button><button type="button" data-z="all">${esc(rt("mapAll"))}</button></div>
-    <div class="attr"><a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル</a></div></div>`;
+    <div class="attr"><a href="${esc(TILES.link)}" target="_blank" rel="noopener">${esc(TILES.label)}</a></div></div>`;
 }
 function makeMap(el, bounds, overlay, onPick) {
   const view = { z: 16, lat: 0, lon: 0, focus: null };
@@ -1516,7 +1523,8 @@ function renderReport() {
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const $ = id => document.getElementById(id);
 const key = f => `${f.org_id}/${f.feed_id}`;
-const prefName = id => (id >= 1 && id <= 47) ? (state.lang === "ja" ? PREFS[id - 1][0] : PREFS[id - 1][1]) : "—";
+const prefName = id => SITE.regions ? (SITE.regions[id] || "—")
+  : (id >= 1 && id <= 47) ? (state.lang === "ja" ? PREFS[id - 1][0] : PREFS[id - 1][1]) : "—";
 
 // One-decimal arithmetic matching the pipeline (exact difference, halves away from zero).
 const round1 = x => { const s = Math.sign(x), a = Math.abs(x); return s * Math.round(a * 10 + 1e-9) / 10; };
@@ -1626,7 +1634,7 @@ function visibleFeeds() {
   if (pub) list = list.filter(({ cur }) => String(!!cur.publishable) === pub);
   const lastPub = x => x.f.generations[x.f.generations.length - 1].published_at || "";
   const ov = x => x.cur.scores ? x.cur.scores.overall : -1;
-  const sorters = { recent: (a, b) => lastPub(b).localeCompare(lastPub(a)), name: (a, b) => a.f.name.localeCompare(b.f.name, "ja"),
+  const sorters = { recent: (a, b) => lastPub(b).localeCompare(lastPub(a)), name: (a, b) => a.f.name.localeCompare(b.f.name, LOCALE),
     low: (a, b) => ov(a) - ov(b), high: (a, b) => ov(b) - ov(a) };
   return list.sort(sorters[sort] || sorters.recent);
 }
@@ -1904,11 +1912,11 @@ function fieldsBlock(a, b) {
 }
 const STALE_HOURS = 36;
 // Freshness and pending work from the export's status block (data-model §10.2).
-function statusNote(st, lang, nowMs) {
+function statusNote(st, lang, nowMs, timeZone = "Asia/Tokyo") {
   if (!st || !st.built_at) return "";
   const built = Date.parse(st.built_at), mins = Math.max(0, Math.floor((nowMs - built) / 60000));
   const units = T[lang].ago, ago = mins < 60 ? units.m(mins) : mins < 48 * 60 ? units.h(Math.floor(mins / 60)) : units.d(Math.floor(mins / 1440));
-  const when = new Date(built).toLocaleString("sv-SE", { timeZone: "Asia/Tokyo" }).slice(0, 16);
+  const when = new Date(built).toLocaleString("sv-SE", { timeZone }).slice(0, 16);
   const b = st.backlog || {};
   return [T[lang].updated(ago, when), mins >= STALE_HOURS * 60 ? T[lang].stale(Math.floor(mins / 60)) : "",
           b.unanalysed || b.reports_pending ? T[lang].backlog(b.unanalysed || 0, b.reports_pending || 0) : ""].filter(Boolean).join(" ");
@@ -1917,11 +1925,13 @@ function renderStatic() {
   document.documentElement.lang = state.lang;
   $("tagline").textContent = t("tagline");
   const [rel, prof] = (DATA.analysis_key || "").split("__");
-  $("notice").innerHTML = `<span>${t("notice", DATA.feeds.length, DATA.feeds.reduce((n, f) => n + f.generations.length, 0), esc(rel || ""), esc(prof || ""))}${state.linkMissing ? ` ${esc(t("linkMissing"))}` : ""}<br><b class="${DATA.status && Date.now() - Date.parse(DATA.status.built_at) >= STALE_HOURS * 3600000 ? "stale" : "fresh"}">${esc(statusNote(DATA.status, state.lang, Date.now()))}</b></span>`;
+  $("notice").innerHTML = `<span>${t("notice", DATA.feeds.length, DATA.feeds.reduce((n, f) => n + f.generations.length, 0), esc(rel || ""), esc(prof || ""))}${state.linkMissing ? ` ${esc(t("linkMissing"))}` : ""}<br><b class="${DATA.status && Date.now() - Date.parse(DATA.status.built_at) >= STALE_HOURS * 3600000 ? "stale" : "fresh"}">${esc(statusNote(DATA.status, state.lang, Date.now(), TIME_ZONE))}</b></span>`;
   document.querySelectorAll("[data-t]").forEach(el => { el.textContent = t(el.dataset.t); });
   document.querySelectorAll("nav.tabs button").forEach(b => { b.textContent = t(b.dataset.tab); b.setAttribute("aria-selected", String(b.dataset.tab === state.tab)); });
   document.querySelectorAll(".langs button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.lang === state.lang)));
   ["overview", "history", "reports", "gtfsjp"].forEach(id => { $("tab-" + id).hidden = id !== state.tab; });
+  document.querySelectorAll("nav.tabs button").forEach(b => { b.hidden = !TABS.includes(b.dataset.tab); });
+  $("brand").textContent = SITE.name || "GTFS-JP Monitor";
   const prefSel = $("pref"), pv = prefSel.value;
   const prefs = [...new Set(DATA.feeds.map(f => f.pref_id).filter(Boolean))].sort((a, b) => a - b);
   prefSel.innerHTML = `<option value="">${esc(t("all"))}</option>` + prefs.map(p => `<option value="${p}">${esc(prefName(p))}</option>`).join("");
@@ -1929,12 +1939,12 @@ function renderStatic() {
   const orgSel = $("org"), ov = orgSel.value;
   const orgs = new Map();
   DATA.feeds.filter(f => !prefSel.value || String(f.pref_id) === prefSel.value).forEach(f => orgs.set(f.org_id, f.organization_name));
-  orgSel.innerHTML = `<option value="">${esc(t("all"))}</option>` + [...orgs].sort((a, b) => a[1].localeCompare(b[1], "ja"))
+  orgSel.innerHTML = `<option value="">${esc(t("all"))}</option>` + [...orgs].sort((a, b) => a[1].localeCompare(b[1], LOCALE))
     .map(([id, name]) => `<option value="${esc(id)}">${esc(name)}</option>`).join("");
   orgSel.value = orgs.has(ov) ? ov : "";
   const feedSel = $("feedsel"), fv = feedSel.value;
   const fl = DATA.feeds.filter(f => (!prefSel.value || String(f.pref_id) === prefSel.value) && (!orgSel.value || f.org_id === orgSel.value));
-  feedSel.innerHTML = `<option value="">${esc(t("all"))}</option>` + fl.slice().sort((a, b) => a.name.localeCompare(b.name, "ja"))
+  feedSel.innerHTML = `<option value="">${esc(t("all"))}</option>` + fl.slice().sort((a, b) => a.name.localeCompare(b.name, LOCALE))
     .map(f => `<option value="${esc(key(f))}">${esc(orgSel.value ? f.name : `${f.organization_name} — ${f.name}`)}${f.is_discontinued ? " ✕" : ""}</option>`).join("");
   feedSel.value = fl.some(f => key(f) === fv) ? fv : "";
   const pubSel = $("pub"), bv = pubSel.value;
@@ -1954,6 +1964,7 @@ function renderTotals() {
 }
 function renderAll() { renderStatic(); renderTotals(); renderGrid(); renderPanel(); renderHistory(); renderReport(); writeLink(); }
 
+$("langs").innerHTML = LANGS.map(l => `<button type="button" data-lang="${esc(l)}">${esc(l.toUpperCase())}</button>`).join("");
 document.querySelectorAll(".langs button").forEach(b => b.addEventListener("click", () => {
   state.lang = b.dataset.lang;
   try { localStorage.setItem("gjm-lang", state.lang); } catch (e) { /* ignore */ }

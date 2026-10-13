@@ -90,11 +90,11 @@ def _content(report: dict, lang: str) -> str:
     return "\n".join(out)
 
 
-def _entry(parent: ET.Element, feed: dict, report: dict, lang: str, site_url: str) -> None:
+def _entry(parent: ET.Element, feed: dict, report: dict, lang: str, site_url: str, tag: str) -> None:
     h = report["header"]
     org, fid, old, new = h["feed"]["org_id"], h["feed"]["feed_id"], h["old"]["uid"], h["new"]["uid"]
     e = ET.SubElement(parent, "entry")
-    ET.SubElement(e, "id").text = f"tag:ttezer.github.io,2026:gtfs-jp-monitor/{org}/{fid}/{old}__{new}"
+    ET.SubElement(e, "id").text = f"tag:ttezer.github.io,2026:{tag}/{org}/{fid}/{old}__{new}"
     ET.SubElement(e, "title").text = (f"{feed.get('name') or fid} · {h['new']['from_date']} · "
                                       f"{LABELS[lang]['imp'][report['impact']['class']]}")
     ET.SubElement(e, "updated").text = _updated(h["new"])
@@ -102,7 +102,7 @@ def _entry(parent: ET.Element, feed: dict, report: dict, lang: str, site_url: st
     ET.SubElement(e, "content", type="text").text = _content(report, lang)
 
 
-def _feed(entries: list[tuple[dict, dict]], lang: str, title: str, self_href: str, site_url: str) -> bytes:
+def _feed(entries: list[tuple[dict, dict]], lang: str, title: str, self_href: str, site_url: str, author_name: str, tag: str) -> bytes:
     root = ET.Element("feed", xmlns=ATOM, attrib={"xml:lang": lang})
     ET.SubElement(root, "id").text = self_href
     ET.SubElement(root, "title").text = title
@@ -110,15 +110,18 @@ def _feed(entries: list[tuple[dict, dict]], lang: str, title: str, self_href: st
     ET.SubElement(root, "link", rel="self", href=self_href)
     ET.SubElement(root, "link", href=site_url)
     author = ET.SubElement(root, "author")
-    ET.SubElement(author, "name").text = "GTFS-JP Monitor"
+    ET.SubElement(author, "name").text = author_name
     for feed, report in entries:
-        _entry(root, feed, report, lang, site_url)
+        _entry(root, feed, report, lang, site_url, tag)
     return b'<?xml version="1.0" encoding="utf-8"?>\n' + ET.tostring(root, encoding="utf-8") + b"\n"
 
 
-def build_atom(feeds: list[dict], files: dict[str, dict], site_url: str = SITE_URL) -> dict[str, bytes]:
+def build_atom(feeds: list[dict], files: dict[str, dict], site_url: str = SITE_URL, langs: list[str] | None = None,
+               titles: dict[str, str] | None = None, author: str = "GTFS-JP Monitor", tag: str = "gtfs-jp-monitor") -> dict[str, bytes]:
     """{"atom/<lang>/<org_id>/<feed_id>.xml": bytes, "atom/<lang>/all.xml": bytes}: the reports with a
-    major impact, newest first. A feed without such a report has no file."""
+    major impact, newest first. A feed without such a report has no file. langs, titles, author and
+    tag (part of the entry ids) come from another site's profile; the defaults are this site's."""
+    titles = titles or TITLE
     names = {(f["org_id"], f["feed_id"]): f for f in feeds}
     major = []
     for doc in files.values():
@@ -128,7 +131,7 @@ def build_atom(feeds: list[dict], files: dict[str, dict], site_url: str = SITE_U
     order = lambda item: (_updated(item[1]["header"]["new"]), item[1]["header"]["new"]["uid"])
     major.sort(key=order, reverse=True)
     out: dict[str, bytes] = {}
-    for lang in LABELS:
+    for lang in langs or list(LABELS):
         by_feed: dict[tuple[str, str], list] = {}
         for feed, doc in major:
             h = doc["header"]["feed"]
@@ -136,8 +139,8 @@ def build_atom(feeds: list[dict], files: dict[str, dict], site_url: str = SITE_U
         for (org, fid), entries in sorted(by_feed.items()):
             path = f"atom/{lang}/{org}/{fid}.xml"
             name = (entries[0][0].get("name") or fid)
-            out[path] = _feed(entries[:PER_FEED], lang, f"{TITLE[lang]} · {name}", site_url + path, site_url)
+            out[path] = _feed(entries[:PER_FEED], lang, f"{titles[lang]} · {name}", site_url + path, site_url, author, tag)
         if major:
             path = f"atom/{lang}/all.xml"
-            out[path] = _feed(major[:ALL_FEEDS], lang, TITLE[lang], site_url + path, site_url)
+            out[path] = _feed(major[:ALL_FEEDS], lang, titles[lang], site_url + path, site_url, author, tag)
     return out

@@ -199,6 +199,10 @@ def _cmd_export_web(args: argparse.Namespace) -> int:
     export, files = build_export(Path(args.data_dir), key, Path(args.analyzer) if args.analyzer else None, next_key)
     ext = ".json.gz" if args.bundle_format == "gz" else ".json"
     export["report_bundle_ext"] = ext
+    # Another source's site (data-model §10.4): {"site": page profile, "head": <head> block, "atom": {...}}.
+    profile = json.loads(Path(args.site_profile).read_text(encoding="utf-8")) if args.site_profile else {}
+    if profile.get("site"):
+        export["site"] = profile["site"]
     if args.json:
         from .canonical import write_json
         write_json(Path(args.json), export)
@@ -209,6 +213,12 @@ def _cmd_export_web(args: argparse.Namespace) -> int:
         template = Path(args.template).read_text(encoding="utf-8")
         if template.count("/*__EXPORT__*/") != 1:
             raise SystemExit("template must contain exactly one /*__EXPORT__*/ placeholder")
+        if profile.get("head") is not None:
+            from .webexport import apply_site_head
+            try:
+                template = apply_site_head(template, profile["head"])
+            except ValueError as err:
+                raise SystemExit(str(err)) from None
         Path(args.html).parent.mkdir(parents=True, exist_ok=True)
         Path(args.html).write_text(template.replace("/*__EXPORT__*/", payload), encoding="utf-8")
         from gtfs_jp_semantic.rawdiff import gzip_bytes
@@ -231,7 +241,9 @@ def _cmd_export_web(args: argparse.Namespace) -> int:
         atom_dir = Path(args.html).parent / "atom"
         for old in atom_dir.rglob("*.xml"):  # feeds of an earlier export
             old.unlink()
-        for name, body in build_atom(export["feeds"], files, args.site_url).items():
+        atom = profile.get("atom") or {}
+        for name, body in build_atom(export["feeds"], files, args.site_url, langs=atom.get("langs"), titles=atom.get("titles"),
+                                     author=atom.get("author", "GTFS-JP Monitor"), tag=atom.get("tag", "gtfs-jp-monitor")).items():
             path = Path(args.html).parent / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(body)
@@ -377,6 +389,7 @@ def main(argv: list[str] | None = None) -> int:
     web.add_argument("--bundle-format", choices=("gz", "json"), default="gz",
                      help="report files next to the page: gzip (default) or plain JSON for hosts that do not serve .gz")
     web.add_argument("--stages", help="stage times written by the workflow, added to status.json")
+    web.add_argument("--site-profile", help="JSON with another source's page profile, <head> block and Atom settings")
     web.add_argument("--site-url", default="https://ttezer.github.io/gtfs-jp-monitor/",
                      help="address the site is published at, for the links of the Atom feeds")
     web.set_defaults(func=_cmd_export_web)

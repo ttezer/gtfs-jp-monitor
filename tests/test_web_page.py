@@ -20,6 +20,16 @@ class WebPageTest(unittest.TestCase):
     def test_one_export_placeholder(self):
         self.assertEqual(self.html.count("/*__EXPORT__*/"), 1)
 
+    def test_site_head(self):
+        head = '<title>GTFS-FR Monitor</title>\n<link rel="alternate" type="application/atom+xml" hreflang="fr" href="atom/fr/all.xml">\n'
+        page = webexport.apply_site_head(self.html, head)
+        self.assertIn(head, page)
+        self.assertNotIn("GTFS-JP Monitor</title>", page)
+        self.assertNotIn("googletagmanager", page)  # the analytics belong to this site's head only
+        self.assertEqual(page.count("/*__EXPORT__*/"), 1)
+        with self.assertRaises(ValueError):
+            webexport.apply_site_head(page, head)  # no markers left
+
     @unittest.skipUnless(shutil.which("node"), "node is not installed")
     def test_script_parses(self):
         # The page script is written by hand; a syntax error would leave the whole site blank.

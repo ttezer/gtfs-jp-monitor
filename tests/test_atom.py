@@ -72,6 +72,15 @@ class AtomTest(unittest.TestCase):
         self.assertEqual(content[:3], ["2: stop skipped · stop inserted", "3: new line · more trips", "1: trips moved to another line · first/last trip changed · retimed"])
         self.assertIn("Stops: stop added ×1 · stop removed ×1 · stop renamed ×1", content)
 
+    def test_another_site(self):
+        out = build_atom(self.feeds, self.files, "https://example.fr/m/", langs=["en"], titles={"en": "GTFS-FR Monitor · major changes"},
+                         author="GTFS-FR Monitor", tag="gtfs-fr-monitor")
+        self.assertEqual(sorted(out), ["atom/en/all.xml", f"atom/en/{self.org}/{self.feed}.xml"])
+        root = ET.fromstring(out["atom/en/all.xml"])
+        self.assertEqual((root.find("a:title", NS).text, root.find("a:author/a:name", NS).text),
+                         ("GTFS-FR Monitor · major changes", "GTFS-FR Monitor"))
+        self.assertIn(":gtfs-fr-monitor/", root.find("a:entry/a:id", NS).text)
+
     def test_deterministic(self):
         self.assertEqual(build_atom(self.feeds, self.files, "https://example.jp/m/"), self.out)
 

@@ -330,6 +330,18 @@ def field_shares(fields: dict) -> dict:
     return out
 
 
+SITE_HEAD = ("<!--site-head-->", "<!--/site-head-->")
+
+
+def apply_site_head(template: str, head: str) -> str:
+    """Replace the page's site-specific <head> block (title, description, feed links, analytics)
+    with another site's (data-model §10.4)."""
+    start, end = template.find(SITE_HEAD[0]), template.find(SITE_HEAD[1])
+    if start < 0 or end < start or template.count(SITE_HEAD[0]) != 1:
+        raise ValueError("template must mark its site head once with <!--site-head--> ... <!--/site-head-->")
+    return template[:start] + head + template[end + len(SITE_HEAD[1]):]
+
+
 def build_export(data_dir: Path, key: str, analyzer: Path | None = None,
                  next_key: str | None = None) -> tuple[dict, dict[str, dict]]:
     """(export for the page, report files to write next to it). `next_key` only adds the coverage of
