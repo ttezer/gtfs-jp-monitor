@@ -186,8 +186,9 @@ class CatalogSyncTest(unittest.TestCase):
                 return [feed_record()], []
 
             def get_generations(self, org_id, feed_id):
+                archive = "https://transport-data-gouv-fr-resource-history-prod.cellar-c2.services.clever-cloud.com/1/1.zip"
                 return FeedGenerations(org_id, feed_id, "CC BY 4.0", None, None,
-                                       tuple(replace(g, rid=None) for g in reversed(BASE_GENS)))
+                                       tuple(replace(g, rid=None, gtfs_url=archive) for g in reversed(BASE_GENS)))
 
         result = self.sync(PlainSource())
         self.assertEqual([w["code"] for w in result.warnings], [])

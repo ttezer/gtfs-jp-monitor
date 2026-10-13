@@ -19,7 +19,7 @@
           "feed_id": { "$ref": "generation.schema.json#/$defs/path_id" },
           "uid": { "$ref": "generation.schema.json#/$defs/uid" },
           "rid_observed": { "type": ["string", "null"], "pattern": "^(current|prev_[0-9]+|next_[0-9]+)$", "description": "null when the generation is no longer returned by the API." },
-          "gtfs_url": { "type": "string", "pattern": "^https://api\\.gtfs-data\\.jp/" },
+          "gtfs_url": { "type": "string", "pattern": "^https://(api\\.gtfs-data\\.jp|transport-data-gouv-fr-resource-history-prod\\.cellar-c2\\.services\\.clever-cloud\\.com)/", "description": "Download URL on the source's host: the gtfs-data.jp API, or transport.data.gouv.fr's archive of resource files." },
           "from_date": { "type": ["string", "null"] },
           "to_date": { "type": ["string", "null"] },
           "published_at": { "type": ["string", "null"] },
