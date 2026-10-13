@@ -302,7 +302,9 @@ The same page and feeds serve another source's site (the French monitor builds o
   `regions` (`feed_pref_id` → name), `tiles` (`url` with `{z}/{x}/{y}`, `label`, `link`),
   `tabs`, `hide` (feed history columns to leave out: `rid`, `jpFiles`, `memo`), and `text`
   (`{lang: {key: text}}`, replacing the page's texts of that language; `"{0}"`, `"{1}"` stand for
-  the arguments of the page's own text).
+  the arguments of the page's own text), `links` (`[{label, url}]`, shown in the footer),
+  `feed_links` (URL templates with `{org_id}` and `{feed_id}`) and `feed_extra`
+  (`{"org/feed": [{label, url}]}`), shown in the feed panel and the report; only https URLs are shown.
 - `head` replaces the page's site block between `<!--site-head-->` and `<!--/site-head-->`
   (title, description, feed links, analytics), so another site never sends this site's page views.
 - `atom` sets `langs`, `titles`, `author` and `tag` (part of entry ids) of the Atom feeds.

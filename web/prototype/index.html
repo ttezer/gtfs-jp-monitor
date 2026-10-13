@@ -191,6 +191,8 @@ table.mini td.r, table.mini th.r { text-align: right; font-family: var(--mono); 
 .section { background: var(--surface); border: 1px solid var(--hair); border-radius: var(--r); padding: 16px; margin-top: 14px; }
 .section p { max-width: 70ch; margin: 0 0 8px; }
 footer { margin-top: 24px; color: var(--faint); font-size: 12px; }
+footer p { margin: 4px 0; }
+.sitelinks { color: var(--muted); }
 .rp { display: grid; gap: 16px; }
 .rp > *, .rp .lb > *, .rp .lines > *, .rp details { min-width: 0; }
 .rp h2 { margin: 0; font-size: 20px; }
@@ -327,6 +329,15 @@ const SITE = DATA.site || {};
 const LANGS = SITE.langs || ["tr", "en", "ja"], LOCALE = SITE.locale || "ja", TIME_ZONE = SITE.time_zone || "Asia/Tokyo";
 // Feed history columns; a source without gtfs-data.jp positions, JP files or notes hides them (site.hide).
 const HIST_COLS = ["period", "published", "status", "publish", "overall", "rid", "jpFiles", "memo"].filter(c => !(SITE.hide || []).includes(c));
+// Links from the site profile (data-model §10.4); only https addresses are shown.
+const safeLink = l => l && typeof l.url === "string" && l.url.startsWith("https://") && typeof l.label === "string";
+const linkHtml = l => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)} ↗</a>`;
+const feedLinks = f => {
+  if (!f) return "";
+  const fill = u => u.replace("{org_id}", encodeURIComponent(f.org_id)).replace("{feed_id}", encodeURIComponent(f.feed_id));
+  const own = (SITE.feed_links || []).map(l => ({ label: l.label, url: typeof l.url === "string" ? fill(l.url) : "" }));
+  return [...own, ...((SITE.feed_extra || {})[`${f.org_id}/${f.feed_id}`] || [])].filter(safeLink).map(linkHtml).join(" · ");
+};
 const TILES = SITE.tiles || { url: "https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png", label: "地理院タイル", link: "https://maps.gsi.go.jp/development/ichiran.html" };
 // The export keeps only rule counts per publication (rule_meta holds severity and class); expand
 // them back to [count, severity, class] once, so the rest of the page reads them as before.
@@ -385,7 +396,7 @@ const T = {
     dataUpdated: "±0 skor · veri güncellendi", validity: "Geçerlilik",
     organization: "Kurum", feedPick: "Feed", showDisc: "Kapanan feed'leri göster", discChip: d => `Kapandı: ${d}`, orgCount: (n, a) => `${n} feed · ${a} aktif`, scopeNote: (dr, list) => `Kapsam değişikliği olası: hat sayısı ${dr} değişti ve kurumun şu feed'leri bu dönemde kapandı: ${list}. Hatlar feed'ler arasında taşınmış olabilir; bu bir tahmindir.`,
     compare: "Karşılaştır", compareHint: "Tablodaki eski bir yayına tıklayınca o yayın Güncel ile, Güncel'e tıklayınca bir öncekiyle, bir Δ hücresine tıklayınca iki komşu yayın karşılaştırılır. Aşağıdan herhangi iki yayını da seçebilirsiniz.", clickGen: "Bu yayını Güncel ile karşılaştır", clickCurrent: "Güncel'i bir önceki yayınla karşılaştır", clickDelta: "Bu iki yayını karşılaştır",
-    license: "Lisans", org: "Kurum"
+    license: "Lisans", org: "Kurum", openFeed: "Feed'e git", links: "Bağlantılar"
   },
   en: {
     tagline: "Feed quality, publication readiness and change history",
@@ -435,7 +446,7 @@ const T = {
     dataUpdated: "±0 score · data updated", validity: "Validity",
     organization: "Organisation", feedPick: "Feed", showDisc: "Show discontinued feeds", discChip: d => `Discontinued: ${d}`, orgCount: (n, a) => `${n} feeds · ${a} active`, scopeNote: (dr, list) => `Possible change of scope: the route count changed by ${dr} and these feeds of the same organisation ended in this period: ${list}. Routes may have moved between feeds; this is an estimate.`,
     compare: "Compare", compareHint: "Click an older publication in the table to compare it with the current one, click Current to compare it with the one before, or click a Δ cell to compare two neighbours. You can also pick any two below.", clickGen: "Compare this publication with the current one", clickCurrent: "Compare the current publication with the previous one", clickDelta: "Compare these two publications",
-    license: "License", org: "Organisation"
+    license: "License", org: "Organisation", openFeed: "Open feed", links: "Links"
   },
   fr: {
     tagline: "Qualité des flux, préparation à la publication et historique des changements",
@@ -485,7 +496,7 @@ const T = {
     dataUpdated: "±0 score · données mises à jour", validity: "Validité",
     organization: "Organisation", feedPick: "Flux", showDisc: "Afficher les flux arrêtés", discChip: d => `Arrêté : ${d}`, orgCount: (n, a) => `${n} flux · ${a} actifs`, scopeNote: (dr, list) => `Changement de périmètre possible : le nombre de lignes a varié de ${dr} et ces flux de la même organisation ont pris fin sur cette période : ${list}. Des lignes ont pu passer d'un flux à l'autre ; il s'agit d'une estimation.`,
     compare: "Comparer", compareHint: "Cliquez sur une publication plus ancienne du tableau pour la comparer à l'actuelle, sur Actuelle pour la comparer à la précédente, ou sur une cellule Δ pour comparer deux voisines. Vous pouvez aussi en choisir deux ci-dessous.", clickGen: "Comparer cette publication à l'actuelle", clickCurrent: "Comparer la publication actuelle à la précédente", clickDelta: "Comparer ces deux publications",
-    license: "Licence", org: "Organisation"
+    license: "Licence", org: "Organisation", openFeed: "Voir le flux", links: "Liens"
   },
   ja: {
     tagline: "フィードの品質・公開準備・変更履歴",
@@ -535,7 +546,7 @@ const T = {
     dataUpdated: "±0 スコア・データ更新", validity: "有効期間",
     organization: "事業者", feedPick: "フィード", showDisc: "終了したフィードを表示", discChip: d => `終了: ${d}`, orgCount: (n, a) => `${n}フィード・${a}件有効`, scopeNote: (dr, list) => `対象範囲の変更の可能性：路線数が${dr}変化し、同じ事業者の次のフィードがこの期間に終了しています：${list}。路線がフィード間で移った可能性があります（推定）。`,
     compare: "比較", compareHint: "表の過去の公開をクリックすると現行と、現行をクリックするとその1つ前と、Δセルをクリックすると隣り合う2つを比較します。下で任意の2つを選ぶこともできます。", clickGen: "この公開を現行と比較", clickCurrent: "現行を1つ前の公開と比較", clickDelta: "この2つの公開を比較",
-    license: "ライセンス", org: "事業者"
+    license: "ライセンス", org: "事業者", openFeed: "フィードを表示", links: "リンク"
   }
 };
 
@@ -1615,7 +1626,7 @@ function renderReport() {
     <p class="hint">${esc(rt("engine", h.engine.version, h.engine.holidays_version))}</p>`;
   box.innerHTML = `<div class="rp">
     <details><summary class="hint">${esc(rt("others"))}</summary>${reportList(false)}</details>
-    <div><h2>${esc(rt("title"))} · ${esc(f ? f.name : h.feed.feed_id)}</h2><p class="hint">${esc(f ? f.organization_name : "")} · <span class="num">${esc(h.feed.org_id)}/${esc(h.feed.feed_id)}</span></p>
+    <div><h2>${esc(rt("title"))} · ${esc(f ? f.name : h.feed.feed_id)}</h2><p class="hint">${esc(f ? f.organization_name : "")} · <span class="num">${esc(h.feed.org_id)}/${esc(h.feed.feed_id)}</span>${f ? ` · <button type="button" class="linkbtn" data-openfeed="${esc(key(f))}">${esc(t("openFeed"))} →</button>` : ""}${feedLinks(f) ? ` · ${feedLinks(f)}` : ""}</p>
       ${backwards ? `<p class="hint">${esc(rt("backward"))}</p>` : ""}
       ${skip.n ? `<p class="fmt">${esc(rt("skipped", skip.n, skip.fatal))}</p>` : ""}
       ${classLine(entry.classification, true)}
@@ -1645,6 +1656,9 @@ function renderReport() {
     <div><h3>5. ${esc(rt("sOther"))}</h3>${otherRows ? `<div style="display:grid;gap:8px">${otherRows}</div>` : `<p class="hint">${esc(rt("noOther"))}</p>`}</div>`}
   </div>`;
   box.querySelectorAll("button[data-rview]").forEach(b => b.addEventListener("click", () => { state.rview = b.dataset.rview; renderReport(); }));
+  box.querySelectorAll("button[data-openfeed]").forEach(b => b.addEventListener("click", () => {
+    state.selected = b.dataset.openfeed; state.tab = "overview"; renderAll(); window.scrollTo(0, 0);
+  }));
   if (state.rview === "verify") return;
   box.querySelectorAll("details.line").forEach(el => bindLine(rep, el));
   initNetworkMap(rep);
@@ -1945,7 +1959,7 @@ function renderPanel() {
       <div><h3>6. ${esc(t("s6"))}</h3>${fieldsBlock(a, b)}</div>`;
   }
   panel.innerHTML = `<div class="ph"><h2>${esc(f.name)}</h2>
-      <div class="meta"><span>${esc(f.organization_name)}</span><span>${esc(prefName(f.pref_id))}</span><span>${esc(t("license"))}: ${esc(f.license)}</span></div>
+      <div class="meta"><span>${esc(f.organization_name)}</span><span>${esc(prefName(f.pref_id))}</span><span>${esc(t("license"))}: ${esc(f.license)}</span>${feedLinks(f) ? `<span>${feedLinks(f)}</span>` : ""}</div>
       <div class="meta"><span>${esc(t("lastPub"))}: <span class="num">${esc((f.generations[f.generations.length - 1].published_at || "").slice(0, 16).replace("T", " "))}</span> JST</span>${
         atomFeeds().has(key(f)) ? `<a href="atom/${state.lang}/${esc(key(f))}.xml" title="${esc(t("atomHint"))}">${esc(t("atomFeed"))}</a>` : ""}</div>
       ${cur.scores ? `<span class="state ${cur.publishable ? "ok" : "no"}">${cur.publishable ? "●" : "○"} ${esc(cur.publishable ? t("ready") : t("notReady"))}</span>` : ""}
@@ -1957,8 +1971,9 @@ function renderPanel() {
       <div class="field"><label for="new-pick">${esc(t("pickNew"))}</label><select id="new-pick">${options(state.newIdx, state.oldIdx)}</select></div>
     </div>` : ""}${body}`;
   if (usable.length > 1) {
-    $("old-pick").addEventListener("change", e => { state.oldIdx = +e.target.value; renderPanel(); renderReport(); });
-    $("new-pick").addEventListener("change", e => { state.newIdx = +e.target.value; renderPanel(); renderReport(); });
+    // The grid marks the picked publications too, so both sides always show the same pair.
+    $("old-pick").addEventListener("change", e => { state.oldIdx = +e.target.value; renderGrid(); renderPanel(); renderReport(); writeLink(); });
+    $("new-pick").addEventListener("change", e => { state.newIdx = +e.target.value; renderGrid(); renderPanel(); renderReport(); writeLink(); });
   }
   const openBtn = $("open-report");
   if (openBtn) openBtn.addEventListener("click", () => { state.tab = "reports"; renderStatic(); renderReport(); window.scrollTo(0, 0); });
@@ -2095,7 +2110,7 @@ function renderStatic() {
   sortSel.value = sv;
   const profile = (DATA.analysis_key || "").split("__")[1] || "auto";
   $("gtfsjp").innerHTML = t("gtfsjpText", esc(profile));
-  $("footer").textContent = t("footer");
+  $("footer").innerHTML = `${(SITE.links || []).filter(safeLink).length ? `<p class="sitelinks">${esc(t("links"))}: ${(SITE.links || []).filter(safeLink).map(linkHtml).join(" · ")}</p>` : ""}<p>${esc(t("footer"))}</p>`;
   $("merge-note").textContent = state.merge ? t("mergeNote") : "";
 }
 
