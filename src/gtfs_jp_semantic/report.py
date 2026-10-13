@@ -9,7 +9,7 @@ from __future__ import annotations
 import collections
 import statistics
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from difflib import SequenceMatcher
 from pathlib import Path
 
@@ -205,7 +205,7 @@ def _spans(dates: list[date]) -> list[dict]:
 
 
 def _date_changes(old_cal, new_cal, typical: dict, type_of, trips_of, max_groups: int, max_trips: int,
-                  max_shift: int) -> tuple[list[dict], set[str], int]:
+                  max_shift: int, after: date | None = None) -> tuple[list[dict], set[str], int]:
     """Dates both publications cover whose change differs from the regular one (03-report.md §2).
 
     A trip is its line, place sequence and times, so a changed middle time counts. For each
@@ -213,6 +213,7 @@ def _date_changes(old_cal, new_cal, typical: dict, type_of, trips_of, max_groups
     base; typical: day type -> (old date, new date)), which the line blocks already show; only
     the remainder is reported, dates with the same remainder forming one group. Returns groups,
     the trip ids that ran on any shared date (either side), and the number of such dates.
+    after: only shared dates on or after it (see service.choose_comparison).
     trips_of(side, services) -> list[Trip] with line keys already mapped to report lines.
     """
     cache: dict = {}
@@ -250,7 +251,7 @@ def _date_changes(old_cal, new_cal, typical: dict, type_of, trips_of, max_groups
     groups: dict[tuple, dict] = {}
     seen: set[str] = set()
     differing = 0
-    for d in sorted(set(old_cal.days) & set(new_cal.days)):
+    for d in sorted(d for d in set(old_cal.days) & set(new_cal.days) if after is None or d >= after):
         (a, ta), (b, tb) = day("old", old_cal.days[d]), day("new", new_cal.days[d])
         seen.update(t.trip_id for t in ta + tb)
         rest = change(a, b)
@@ -463,7 +464,10 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
 
     old_cal = build_calendar(ot, holidays, config, (_date(old_pub["from_date"]), _date(old_pub.get("to_date"))))
     new_cal = build_calendar(nt, holidays, config, (_date(new_pub["from_date"]), _date(new_pub.get("to_date"))))
-    comparison = choose_comparison(old_cal, new_cal, config)
+    # Off by default (gtfs-data.jp publications look ahead); a source that republishes daily turns it on.
+    published = new_pub.get("published_at") if cfg.get("compare_from_publication", False) else None
+    after = datetime.fromisoformat(published).date() if published else None
+    comparison = choose_comparison(old_cal, new_cal, config, after)
 
     op, np_ = build_places(ot.get("stops.txt"), cfg), build_places(nt.get("stops.txt"), cfg)
     place_matches = match_places(op, np_, cfg)
@@ -543,7 +547,7 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
     typical = {dt: (c.old_date, c.new_date) for dt, c in comparison.day_types.items()}
     date_changes, ev.date_trips, differing_dates = _date_changes(
         old_cal, new_cal, typical, lambda d: comparison.day_type_of(new_cal.categories[d]), trips_of, config.report["date_changes_max"], config.report["date_change_trips_max"],
-        cfg["trip_max_shift_min"])
+        cfg["trip_max_shift_min"], after)
     for g in date_changes:
         for item in g["added"] + g["removed"]:
             places.use((item["from"], item["to"]))

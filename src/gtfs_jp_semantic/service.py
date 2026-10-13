@@ -349,8 +349,17 @@ def _typical(cal: ServiceCalendar, dt: str, dates: set[date] | None, latest: boo
     return first_seen[best], best
 
 
-def choose_comparison(old: ServiceCalendar, new: ServiceCalendar, config: Config) -> Comparison:
+def choose_comparison(old: ServiceCalendar, new: ServiceCalendar, config: Config, after: date | None = None) -> Comparison:
+    """`after`: compare only dates on or after it (the new publication's date) where a side has any.
+    Feeds that are republished often keep their past days, possibly rewritten; those days are no
+    change a rider can still meet."""
+    def ahead(cal: ServiceCalendar) -> set[date] | None:
+        future = {d for d in cal.days if d >= after} if after else set()
+        return future or None
+
     overlap = set(old.days) & set(new.days)
+    if after:
+        overlap = {d for d in overlap if d >= after}
     choices: dict[str, DayChoice] = {}
     common = common_day_types(old, new)
     if len(overlap) >= config.min_overlap_days:
@@ -361,8 +370,9 @@ def choose_comparison(old: ServiceCalendar, new: ServiceCalendar, config: Config
         return Comparison("same_days", choices)
     # Each side's dominant timetable: short periods (school holidays, a bundled previous timetable)
     # must not stand in for the regular one.
+    old_dates, new_dates = ahead(old), ahead(new)
     for dt in common:
-        od, os_ = _typical(old, dt, None, latest=True)
-        nd, ns = _typical(new, dt, None)
+        od, os_ = _typical(old, dt, old_dates, latest=True)
+        nd, ns = _typical(new, dt, new_dates)
         choices[dt] = DayChoice(od, nd, os_, ns)
     return Comparison("successive_periods", choices)

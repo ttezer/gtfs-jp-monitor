@@ -158,6 +158,34 @@ class ComparisonTest(unittest.TestCase):
         self.assertEqual(wk.old_date, wk.new_date)
         self.assertEqual(len([p for p in old.periods if p.day_type == WEEKDAYS + ",hol"]), 2)  # both periods are known
 
+    def test_after_skips_past_days(self):
+        # A daily republished feed: same window, past days rewritten (P), days ahead unchanged (W).
+        old = build_calendar(feed(self.dir, "o.zip", "W,1,1,1,1,1,0,0,20260601,20260630\n"), HOL, CONFIG)
+        new = build_calendar(feed(self.dir, "n.zip", "P,1,1,1,1,1,0,0,20260601,20260612\nW,1,1,1,1,1,0,0,20260615,20260630\n"),
+                             HOL, CONFIG)
+        before = choose_comparison(old, new, CONFIG).day_types[WEEKDAYS]
+        self.assertEqual(before.old_date, date(2026, 6, 1))  # a day already gone
+        cmp = choose_comparison(old, new, CONFIG, after=date(2026, 6, 15))
+        wk = cmp.day_types[WEEKDAYS]
+        self.assertEqual(cmp.mode, "same_days")
+        self.assertEqual((wk.old_date, wk.new_date), (date(2026, 6, 15), date(2026, 6, 15)))
+        self.assertEqual((wk.old_services, wk.new_services), (frozenset({"W"}), frozenset({"W"})))
+
+    def test_after_on_a_short_window(self):
+        # Fewer common days ahead than min_overlap_days: successive periods, each side from its days ahead.
+        old = build_calendar(feed(self.dir, "o.zip", "W,1,1,1,1,1,0,0,20261006,20261018\n"), HOL, CONFIG)
+        new = build_calendar(feed(self.dir, "n.zip", "W,1,1,1,1,1,0,0,20261006,20261018\n"), HOL, CONFIG)
+        cmp = choose_comparison(old, new, CONFIG, after=date(2026, 10, 13))
+        wk = cmp.day_types[cmp.day_type_of("tue")]
+        self.assertEqual(cmp.mode, "successive_periods")
+        self.assertGreaterEqual(min(wk.old_date, wk.new_date), date(2026, 10, 13))
+
+    def test_after_falls_back_when_a_side_has_no_days_ahead(self):
+        old = build_calendar(feed(self.dir, "o.zip", "A,1,1,1,1,1,1,0,20250401,20260331\n"), HOL, CONFIG)
+        new = build_calendar(feed(self.dir, "n.zip", "B,1,1,1,1,1,0,1,20260401,20270331\n"), HOL, CONFIG)
+        wk = choose_comparison(old, new, CONFIG, after=date(2026, 4, 1)).day_types[WEEKDAYS + ",hol"]
+        self.assertEqual((wk.old_date, wk.new_date), (date(2026, 3, 31), date(2026, 4, 1)))  # as without `after`
+
 
 if __name__ == "__main__":
     unittest.main()

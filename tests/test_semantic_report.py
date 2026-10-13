@@ -240,6 +240,17 @@ class DateChangesTest(unittest.TestCase):
         (g,) = groups
         self.assertEqual((g["changed"], g["removed_count"]), ([{"line": "1", "departure": 405, "old_departure": 400}], 1))
 
+    def test_dates_before_after_are_skipped(self):
+        from datetime import date
+        from types import SimpleNamespace
+        past, ahead = date(2026, 5, 15), date(2026, 5, 22)
+        cal = lambda: SimpleNamespace(days={past: frozenset({"A"}), ahead: frozenset({"A"})}, categories={past: "fri", ahead: "fri"})
+        old_day = {d: [Trip("x", "1", "0", ("P", "R"), (400, 410))] for d in (past, ahead)}
+        trips = {("old", frozenset({"A"})): old_day[past], ("new", frozenset({"A"})): [Trip("x", "1", "0", ("P", "R"), (402, 412))]}
+        args = ({}, lambda d: "fri", lambda side, s: trips[(side, s)], 10, 10, 45)
+        self.assertEqual(_date_changes(cal(), cal(), *args)[2], 2)
+        self.assertEqual(_date_changes(cal(), cal(), *args, after=ahead)[2], 1)
+
 
 class RenumberingTest(unittest.TestCase):
     def test_counts_identifiers_changed_without_service_change(self):

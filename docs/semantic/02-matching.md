@@ -63,6 +63,12 @@ Planners ask two kinds of questions, answered by two modes chosen automatically:
    not used: pilot data showed weekday periods split by school terms, where the last and first
    periods are school-holiday timetables rather than the regular one.
 
+**Dates ahead only (`compare_from_publication`, off by default).** Some sources republish a feed
+every day with the same window and keep, sometimes rewrite, the days already gone. With the
+option on, both modes and the date-specific changes (03-report.md §2) use only dates on or after
+the new publication's `published_at` date; a side without such dates falls back to all its dates.
+gtfs-data.jp publications look ahead, so the option stays off there.
+
 A **period** is a maximal date range over which a day type's typical service set does not change.
 A publication that bundles two timetables (before and after a change) therefore has two periods;
 they are listed in the report. A short bundled "before" timetable is not dominant, so it is never
@@ -181,6 +187,7 @@ A paired trip is `retimed` when times differ, `rerouted` when the pattern differ
 |---|---|
 | `special_max_days` | service sets on fewer dates than this count as special days |
 | `min_overlap_days` | shared valid dates needed for the "same days" mode |
+| `compare_from_publication` | compare only dates on or after the new publication date (§2; absent: off) |
 | `stop_same_id_max_m`, `stop_name_radius_m`, `stop_near_radius_m` | stop matching distances |
 | `stop_name_min_similarity` | minimum name similarity for proximity matches |
 | `stop_group_radius_m` | stops without parent and with equal names within this distance form one place (absent: off; 200 m by default since engine 0.7.0) |
