@@ -717,6 +717,7 @@ def build_report_from_feeds(old_feed: Feed, new_feed: Feed, *, feed: dict, old_p
         relation = g.match.relation
         status = ("changed" if changed else "unchanged") if relation == "same" else relation
         facts.lines.append((g.key, status, tuple(r for l in g.old for r in l.route_ids), tuple(r for l in g.new for r in l.route_ids),
+                            g.match.relation, g.match.confidence,
                             {t.trip_id for d in by_dir.values() for a, b, _ in d.values() for t in a + b}))
         if status != "unchanged":
             ev.changed_routes.update(r for l in g.old + g.new for r in l.route_ids)

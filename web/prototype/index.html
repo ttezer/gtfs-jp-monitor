@@ -853,6 +853,13 @@ const R = {
   },
 };
 const rt = (k, ...a) => { const v = R[state.lang][k]; return typeof v === "function" ? v(...a) : v; };
+const RL = {
+  tr: { title: "Rota kimliği sürekliliği", old: "Eski route_id", newer: "Yeni route_id", canonical: "Canonical rota", relation: "İlişki", confidence: "Güven" },
+  en: { title: "Route identifier continuity", old: "Old route_id", newer: "New route_id", canonical: "Canonical route", relation: "Relation", confidence: "Confidence" },
+  fr: { title: "Continuité de l’identifiant de ligne", old: "Ancien route_id", newer: "Nouveau route_id", canonical: "Ligne canonique", relation: "Relation", confidence: "Confiance" },
+  ja: { title: "route_id の継続性", old: "旧 route_id", newer: "新 route_id", canonical: "標準路線 ID", relation: "関係", confidence: "信頼度" },
+};
+const rlt = k => (RL[state.lang] || RL.en)[k];
 // Day types are groups of calendar categories found from each feed ("mon,tue,wed,thu,fri", "sun,hol").
 const CATS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun", "hol"];
 const LEGACY_DT = { weekday: "mon,tue,wed,thu,fri", saturday: "sat", sunday_holiday: "sun,hol" };  // reports before engine 0.5.0
@@ -1572,6 +1579,16 @@ function renderReport() {
   const tripCard = dayTypes(s.trips_by_day_type).map(d => { const x = s.trips_by_day_type[d]; const dv = x.after - x.before; return `${esc(dtLabel(d))}: <span class="num">${x.before} → ${x.after}</span> <span class="${dv > 0 ? "up" : dv < 0 ? "down" : "flat"} num">${signed(dv)}</span>`; }).join("<br>");
   const q = s.quality ? ["publish", "overall"].map(k => `${esc(t(k))}: <span class="num">${fmt1(s.quality[k].before)} → ${fmt1(s.quality[k].after)}</span>`).join("<br>") : "—";
   const changed = rep.lines.filter(l => l.status !== "unchanged"), same = rep.lines.filter(l => l.status === "unchanged");
+  const lineage = (DATA.route_lineage || {})[`${h.feed.org_id}/${h.feed.feed_id}`];
+  const occurrence = new Map((lineage && lineage.routes || []).map(x => [`${x.publication_uid}|${x.source_route_id}`, x.canonical_route_id]));
+  const routeLineageRows = ((rep.mappings && rep.mappings.routes) || []).map(x => {
+    const oldId = (x.old || []).join(", "), newId = (x.new || []).join(", ");
+    const canonical = occurrence.get(`${h.new.uid}|${(x.new || [])[0]}`) || occurrence.get(`${h.old.uid}|${(x.old || [])[0]}`) || "—";
+    const confidenceValue = Number(x.confidence);
+    const confidence = Number.isFinite(confidenceValue) ? `${(confidenceValue * 100).toFixed(1)}%` : "—";
+    return `<tr><td class="dval">${esc(oldId)}</td><td class="dval">${esc(newId)}</td><td class="dval">${esc(canonical)}</td><td>${esc(x.relation || "same")}</td><td class="r">${confidence}</td></tr>`;
+  }).join("");
+  const routeLineageBlock = routeLineageRows ? `<div><h3>${esc(rlt("title"))}</h3><div class="scroll" style="border:0"><table class="mini"><thead><tr><th>${esc(rlt("old"))}</th><th>${esc(rlt("newer"))}</th><th>${esc(rlt("canonical"))}</th><th>${esc(rlt("relation"))}</th><th class="r">${esc(rlt("confidence"))}</th></tr></thead><tbody>${routeLineageRows}</tbody></table></div></div>` : "";
   const irr = sd.irregular;
   const irregularTable = irr ? (irr.old.length || irr.new.length ? `<h3>${esc(rt("irrTitle"))}</h3><div class="scroll" style="border:0"><table class="mini"><thead><tr>${rt("irrCols").map((c, i) => `<th${i >= 3 && i <= 4 ? ' class="r"' : ""}>${esc(c)}</th>`).join("")}</tr></thead><tbody>${
     [["old", irr.old], ["new", irr.new]].flatMap(([side, xs]) => xs.map(x => `<tr><td>${esc(rt(side))}</td><td>${esc(x.service_id)}</td><td class="num">${x.dates.map(d => esc(d.start === d.end ? d.start : `${d.start} – ${d.end.slice(5)}`)).join("<br>")}</td><td class="r">${x.date_count}</td><td class="r">${x.trips}</td><td>${esc(rt("irrMode")[x.mode])}</td></tr>`)).join("")
@@ -1643,6 +1660,7 @@ function renderReport() {
       <div class="card"><div class="k">${esc(rt("firstLast"))}</div><div class="hint">${esc(rt("firstLastN", s.first_last_changed))}</div></div>
       <div class="card"><div class="k">${esc(rt("fares"))}</div><div class="hint">${esc(rt("faresTxt", s.fares))}</div></div>
       <div class="card"><div class="k">${esc(rt("quality"))}</div><div>${q}</div></div></div></div>
+    ${routeLineageBlock}
     <div><h3>2. ${esc(rt("sService"))} <small>${esc(rt("mode")[h.comparison.mode])}</small></h3>
       <div class="scroll" style="border:0"><table class="mini"><thead><tr><th></th><th>${esc(rt("compared"))} · ${esc(rt("old"))}</th><th>${esc(rt("compared"))} · ${esc(rt("new"))}</th><th class="r">${esc(rt("activeDays"))} · ${esc(t("before"))}</th><th class="r">${esc(t("after"))}</th></tr></thead><tbody>${dayRows}</tbody></table></div>
       ${irregularTable}

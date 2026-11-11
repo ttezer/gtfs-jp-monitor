@@ -147,7 +147,10 @@ event without evidence comes from the choice of compared days alone (no row chan
 
 **Mappings** list the ids that changed between the publications, old → new: the stops of matched
 places, the routes of matched lines and paired trips (exact or not, and trips moved to another
-line). An id not listed kept its value, or belongs to an added or removed place, line or trip.
+line). Route mappings also carry the line matching `relation` (`same`, `renamed`, `merged`,
+`split` or `restructured`) and its matching `confidence`; these describe the existing semantic
+matcher’s evidence and do not turn a low-confidence match into an automatic identity claim. An id
+not listed kept its value, or belongs to an added or removed place, line or trip.
 
 ## Storage
 

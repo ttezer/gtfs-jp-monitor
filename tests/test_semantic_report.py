@@ -274,6 +274,8 @@ class RenumberingTest(unittest.TestCase):
         self.assertNotIn("renumbered", off["summary"])  # only with report.renumbering
         self.assertEqual(on["summary"]["renumbered"], {"stops": 1, "lines": 1, "trips": 1})
         self.assertEqual(on["summary"]["lines"]["unchanged"], 2)  # nothing else changed
+        self.assertEqual(on["mappings"]["routes"], [{"line": "2", "old": ["R2"], "new": ["R2b"],
+                                                       "relation": "same", "confidence": 1.0}])
         self.assertEqual(check_report(on), [])
         if HAVE_JSONSCHEMA:
             self.assertEqual(errors(validator("semantic-report.schema.json"), on), [])

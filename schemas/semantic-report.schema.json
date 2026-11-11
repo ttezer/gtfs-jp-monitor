@@ -585,7 +585,7 @@
         "stops": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["old", "new"],
           "properties": { "old": { "type": "array", "items": { "type": "string" }, "minItems": 1 }, "new": { "type": "array", "items": { "type": "string" }, "minItems": 1 } } } },
         "routes": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["line", "old", "new"],
-          "properties": { "line": { "$ref": "#/$defs/line_ref" }, "old": { "type": "array", "items": { "type": "string" }, "minItems": 1 }, "new": { "type": "array", "items": { "type": "string" }, "minItems": 1 } } } },
+          "properties": { "line": { "$ref": "#/$defs/line_ref" }, "old": { "type": "array", "items": { "type": "string" }, "minItems": 1 }, "new": { "type": "array", "items": { "type": "string" }, "minItems": 1 }, "relation": { "enum": ["same", "renamed", "merged", "split", "restructured"] }, "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 } } } },
         "trips": { "type": "array", "items": { "type": "array", "prefixItems": [{ "type": "string" }, { "type": "string" }], "minItems": 2, "maxItems": 2 } }
       }
     },

@@ -33,7 +33,8 @@ class Facts:
     """What the report builder found, by source ids. Refs of places are report place indexes."""
 
     places: list[tuple[int, str, tuple[str, ...], tuple[str, ...]]] = field(default_factory=list)
-    lines: list[tuple[str, str, tuple[str, ...], tuple[str, ...], set[str]]] = field(default_factory=list)
+    lines: list[tuple[str, str, tuple[str, ...], tuple[str, ...], str, float | None, set[str]]] = field(default_factory=list)
+    # (line, status, old route ids, new route ids, matching relation, confidence, trips)
     # (line, direction, edit kind, place indexes, trips showing it or None, trip ids)
     edits: list[tuple[str, str, str, list[int], int | None, set[str]]] = field(default_factory=list)
     # (line, day type, trips before, trips after, trip ids not paired, their service ids)
@@ -104,7 +105,7 @@ def build_events(facts: Facts, raw: dict) -> list[dict]:
     for ref, status, old_members, new_members in facts.places:
         for kind in PLACE_EVENTS.get(status, ()):
             events.append({"type": kind, "place": ref, "evidence": ev(("stops.txt",), {*old_members, *new_members})})
-    for key, status, old_routes, new_routes, trips in facts.lines:
+    for key, status, old_routes, new_routes, relation, confidence, trips in facts.lines:
         kind = LINE_EVENTS.get(status)
         if kind is None:
             continue
@@ -143,7 +144,9 @@ def build_mappings(facts: Facts) -> dict:
     routes) and paired trips. An id not listed kept its value, or is in an added or removed event."""
     stops = [{"old": list(o), "new": list(n)} for _, status, o, n in facts.places
              if o and n and set(o) != set(n)]
-    routes = [{"line": key, "old": list(o), "new": list(n)} for key, status, o, n, _ in facts.lines
+    routes = [{"line": key, "old": list(o), "new": list(n), "relation": relation,
+               "confidence": confidence}
+              for key, status, o, n, relation, confidence, _ in facts.lines
               if o and n and set(o) != set(n)]
     trips = [[o, n] for o, n in sorted(facts.trip_ids) if o != n]
     return {"stops": sorted(stops, key=lambda m: (m["old"], m["new"])), "routes": sorted(routes, key=lambda m: m["line"]),

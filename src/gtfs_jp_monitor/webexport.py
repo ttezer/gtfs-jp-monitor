@@ -22,6 +22,7 @@ from .catalog import load_catalog
 from .classify import EQUIVALENT, MEANINGFUL, TECHNICAL, classify_report, load_rules
 from .ids import feed_dir
 from .impact import assess
+from .lineage import build_route_lineage
 from .metrics import build_metrics
 from .ordering import GenerationRef, order_generations
 from .store import content_digest, generation_path, list_analyses, load_content, load_feed_index, summary_digest
@@ -68,8 +69,14 @@ def _version(name: str) -> tuple[int, ...] | None:
     return tuple(int(p) for p in parts) if len(parts) == 3 and all(p.isdigit() for p in parts) else None
 
 
+class ReportFiles(dict):
+    def __init__(self, *args, route_lineage: dict[str, dict] | None = None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.route_lineage = route_lineage or {}
+
+
 def report_files(root: Path, feeds: list[dict], engine_version: str,
-                 wanted: dict[tuple[str, str], set[str]] | None = None) -> tuple[dict[str, dict], dict[str, dict]]:
+                 wanted: dict[tuple[str, str], set[str]] | None = None) -> tuple[dict[str, dict], ReportFiles]:
     """Semantic reports of exported feeds: a small index for the page and one file per report,
     {"<org_id>/<feed_id>/<old_uid>__<new_uid>": report}, loaded on demand.
 
@@ -80,6 +87,7 @@ def report_files(root: Path, feeds: list[dict], engine_version: str,
     the data repository but leave the site (data-model §11)."""
     index: dict[str, dict] = {}
     files: dict[str, dict] = {}
+    lineage_reports: dict[str, list[dict]] = {}
     limit = _version(engine_version)
     rules = load_rules()
     for f in feeds:
@@ -97,6 +105,12 @@ def report_files(root: Path, feeds: list[dict], engine_version: str,
             doc = json.loads(gzip.decompress(path.read_bytes()).decode("utf-8"))
             h = doc["header"]
             pair = f"{h['old']['uid']}__{h['new']['uid']}"
+            feed_key = f"{f['org_id']}/{f['feed_id']}"
+            lineage_reports.setdefault(feed_key, []).append({
+                "header": {"feed": h["feed"], "old": h["old"], "new": h["new"]},
+                "lines": [{"old": line.get("old"), "new": line.get("new")} for line in doc.get("lines", ())],
+                "mappings": {"routes": (doc.get("mappings") or {}).get("routes", [])},
+            })
             impact = assess(doc, rules)
             if impact is not None:
                 doc["impact"] = impact  # site copy only; the stored report is unchanged
@@ -106,7 +120,10 @@ def report_files(root: Path, feeds: list[dict], engine_version: str,
                            "summary": doc["summary"], "coverage": h["coverage"],
                            "classification": classify_report(doc, rules),
                            **({"impact": impact["class"]} if impact else {})}
-    return index, files
+    lineage = {feed: build_route_lineage(sorted(docs, key=lambda d: (
+        d["header"]["old"].get("from_date") or "", d["header"]["old"]["uid"])))
+               for feed, docs in sorted(lineage_reports.items())}
+    return index, ReportFiles(files, route_lineage=lineage)
 
 
 PAIR_CODES = {MEANINGFUL: "M", TECHNICAL: "T", EQUIVALENT: "E"}
@@ -429,6 +446,7 @@ def build_export(data_dir: Path, key: str, analyzer: Path | None = None,
         "methods": dict(sorted(methods.items())),
         "engine_version": ENGINE_VERSION,
         "report_index": report_index,
+        "route_lineage": files.route_lineage,
         "status": build_status(root, key, next_key=next_key),
         "metrics": metrics,
         "fields": fields,
