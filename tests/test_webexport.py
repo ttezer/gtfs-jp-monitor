@@ -53,6 +53,23 @@ class WebExportTest(unittest.TestCase):
         self.assertGreater(status["storage"]["analyses_bytes"], 0)
         self.assertRegex(status["built_at"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
 
+    def test_falls_back_to_previous_analysis_during_upgrade(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            gens = [gen(2, "current", "2026-04-01"), gen(1, "prev_1", "2025-10-01")]
+            sync_catalog(FakeClient([feed_record()], {(ORG, FEED): gens}), root)
+            base = load_json(FIXTURES / "generation" / "complete.json")
+            old = copy.deepcopy(base)
+            old["generation"]["uid"] = uid(1)
+            write_json(generation_path(root, ORG, FEED, uid(1), "v0.15.0__auto"), old)
+            current = copy.deepcopy(base)
+            current["generation"]["uid"] = uid(2)
+            write_json(generation_path(root, ORG, FEED, uid(2), "v0.19.0__auto"), current)
+            export, _ = build_export(root, "v0.19.0__auto")
+        feed = export["feeds"][0]
+        self.assertEqual([g["uid"] for g in feed["generations"]], [uid(1), uid(2)])
+        self.assertEqual([g["analysis_key"] for g in feed["generations"]], ["v0.15.0__auto", "v0.19.0__auto"])
+
     def test_indexes_stored_reports_one_file_each(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
